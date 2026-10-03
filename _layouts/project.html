@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="{{ page.description | default: page.title | escape }}">
+    <meta name="theme-color" content="#ffffff">
+    <title>{{ page.title | escape }} — Katzaryna</title>
+    <link rel="stylesheet" href="{{ '/assets/css/styles.css' | relative_url }}">
+  </head>
+  <body>
+    <header class="page project-header">
+      <a href="{{ '/' | relative_url }}">Katzaryna</a>
+      <a class="back-link" href="{{ '/' | relative_url }}">← All work</a>
+    </header>
+    <main class="page project-page">
+      <h1 class="project-title">{{ page.title | escape }}</h1>
+      {% if content != "" %}<div class="project-description">{{ content }}</div>{% endif %}
+      <section class="works project-works" aria-label="{{ page.title | escape }} images">
+        {% for image in page.images %}
+        <figure>
+          <a class="lightbox-link" href="{{ page.url | append: image.file | relative_url }}">
+            <img src="{{ page.url | append: image.file | relative_url }}" alt="{{ image.alt | default: image.caption | default: page.title | escape }}" loading="lazy">
+          </a>
+          {% if image.caption %}<figcaption>{{ image.caption | escape }}</figcaption>{% endif %}
+        </figure>
+        {% endfor %}
+      </section>
+    </main>
+    <footer class="page site-footer">
+      <span>© 2026 Katzaryna</span>
+      <a href="mailto:katzaryna@gmail.com">Email</a>
+    </footer>
+    <aside class="consent" id="analytics-consent" aria-label="Analytics settings" hidden>
+      <p>This site uses Google Analytics to understand how visitors use it. You can choose whether to allow analytics.</p>
+      <button type="button" id="accept-analytics">Allow</button>
+      <button type="button" id="reject-analytics">Decline</button>
+    </aside>
+    <script src="{{ '/assets/js/analytics.js' | relative_url }}"></script>
+    <script src="{{ '/assets/js/lightbox.js' | relative_url }}"></script>
+  </body>
+</html>

@@ -1,47 +1,54 @@
+---
+---
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Selected paintings and contact information for artist Katzaryna.">
-    <meta name="theme-color" content="#f7f6f2">
+    <meta name="description" content="Paintings and projects by Katzaryna.">
+    <meta name="theme-color" content="#ffffff">
     <title>Katzaryna — Artist</title>
-    <link rel="stylesheet" href="assets/css/styles.css">
+    <link rel="stylesheet" href="{{ '/assets/css/styles.css' | relative_url }}">
   </head>
   <body>
-    <header class="page">
-      <a href="./">Katzaryna</a>
-      <span>Artist</span>
+    <header class="site-header page">
+      <img class="portrait" src="assets/images/avatar.png" alt="Illustrated artist portrait">
+      <div class="header-content">
+        <a class="wordmark" href="./">Katzaryna</a>
+        <nav class="social-nav" aria-label="Artist links">
+          <details class="nav-item bio-link">
+            <summary>BIO</summary>
+            <span>A collection of paintings and visual projects.</span>
+          </details>
+          <a class="nav-item email-link" href="mailto:katzaryna@gmail.com" target="_blank" rel="noopener noreferrer" aria-label="Email Katzaryna">
+            <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4 8h24v17H4zM5 9l11 9L27 9"/></svg>
+          </a>
+          <a class="nav-item linkedin-link" href="https://www.linkedin.com/in/katsiaryna-zarouskaya-9083a5105" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
+            <span aria-hidden="true">in</span>
+          </a>
+          <a class="nav-item instagram-link" href="http://instagram.com/kat.zaryna" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+            <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="5" y="5" width="22" height="22" rx="6"/><circle cx="16" cy="16" r="5"/><circle class="instagram-dot" cx="23" cy="9" r="1"/></svg>
+          </a>
+        </nav>
+      </div>
     </header>
 
     <main class="page">
-      <section aria-label="Selected paintings">
-        <div class="works">
-          <figure>
-            <a class="gallery-link" href="projects/landscapes/" aria-label="View the Landscapes project">
-              <img src="projects/landscapes/images/01.svg" alt="Abstract landscape in green and ochre">
-            </a>
-          </figure>
-          <figure>
-            <a class="gallery-link" href="projects/flowers/" aria-label="View the Flowers project">
-              <img src="projects/flowers/images/01.svg" alt="Flowers against a terracotta background">
-            </a>
-          </figure>
-          <figure>
-            <a class="gallery-link" href="projects/evening-sun/" aria-label="View the Evening Sun project">
-              <img src="projects/evening-sun/images/01.svg" alt="Sun above a calm sea">
-            </a>
-          </figure>
-        </div>
-      </section>
-
-      <section class="contact" id="contact" aria-labelledby="contact-title">
-        <h2 id="contact-title">Get in touch</h2>
-        <p>For commissions and enquiries:<br><a href="mailto:katzaryna@gmail.com">katzaryna@gmail.com</a></p>
+      <section class="gallery" id="gallery" aria-label="Selected paintings">
+        {% assign projects = site.pages | where_exp: "project", "project.layout == 'project'" | sort: "title" %}
+        {% for project in projects %}
+          {% for image in project.images %}
+        <figure>
+          <a class="gallery-link" href="{{ project.url | relative_url }}" aria-label="View {{ project.title | escape }} project">
+            <img src="{{ project.url | append: image.file | relative_url }}" alt="{{ image.alt | default: image.caption | default: project.title | escape }}" loading="lazy">
+          </a>
+        </figure>
+          {% endfor %}
+        {% endfor %}
       </section>
     </main>
 
-    <footer class="page">
+    <footer class="page site-footer">
       <span>© 2026 Katzaryna</span>
       <a href="mailto:katzaryna@gmail.com">Email</a>
     </footer>
@@ -52,6 +59,6 @@
       <button type="button" id="reject-analytics">Decline</button>
     </aside>
 
-    <script src="assets/js/analytics.js"></script>
+    <script src="{{ '/assets/js/analytics.js' | relative_url }}"></script>
   </body>
 </html>
