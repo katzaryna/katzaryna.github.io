@@ -8,6 +8,26 @@
 * { box-sizing: border-box; }
 body { margin: 0; }
 a { color: inherit; }
+@media (hover: hover) and (pointer: fine) {
+  body, body * { cursor: none !important; }
+}
+.brush-cursor {
+  position: fixed;
+  pointer-events: none;
+}
+.brush-cursor {
+  top: 0;
+  left: 0;
+  width: 42px;
+  height: 35.1px;
+  opacity: 0;
+  transition: opacity 100ms ease-out;
+}
+.brush-cursor.is-visible { opacity: 1; }
+.brush-cursor svg { display: block; width: 100%; height: 100%; overflow: visible; }
+@media (hover: hover) and (pointer: fine) {
+  .brush-cursor { z-index: 11; }
+}
 .page { width: min(1200px, calc(100% - 48px)); margin-inline: auto; }
 h2, p { margin-top: 0; }
 
