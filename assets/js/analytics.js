@@ -1,4 +1,4 @@
-const GA_MEASUREMENT_ID = "";
+const GA_MEASUREMENT_ID = "G-7S5P7ELFYF";
 const CONSENT_KEY = "artist-site-analytics-consent";
 const consentNotice = document.getElementById("analytics-consent");
 
