@@ -1,0 +1,51 @@
+:root {
+  color-scheme: light;
+  font-family: Arial, Helvetica, sans-serif;
+  color: #25251f;
+  background: #f7f6f2;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; }
+a { color: inherit; }
+.page { width: min(900px, calc(100% - 40px)); margin-inline: auto; }
+header, footer { display: flex; justify-content: space-between; gap: 20px; }
+header { padding-block: 24px; border-bottom: 1px solid #deddd7; }
+header a, footer a { text-decoration: none; }
+main { padding-block: 84px; }
+h2, p { margin-top: 0; }
+h2 { margin-bottom: 24px; font: 400 32px/1.1 Georgia, serif; letter-spacing: -.035em; }
+.works { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 76px; }
+.project-works { margin-bottom: 0; }
+figure { margin: 0; }
+.gallery-link { display: block; }
+.gallery-link:focus-visible { outline: 2px solid #25251f; outline-offset: 4px; }
+.works img { display: block; width: 100%; height: auto; }
+.project-title { margin-bottom: 32px; font: 400 clamp(36px, 7vw, 56px)/1.05 Georgia, serif; letter-spacing: -.045em; }
+.back-link { display: inline-block; margin-bottom: 24px; color: #66665f; font-size: 14px; text-decoration: none; }
+.back-link:hover { color: #25251f; }
+header .back-link { align-self: center; margin: 0; }
+.contact { padding-top: 26px; border-top: 1px solid #deddd7; }
+.contact p { color: #66665f; line-height: 1.6; }
+.contact a { text-underline-offset: 4px; }
+footer { padding-block: 20px; border-top: 1px solid #deddd7; color: #66665f; font-size: 12px; }
+.consent {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  width: min(360px, calc(100% - 32px));
+  padding: 18px;
+  background: #25251f;
+  color: white;
+  box-shadow: 0 8px 32px #0003;
+}
+.consent[hidden] { display: none; }
+.consent p { margin-bottom: 14px; font-size: 13px; line-height: 1.5; }
+.consent button { margin-right: 8px; padding: 8px 10px; border: 1px solid white; background: transparent; color: white; cursor: pointer; }
+.consent button:first-of-type { background: white; color: #25251f; }
+
+@media (max-width: 600px) {
+  main { padding-block: 60px; }
+  .works { grid-template-columns: 1fr; gap: 28px; margin-bottom: 58px; }
+  footer { flex-direction: column; gap: 8px; }
+}
