@@ -13,14 +13,14 @@ a { color: inherit; }
 h2, p { margin-top: 0; }
 
 .site-header {
-  --bio-popup-top: 220px;
   position: relative;
   display: grid;
-  grid-template-columns: 170px minmax(0, 1fr);
+  grid-template-columns: 153px minmax(0, 1fr);
   align-items: start;
-  gap: 30px;
+  gap: 24px;
   padding-block: 28px 42px;
 }
+.portrait-column { position: relative; min-width: 0; }
 .portrait-toggle { display: block; width: 100%; padding: 0; border: 0; background: none; }
 .portrait { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; }
 .header-content { min-width: 0; }
@@ -30,24 +30,38 @@ h2, p { margin-top: 0; }
   justify-content: center;
   min-height: 100px;
   padding: 6px 20px 14px;
-  overflow: hidden;
-  background: #858585;
-  color: #fff;
-  font: 400 clamp(44px, 7vw, 76px)/1 "Snell Roundhand", "Segoe Script", "Brush Script MT", cursive;
+  background: transparent;
+  color: #252525;
+  font: 400 calc(1.15 * clamp(44px, 7vw, 76px))/1 "Snell Roundhand", "Segoe Script", "Brush Script MT", cursive;
   letter-spacing: -.045em;
   text-decoration: none;
 }
+.site-header .wordmark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: max-content;
+  max-width: calc(100% - 300px);
+  min-height: 0;
+  padding: 0;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
 .social-nav {
+  position: fixed;
+  z-index: 10;
+  top: 16px;
+  right: max(14px, calc((100vw - 1200px) / 2));
   display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: 18px;
-  padding: 18px 2px 0;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
 }
 .nav-item {
   display: grid;
-  width: 64px;
-  height: 64px;
+  width: 38.4px;
+  height: 38.4px;
   place-items: center;
   border: 0;
   background: #858585;
@@ -56,6 +70,40 @@ h2, p { margin-top: 0; }
   cursor: pointer;
 }
 .nav-item:hover { background: #666; }
+.email-contact, .linkedin-link, .instagram-link {
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
+}
+.email-contact { order: 0; }
+.instagram-link { order: 1; }
+.linkedin-link { order: 2; }
+.email-contact:hover, .linkedin-link:hover, .instagram-link:hover {
+  background: #fff;
+  box-shadow: 0 3px 10px rgb(0 0 0 / 16%);
+}
+.bio-link {
+  border-radius: 10px;
+  background: #fff;
+  color: #66665f;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  left: calc(100% + 8px);
+  width: max-content;
+  height: 38.4px;
+  margin: 0;
+  padding: 0 12px;
+  font: 700 20px/1 "Snell Roundhand", "Segoe Script", "Brush Script MT", cursive;
+  text-align: center;
+}
+.bio-link.is-obscured { visibility: hidden; }
+.portrait-toggle.is-obscured { visibility: hidden; }
+.bio-link:hover {
+  background: #fff;
+  box-shadow: 0 3px 10px rgb(0 0 0 / 16%);
+}
 .portrait-toggle:focus-visible, .nav-item:focus-visible, .gallery-link:focus-visible, .project-header a:focus-visible {
   outline: 2px solid #222;
   outline-offset: 3px;
@@ -70,48 +118,79 @@ h2, p { margin-top: 0; }
   cursor: pointer;
 }
 .email-contact summary::-webkit-details-marker { display: none; }
-.email-contact summary:hover { background: #666; }
+.email-contact summary:hover { background: transparent; }
 .email-contact summary:focus-visible { outline: 2px solid #222; outline-offset: 3px; }
-.email-contact svg { width: 32px; fill: none; stroke: currentColor; stroke-width: 2; }
-.email-address {
-  color: #66665f;
-  font-size: 12px;
-  line-height: 1.2;
-  text-align: center;
-  white-space: nowrap;
+.email-contact svg { width: 21.6px; }
+.email-contact svg, .linkedin-link svg, .instagram-link svg {
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 24%));
 }
-.email-contact .email-address {
+.email-popup {
   position: absolute;
   top: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
-}
-.email-contact[open] { z-index: 4; }
-.bio-link {
-  position: static;
-  display: block;
-  font: 400 22px/64px "Snell Roundhand", "Segoe Script", "Brush Script MT", cursive;
-  text-align: center;
-}
-.bio-link summary { position: relative; z-index: 3; cursor: pointer; }
-.bio-link summary { list-style: none; }
-.bio-link summary::-webkit-details-marker { display: none; }
-.bio-link > span {
-  position: absolute;
-  z-index: 2;
-  top: var(--bio-popup-top);
-  left: 0;
+  right: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   width: max-content;
   max-width: min(340px, calc(100vw - 32px));
-  padding: 14px 16px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 16%);
+}
+.email-contact .email-address { color: #66665f; font-size: 12px; line-height: 1.2; text-decoration: none; white-space: nowrap; }
+.copy-email {
+  display: grid;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  padding: 3px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #555;
+  cursor: pointer;
+}
+.copy-email:hover { background: #f1f1f1; }
+.copy-email:focus-visible { outline: 2px solid #222; outline-offset: 2px; }
+.copy-email svg { width: 100%; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.copy-email-status { position: absolute; top: 100%; right: 0; color: #252525; font-size: 11px; }
+.email-contact[open] { z-index: 4; }
+.artist-bio-text {
+  position: absolute;
+  z-index: 5;
+  top: 46px;
+  left: calc(100% + 8px);
+  width: min(340px, calc(100vw - 32px));
+  max-width: min(340px, calc(100vw - 32px));
+  height: 0;
+  overflow: hidden;
+  border-radius: 6px;
   background: #858585;
   color: #fff;
   font: 14px/1.5 Arial, Helvetica, sans-serif;
   text-align: left;
+  opacity: 0;
+  visibility: hidden;
+  transition: height 2s ease, opacity 2s ease, visibility 0s linear 2s;
 }
-.email-link svg, .instagram-link svg { width: 32px; fill: none; stroke: currentColor; stroke-width: 2; }
-.instagram-link .instagram-dot { fill: currentColor; stroke: none; }
-.linkedin-link span { font: 700 30px/1 Arial, Helvetica, sans-serif; letter-spacing: -.08em; }
+.artist-bio-text.is-open {
+  padding: 14px 16px;
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0s;
+}
+.artist-bio-text.is-closing {
+  padding: 14px 16px;
+  opacity: 0;
+  visibility: visible;
+  transition-delay: 0s;
+}
+.email-link svg { width: 32px; fill: none; stroke: currentColor; stroke-width: 2; }
+.instagram-link svg { width: 20.4px; }
+.linkedin-link svg { width: 20.4px; fill: #0a66c2; }
 
 .gallery {
   display: grid;
@@ -221,11 +300,17 @@ h2, p { margin-top: 0; }
 
 @media (max-width: 760px) {
   .page { width: min(100% - 32px, 600px); }
-  .site-header { --bio-popup-top: 148px; grid-template-columns: 92px minmax(0, 1fr); gap: 14px; padding-block: 16px 28px; }
-  .wordmark { min-height: 62px; padding-inline: 12px; font-size: clamp(34px, 9vw, 52px); }
-  .social-nav { gap: 10px; padding-top: 12px; }
-  .nav-item { width: 48px; height: 48px; }
-  .bio-link { font-size: 17px; line-height: 48px; }
+  .site-header { grid-template-columns: 83px minmax(0, 1fr); gap: 14px; padding-block: 16px 28px; }
+  .wordmark { min-height: 62px; padding-inline: 12px; font-size: calc(1.15 * clamp(34px, 9vw, 52px)); }
+  .site-header .wordmark { max-width: calc(100% - 120px); }
+  .social-nav { top: 12px; gap: 6px; }
+  .nav-item { width: 28.8px; height: 28.8px; }
+  .bio-link { width: max-content; height: 28.8px; }
+  .bio-link { padding-inline: 9px; }
+  .email-contact svg { width: 16.2px; }
+  .linkedin-link svg, .instagram-link svg { width: 16.2px; }
+  .bio-link { font-size: 16px; }
+  .artist-bio-text { top: 36px; left: calc(100% + 8px); }
   .gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
   .works { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .project-works img { max-height: calc(100svh - 220px); }
@@ -248,15 +333,18 @@ h2, p { margin-top: 0; }
 
 @media (max-width: 440px) {
   .page { width: calc(100% - 28px); }
-  .site-header { --bio-popup-top: 130px; grid-template-columns: 72px minmax(0, 1fr); gap: 10px; }
-  .wordmark { min-height: 54px; padding-inline: 9px; font-size: clamp(29px, 8vw, 38px); }
-  .social-nav { gap: 7px; padding-top: 9px; }
-  .nav-item { width: 42px; height: 42px; }
-  .bio-link { font-size: 15px; line-height: 42px; }
-  .email-contact svg { width: 26px; }
-  .email-contact .email-address { font-size: 10px; white-space: normal; overflow-wrap: anywhere; }
-  .email-link svg, .instagram-link svg { width: 26px; }
-  .linkedin-link span { font-size: 25px; }
+  .site-header { grid-template-columns: 65px minmax(0, 1fr); gap: 10px; }
+  .wordmark { min-height: 54px; padding-inline: 9px; font-size: calc(1.15 * clamp(29px, 8vw, 38px)); }
+  .site-header .wordmark { max-width: calc(100% - 96px); }
+  .social-nav { top: 10px; gap: 5px; }
+  .nav-item { width: 25.2px; height: 25.2px; }
+  .email-contact svg { width: 13.8px; }
+  .linkedin-link svg, .instagram-link svg { width: 13.8px; }
+  .bio-link { width: max-content; height: 25.2px; font-size: 14px; }
+  .bio-link { padding-inline: 8px; }
+  .artist-bio-text { top: 32px; left: calc(100% + 8px); }
+  .email-contact .email-address { font-size: 10px; }
+  .email-link svg { width: 26px; }
   .gallery { grid-template-columns: 1fr; }
   .gallery figure.is-landscape { grid-column: auto; }
   .works { grid-template-columns: 1fr; }

@@ -13,6 +13,7 @@
       <a class="wordmark" href="{{ '/' | relative_url }}">{{ site.artist.name | escape }}</a>
       <a class="back-link" href="{{ '/' | relative_url }}">← Gallery</a>
     </header>
+    {% include social-links.html %}
     <main class="page project-page">
       <h1 class="project-title">{{ page.title | escape }}</h1>
       {% if content != "" %}<div class="project-description">{{ content }}</div>{% endif %}
@@ -37,6 +38,7 @@
       <button type="button" id="reject-analytics">Decline</button>
     </aside>
     <script src="{{ '/assets/js/analytics.js' | relative_url }}"></script>
+    <script src="{{ '/assets/js/bio.js' | relative_url }}"></script>
     <script src="{{ '/assets/js/lightbox.js' | relative_url }}"></script>
   </body>
 </html>
