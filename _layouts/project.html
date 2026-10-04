@@ -3,14 +3,14 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="{{ page.description | default: page.title | escape }}">
+    <meta name="description" content="{{ page.description | default: site.description | escape }}">
     <meta name="theme-color" content="#ffffff">
-    <title>{{ page.title | escape }} — Katzaryna</title>
+    <title>{{ page.title | escape }} — {{ site.artist.name | escape }}</title>
     <link rel="stylesheet" href="{{ '/assets/css/styles.css' | relative_url }}">
   </head>
   <body>
     <header class="page project-header">
-      <a class="wordmark" href="{{ '/' | relative_url }}">Katzaryna</a>
+      <a class="wordmark" href="{{ '/' | relative_url }}">{{ site.artist.name | escape }}</a>
       <a class="back-link" href="{{ '/' | relative_url }}">← Gallery</a>
     </header>
     <main class="page project-page">
@@ -28,8 +28,8 @@
       </section>
     </main>
     <footer class="page site-footer">
-      <span>© 2026 Katzaryna</span>
-      <a href="mailto:katzaryna@gmail.com">Email</a>
+      <span>© {{ site.copyright_year }} {{ site.artist.name | escape }}</span>
+      <a href="mailto:{{ site.artist.email | escape }}">Email</a>
     </footer>
     <aside class="consent" id="analytics-consent" aria-label="Analytics settings" hidden>
       <p>This site uses Google Analytics to understand how visitors use it. You can choose whether to allow analytics.</p>

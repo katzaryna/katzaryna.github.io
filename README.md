@@ -12,7 +12,7 @@ A simple, responsive portfolio website. GitHub Pages builds the site with its bu
 
 To enable GA4, add your Measurement ID (`G-XXXXXXXXXX`) to `GA_MEASUREMENT_ID` in `assets/js/analytics.js`. Analytics loads only after a visitor allows it.
 
-Replace the sample portrait, artist name, artwork, email address, and social profile links with your own details before publishing.
+Update `_config.yml` to change the artist name, full name, bio, portrait, email address, social profile links, site description, and copyright year in one place. Replace the sample portrait and artwork before publishing.
 
 ## Add an artwork project
 
