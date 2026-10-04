@@ -299,17 +299,23 @@ html.gallery-intro-supported .gallery.is-intro-fit .gallery-title {
 .back-link { display: inline-block; color: var(--color-muted); font-size: 14px; }
 .back-link:hover { color: #25251f; }
 .project-page { padding-block: 52px 76px; }
-.works { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.works { columns: 3; column-gap: 20px; }
 .project-works:has(> figure:only-child),
 .project-works:has(> figure:nth-child(2):last-child) {
-  grid-template-columns: minmax(0, 1fr);
+  columns: 1;
 }
-.works figure { width: 100%; margin: 0; }
+.works figure {
+  display: block;
+  width: 100%;
+  margin: 0 0 20px;
+  break-inside: avoid;
+}
 .works img { display: block; width: 100%; height: auto; }
 .artwork-motion { display: block; width: 100%; height: auto; }
 .artwork-motion-fallback { display: block; width: 100%; height: auto; }
 .project-works img, .project-works video {
-  height: min(70svh, 560px);
+  height: auto;
+  max-height: min(70svh, 560px);
   object-fit: contain;
 }
 .project-works figcaption { padding-top: 8px; color: var(--color-muted); font-size: 13px; }
@@ -381,8 +387,9 @@ html.gallery-intro-supported .gallery.is-intro-fit .gallery-title {
   .linkedin-link svg, .instagram-link svg { width: 16.2px; }
   .artist-bio-text { top: 36px; left: calc(100% + 8px); }
   .gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
-  .works { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-  .project-works img { max-height: calc(100svh - 220px); }
+  .works { columns: 2; column-gap: 16px; }
+  .works figure { margin-bottom: 16px; }
+  .project-works img, .project-works video { max-height: calc(100svh - 220px); }
   .project-page { padding-block: 36px 58px; }
 }
 
@@ -415,8 +422,9 @@ html.gallery-intro-supported .gallery.is-intro-fit .gallery-title {
   .email-contact .email-address { font-size: 10px; }
   .gallery { grid-template-columns: 1fr; }
   .gallery figure.is-landscape { grid-column: auto; }
-  .works { grid-template-columns: 1fr; gap: 18px; }
-  .project-works img { max-height: calc(100svh - 200px); }
+  .works { columns: 1; }
+  .works figure { margin-bottom: 18px; }
+  .project-works img, .project-works video { max-height: calc(100svh - 200px); }
   .project-header { padding-block: 18px; }
   .project-page { padding-block: 30px 46px; }
   .site-footer { flex-direction: column; gap: 8px; }
