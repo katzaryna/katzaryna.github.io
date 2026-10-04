@@ -7,6 +7,7 @@
   --page-gutter: 46px;
   --nav-size: 38.4px;
   --nav-gap: 8px;
+  --gallery-edge-fade: 1.2%;
   color-scheme: light;
   font-family: Arial, Helvetica, sans-serif;
   color: var(--color-text);
@@ -202,13 +203,39 @@ h2, p { margin-top: 0; }
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   align-items: start;
-  gap: 22px;
+  gap: 28px;
   padding-bottom: 42px;
 }
 .gallery figure { min-width: 0; margin: 0; }
 .gallery figure.is-landscape { grid-column: span 2; }
-.gallery-link { position: relative; display: block; overflow: hidden; }
-.gallery img { display: block; width: 100%; height: auto; }
+.gallery-link { position: relative; display: block; isolation: isolate; }
+.gallery img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.gallery .gallery-edge-glow {
+  position: absolute;
+  z-index: -1;
+  inset: -12px;
+  width: calc(100% + 24px);
+  height: calc(100% + 24px);
+  object-fit: fill;
+  filter: blur(20px);
+  opacity: .2;
+  pointer-events: none;
+}
+.gallery .gallery-link > img:not(.gallery-edge-glow) {
+  position: relative;
+  -webkit-mask-image:
+    linear-gradient(to right, transparent, #000 var(--gallery-edge-fade), #000 calc(100% - var(--gallery-edge-fade)), transparent),
+    linear-gradient(to bottom, transparent, #000 var(--gallery-edge-fade), #000 calc(100% - var(--gallery-edge-fade)), transparent);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(to right, transparent, #000 var(--gallery-edge-fade), #000 calc(100% - var(--gallery-edge-fade)), transparent),
+    linear-gradient(to bottom, transparent, #000 var(--gallery-edge-fade), #000 calc(100% - var(--gallery-edge-fade)), transparent);
+  mask-composite: intersect;
+}
 .gallery-title {
   position: absolute;
   inset: auto 0 0;
@@ -238,11 +265,12 @@ h2, p { margin-top: 0; }
 }
 .project-header .back-link { justify-self: end; }
 .project-header a, .site-footer a { text-decoration: none; }
-.project-title { margin-bottom: 32px; font: 400 clamp(36px, 7vw, 56px)/1.05 Georgia, serif; letter-spacing: -.045em; }
+.project-title { margin-bottom: 40px; font: 400 clamp(36px, 7vw, 56px)/1.05 Georgia, serif; letter-spacing: -.045em; }
+.project-description { max-width: 65ch; margin-bottom: 36px; font-size: 16px; line-height: 1.7; }
 .back-link { display: inline-block; color: var(--color-muted); font-size: 14px; }
 .back-link:hover { color: #25251f; }
 .project-page { padding-block: 52px 76px; }
-.works { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.works { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
 .project-works:has(> figure:only-child),
 .project-works:has(> figure:nth-child(2):last-child) {
   grid-template-columns: minmax(0, 1fr);
@@ -323,8 +351,8 @@ h2, p { margin-top: 0; }
   .email-contact svg { width: 16.2px; }
   .linkedin-link svg, .instagram-link svg { width: 16.2px; }
   .artist-bio-text { top: 36px; left: calc(100% + 8px); }
-  .gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-  .works { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+  .works { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
   .project-works img { max-height: calc(100svh - 220px); }
   .project-page { padding-block: 36px 58px; }
 }
@@ -358,7 +386,7 @@ h2, p { margin-top: 0; }
   .email-contact .email-address { font-size: 10px; }
   .gallery { grid-template-columns: 1fr; }
   .gallery figure.is-landscape { grid-column: auto; }
-  .works { grid-template-columns: 1fr; }
+  .works { grid-template-columns: 1fr; gap: 18px; }
   .project-works img { max-height: calc(100svh - 200px); }
   .project-header { padding-block: 18px; }
   .project-page { padding-block: 30px 46px; }

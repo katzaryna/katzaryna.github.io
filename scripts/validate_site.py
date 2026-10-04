@@ -16,7 +16,11 @@ class SiteValidator(HTMLParser):
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attributes = dict(attrs)
-        if tag == "img" and not (attributes.get("alt") or "").strip():
+        decorative_image = (
+            attributes.get("aria-hidden", "").lower() == "true"
+            or attributes.get("role", "").lower() in {"none", "presentation"}
+        )
+        if tag == "img" and not (attributes.get("alt") or "").strip() and not decorative_image:
             self.errors.append(f"{self.html_path}: image is missing a non-empty alt attribute")
 
         for name in ("href", "src", "poster"):
