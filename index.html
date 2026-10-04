@@ -12,17 +12,27 @@
   </head>
   <body>
     <header class="site-header page">
-      <img class="portrait" src="assets/images/avatar.png" alt="Illustrated artist portrait">
+      <button class="portrait-toggle" id="portrait-bio-toggle" type="button" aria-label="Toggle artist bio" aria-controls="artist-bio" aria-expanded="false">
+        <img class="portrait" src="assets/images/avatar.png" alt="">
+      </button>
       <div class="header-content">
         <a class="wordmark" href="./">Katzaryna</a>
         <nav class="social-nav" aria-label="Artist links">
-          <details class="nav-item bio-link">
+          <details class="nav-item bio-link" id="artist-bio">
             <summary>BIO</summary>
-            <span>A collection of paintings and visual projects.</span>
+            <span>I’m Katsiaryna Zarouskaya, a professional illustrator based in Warsaw, Poland
+Bachelor’s degree in Graphic Design (Belarusian State Academy of Arts)
+I specialize in advertising, editorial, and fashion illustration, creating engaging visuals for both digital and print media.
+Combining traditional and digital techniques, I aim to capture subtle feelings, quiet stories, and the beauty of everyday moments. In my work, I strive for honesty and authenticity, keeping each piece sincere and emotionally true.
+Let’s collaborate and make the world a bit more beautiful.
+I’m open to new projects — feel free to reach out.</span>
           </details>
-          <a class="nav-item email-link" href="mailto:katzaryna@gmail.com" target="_blank" rel="noopener noreferrer" aria-label="Email Katzaryna">
-            <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4 8h24v17H4zM5 9l11 9L27 9"/></svg>
-          </a>
+          <details class="nav-item email-contact">
+            <summary aria-label="Show email address">
+              <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4 8h24v17H4zM5 9l11 9L27 9"/></svg>
+            </summary>
+            <a class="email-address" href="mailto:katzaryna@gmail.com">katzaryna@gmail.com</a>
+          </details>
           <a class="nav-item linkedin-link" href="https://www.linkedin.com/in/katsiaryna-zarouskaya-9083a5105" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
             <span aria-hidden="true">in</span>
           </a>
@@ -60,6 +70,6 @@
     </aside>
 
     <script src="{{ '/assets/js/analytics.js' | relative_url }}"></script>
-    <script src="{{ '/assets/js/brush.js' | relative_url }}"></script>
+    <script src="{{ '/assets/js/bio.js' | relative_url }}"></script>
   </body>
 </html>
