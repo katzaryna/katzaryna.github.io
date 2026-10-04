@@ -2,7 +2,7 @@
 layout: project
 title: "KNEIPP | Cosmetic Packaging | Bath Oil Collection"
 description: "KNEIPP | Cosmetic Packaging | Bath Oil Collection by Katzaryna."
-permalink: /projects/Kneipp/
+permalink: /projects/kneipp-demo/
 cover:
   file: behance-cover.webp
   alt: "KNEIPP | Cosmetic Packaging | Bath Oil Collection cover"

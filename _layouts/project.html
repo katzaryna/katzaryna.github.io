@@ -27,6 +27,7 @@
         {% assign image_key = project_directory | append: "/" | append: image.file %}
         {% assign responsive_image = site.data.generated_image_variants[image_key] %}
         {% assign image_alt = image.alt | default: image.caption | default: page.title | escape %}
+        {% assign original_image_url = "/" | append: project_directory | append: "/" | append: image.file | relative_url %}
         {% assign image_count = page.images | size %}
         {% if image_count < 3 %}
           {% assign image_sizes = "(max-width: 440px) calc(100vw - 40px), (max-width: 612px) calc(100vw - 42px), (max-width: 760px) 570px, (max-width: 1616px) calc(100vw - 46px), 1570px" %}
@@ -39,20 +40,20 @@
           {% if responsive_image %}data-image-width="{{ responsive_image.width }}" data-image-height="{{ responsive_image.height }}"{% endif %}
         >
           {% if responsive_image.motion %}
-          <a class="lightbox-link motion-link" href="{{ page.url | append: image.file | relative_url }}" data-lightbox-video="{{ responsive_image.motion.src | relative_url }}" data-lightbox-mp4="{{ responsive_image.motion.mp4 | relative_url }}" aria-label="{{ image_alt }}">
+          <a class="lightbox-link motion-link" href="{{ original_image_url }}" data-lightbox-video="{{ responsive_image.motion.src | relative_url }}" data-lightbox-mp4="{{ responsive_image.motion.mp4 | relative_url }}" aria-label="{{ image_alt }}">
             <video class="artwork-motion" width="{{ responsive_image.width }}" height="{{ responsive_image.height }}" aria-label="{{ image_alt }}" poster="{{ responsive_image.motion.poster | relative_url }}" muted loop playsinline preload="none">
               <source src="{{ responsive_image.motion.src | relative_url }}" type="video/webm">
               <source src="{{ responsive_image.motion.mp4 | relative_url }}" type="video/mp4">
-              <img src="{{ page.url | append: image.file | relative_url }}" alt="{{ image_alt }}">
+              <img src="{{ original_image_url }}" alt="{{ image_alt }}">
             </video>
           </a>
           {% elsif responsive_image %}
-          <a class="lightbox-link" href="{{ page.url | append: image.file | relative_url }}">
+          <a class="lightbox-link" href="{{ original_image_url }}">
             <img src="{{ responsive_image.src | relative_url }}" srcset="{% for source in responsive_image.sources %}{{ source.src | relative_url }} {{ source.width }}w{% unless forloop.last %}, {% endunless %}{% endfor %}" sizes="{{ image_sizes }}" width="{{ responsive_image.width }}" height="{{ responsive_image.height }}" alt="{{ image_alt }}" loading="{% if forloop.first %}eager{% else %}lazy{% endif %}"{% if forloop.first %} fetchpriority="high"{% endif %}>
           </a>
           {% else %}
-          <a class="lightbox-link" href="{{ page.url | append: image.file | relative_url }}">
-            <img src="{{ page.url | append: image.file | relative_url }}" alt="{{ image_alt }}" loading="{% if forloop.first %}eager{% else %}lazy{% endif %}"{% if forloop.first %} fetchpriority="high"{% endif %}>
+          <a class="lightbox-link" href="{{ original_image_url }}">
+            <img src="{{ original_image_url }}" alt="{{ image_alt }}" loading="{% if forloop.first %}eager{% else %}lazy{% endif %}"{% if forloop.first %} fetchpriority="high"{% endif %}>
           </a>
           {% endif %}
           {% if image.caption %}<figcaption>{{ image.caption | escape }}</figcaption>{% endif %}

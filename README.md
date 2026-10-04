@@ -92,6 +92,10 @@ explicit row spans are automatically relaxed on phones.
 Per-image gaps are applied around each image; when neighboring images specify
 different gaps, their half-gaps combine at the shared edge.
 
+`permalink` sets only the project page URL. Keep image files in the project
+directory: the templates resolve original image URLs from that directory, so
+changing a project's permalink does not move its images.
+
 Use the original filename in `cover.file` and `images[].file`. Static JPEG,
 PNG, and WebP images are automatically converted into responsive WebP
 derivatives at widths configured in `config/image_optimization.toml` for the
@@ -105,7 +109,9 @@ untouched. Other formats are served as-is.
 
 The GitHub Actions build installs the pinned image dependencies, generates
 derivatives, builds with Jekyll, and checks generated HTML for missing image
-alt text and broken local links.
+alt text and broken local links. Run the same validation command locally after
+building; it catches missing image files and other broken local URLs before
+deployment.
 
 The home page shows project covers only. Landscape covers span two gallery
 columns on wider screens; the gallery adapts to smaller screens. Project

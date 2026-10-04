@@ -6,3 +6,4 @@ __pycache__/
 *.py[cod]
 /assets/optimized/
 /_data/generated_image_variants.json
+.venv/

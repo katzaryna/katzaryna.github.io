@@ -2,7 +2,7 @@
 layout: project
 title: "Mixed Media Sketches | Urban Character Drawing 2025"
 description: "Mixed Media Sketches | Urban Character Drawing 2025 by Katzaryna."
-permalink: /projects/Mixed Media Sketches | Urban Character Drawing 2025/
+permalink: /projects/mixed-sketches/
 cover:
   file: behance-cover.webp
   alt: "Mixed Media Sketches | Urban Character Drawing 2025 cover"
