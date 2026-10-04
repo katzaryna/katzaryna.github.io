@@ -1,9 +1,13 @@
-const GA_MEASUREMENT_ID = "G-7S5P7ELFYF";
+const GA_MEASUREMENT_ID = document.currentScript?.dataset.measurementId ?? "";
 const CONSENT_KEY = "artist-site-analytics-consent";
 const consentNotice = document.getElementById("analytics-consent");
+const acceptButton = document.getElementById("accept-analytics");
+const rejectButton = document.getElementById("reject-analytics");
+let analyticsLoaded = false;
 
 function loadGoogleAnalytics() {
-  if (!/^G-[A-Z0-9]+$/.test(GA_MEASUREMENT_ID)) return;
+  if (analyticsLoaded || !/^G-[A-Z0-9]+$/.test(GA_MEASUREMENT_ID)) return;
+  analyticsLoaded = true;
   const script = document.createElement("script");
   script.async = true;
   script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`;
@@ -18,17 +22,17 @@ function loadGoogleAnalytics() {
 const consent = localStorage.getItem(CONSENT_KEY);
 if (consent === "accepted") {
   loadGoogleAnalytics();
-} else if (consent !== "rejected" && /^G-[A-Z0-9]+$/.test(GA_MEASUREMENT_ID)) {
+} else if (consent !== "rejected" && consentNotice && /^G-[A-Z0-9]+$/.test(GA_MEASUREMENT_ID)) {
   consentNotice.hidden = false;
 }
 
-document.getElementById("accept-analytics").addEventListener("click", () => {
+acceptButton?.addEventListener("click", () => {
   localStorage.setItem(CONSENT_KEY, "accepted");
   consentNotice.hidden = true;
   loadGoogleAnalytics();
 });
 
-document.getElementById("reject-analytics").addEventListener("click", () => {
+rejectButton?.addEventListener("click", () => {
   localStorage.setItem(CONSENT_KEY, "rejected");
   consentNotice.hidden = true;
 });

@@ -18,11 +18,35 @@
       <h1 class="project-title">{{ page.title | escape }}</h1>
       {% if content != "" %}<div class="project-description">{{ content }}</div>{% endif %}
       <section class="works project-works" aria-label="{{ page.title | escape }} images">
+        {% assign project_directory = page.path | remove: "/index.md" %}
         {% for image in page.images %}
+        {% assign image_key = project_directory | append: "/" | append: image.file %}
+        {% assign responsive_image = site.data.generated_image_variants[image_key] %}
+        {% assign image_alt = image.alt | default: image.caption | default: page.title | escape %}
+        {% assign image_count = page.images | size %}
+        {% if image_count < 3 %}
+          {% assign image_sizes = "(max-width: 440px) calc(100vw - 28px), (max-width: 632px) calc(100vw - 32px), (max-width: 760px) 600px, (max-width: 1248px) calc(100vw - 48px), 1200px" %}
+        {% else %}
+          {% assign image_sizes = "(max-width: 440px) calc(100vw - 28px), (max-width: 632px) calc((100vw - 44px) / 2), (max-width: 760px) 294px, (max-width: 1248px) calc((100vw - 80px) / 3), 395px" %}
+        {% endif %}
         <figure>
-          <a class="lightbox-link" href="{{ page.url | append: image.file | relative_url }}">
-            <img src="{{ page.url | append: image.file | relative_url }}" alt="{{ image.alt | default: image.caption | default: page.title | escape }}" loading="lazy">
+          {% if responsive_image.motion %}
+          <a class="lightbox-link motion-link" href="{{ page.url | append: image.file | relative_url }}" data-lightbox-video="{{ responsive_image.motion.src | relative_url }}" data-lightbox-mp4="{{ responsive_image.motion.mp4 | relative_url }}" aria-label="{{ image_alt }}">
+            <video class="artwork-motion" width="{{ responsive_image.width }}" height="{{ responsive_image.height }}" aria-label="{{ image_alt }}" poster="{{ responsive_image.motion.poster | relative_url }}" muted loop playsinline preload="none">
+              <source src="{{ responsive_image.motion.src | relative_url }}" type="video/webm">
+              <source src="{{ responsive_image.motion.mp4 | relative_url }}" type="video/mp4">
+              <img src="{{ page.url | append: image.file | relative_url }}" alt="{{ image_alt }}">
+            </video>
           </a>
+          {% elsif responsive_image %}
+          <a class="lightbox-link" href="{{ page.url | append: image.file | relative_url }}">
+            <img src="{{ responsive_image.src | relative_url }}" srcset="{% for source in responsive_image.sources %}{{ source.src | relative_url }} {{ source.width }}w{% unless forloop.last %}, {% endunless %}{% endfor %}" sizes="{{ image_sizes }}" width="{{ responsive_image.width }}" height="{{ responsive_image.height }}" alt="{{ image_alt }}" loading="{% if forloop.first %}eager{% else %}lazy{% endif %}"{% if forloop.first %} fetchpriority="high"{% endif %}>
+          </a>
+          {% else %}
+          <a class="lightbox-link" href="{{ page.url | append: image.file | relative_url }}">
+            <img src="{{ page.url | append: image.file | relative_url }}" alt="{{ image_alt }}" loading="{% if forloop.first %}eager{% else %}lazy{% endif %}"{% if forloop.first %} fetchpriority="high"{% endif %}>
+          </a>
+          {% endif %}
           {% if image.caption %}<figcaption>{{ image.caption | escape }}</figcaption>{% endif %}
         </figure>
         {% endfor %}
@@ -32,12 +56,8 @@
       <span>© {{ site.copyright_year }} {{ site.artist.name | escape }}</span>
       <a href="mailto:{{ site.artist.email | escape }}">Email</a>
     </footer>
-    <aside class="consent" id="analytics-consent" aria-label="Analytics settings" hidden>
-      <p>This site uses Google Analytics to understand how visitors use it. You can choose whether to allow analytics.</p>
-      <button type="button" id="accept-analytics">Allow</button>
-      <button type="button" id="reject-analytics">Decline</button>
-    </aside>
-    <script src="{{ '/assets/js/analytics.js' | relative_url }}"></script>
+    {% include consent.html %}
+    <script src="{{ '/assets/js/analytics.js' | relative_url }}" data-measurement-id="{{ site.analytics.measurement_id | escape }}"></script>
     <script src="{{ '/assets/js/bio.js' | relative_url }}"></script>
     <script src="{{ '/assets/js/lightbox.js' | relative_url }}"></script>
   </body>

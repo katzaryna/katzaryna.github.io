@@ -2,10 +2,11 @@ title: Katzaryna — Artist
 description: Paintings and projects by Katzaryna.
 markdown: kramdown
 plugins: []
+include:
+  - assets/optimized
 
 artist:
   name: Katzaryna
-  full_name: Katsiaryna Zarouskaya
   bio: >-
     I’m Katsiaryna Zarouskaya, a professional illustrator based in Warsaw, Poland.
     Bachelor’s degree in Graphic Design (Belarusian State Academy of Arts).
@@ -17,6 +18,9 @@ artist:
   portrait_alt: Illustrated artist portrait
   email: katzaryna@gmail.com
   linkedin_url: https://www.linkedin.com/in/katsiaryna-zarouskaya-9083a5105
-  instagram_url: http://instagram.com/kat.zaryna
+  instagram_url: https://www.instagram.com/kat.zaryna/
 
 copyright_year: 2026
+
+analytics:
+  measurement_id: G-7S5P7ELFYF

@@ -1,0 +1,5 @@
+target_widths = [480, 960, 1440]
+webp_quality = 88
+animation_max_width = 1440
+webm_crf = 32
+mp4_crf = 28

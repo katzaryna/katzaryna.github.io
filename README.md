@@ -1,22 +1,44 @@
-# Artist website
+# Katzaryna — Artist portfolio
 
-A simple, responsive portfolio website. GitHub Pages builds the site with its built-in Jekyll support. Shared project-page code lives in `_layouts/project.html`; each project folder contains only images and a small `index.md` data file.
+A responsive Jekyll portfolio hosted on GitHub Pages. Project pages and the
+home-page cover gallery are generated from the Markdown files in `projects/`.
+Keep original artwork in those project folders; the build automatically
+creates ignored, responsive WebP derivatives for supported static images.
 
 ## Publish with GitHub Pages
 
-1. Push the repository to GitHub.
-2. Open **Settings → Pages**.
-3. Under **Build and deployment**, choose **Deploy from a branch**, select `main` and `/ (root)`, then save.
+The GitHub Actions workflow builds the site, prepares responsive image
+derivatives, and deploys the result. In **Settings → Pages**, choose **GitHub
+Actions** as the build and deployment source.
 
-## Google Analytics
+## Local development
 
-To enable GA4, add your Measurement ID (`G-XXXXXXXXXX`) to `GA_MEASUREMENT_ID` in `assets/js/analytics.js`. Analytics loads only after a visitor allows it.
+Install the image-processing dependencies once, then generate and validate
+the site:
 
-Update `_config.yml` to change the artist name, full name, bio, portrait, email address, social profile links, site description, and copyright year in one place. Replace the sample portrait and artwork before publishing.
+```sh
+python3 -m pip install -r requirements-images.txt
+python3 scripts/generate_image_variants.py
+jekyll build
+python3 scripts/validate_site.py --site-dir _site
+```
 
-## Add an artwork project
+The generated files in `assets/optimized/` and their temporary Jekyll data
+manifest are git-ignored. Re-run the generator after adding, replacing, or
+removing project images. It also removes stale derivatives.
 
-Create a folder under `projects/`, put the project images directly in it, and add an `index.md` file with this format:
+## Artist information and analytics
+
+Update `_config.yml` to change the artist name, bio, portrait, email, social
+profile links, site description, and copyright year.
+
+GA4 is configured in `_config.yml` under `analytics.measurement_id`. Analytics
+loads only after a visitor allows it. Clear the ID to disable analytics.
+
+## Add a project
+
+Create a directory under `projects/`, put the original images in it, and add
+an `index.md` file:
 
 ```yaml
 ---
@@ -25,18 +47,33 @@ title: My project
 description: A short description.
 permalink: /projects/my-project/
 cover:
-  file: project-cover.webp
+  file: cover.png
   alt: Description of the project cover
 images:
   - file: 01.png
     alt: Description of the first image
     caption: Optional caption
-  - file: 02.png
-    alt: Another image
+  - file: 02.jpg
+    alt: Description of the second image
 ---
 Optional longer project description.
 ```
 
-The project page and home-page gallery are generated automatically from these files. Image paths are relative to the project folder. The optional `cover` appears in the home-page gallery alongside every image listed under `images`; the image list also appears on the project page. Use descriptive names such as `project-cover.webp`, `01.png`, `02.webp`, etc. (SVG and other browser-supported image formats also work). The home page uses a responsive three-column grid: landscape images span two columns on larger screens and all images retain their full proportions. Project images fit within the viewport height and open in a full-screen viewer when selected.
+Use the original filename in `cover.file` and `images[].file`. Static JPEG,
+PNG, and WebP images are automatically converted into responsive WebP
+derivatives at widths configured in `config/image_optimization.toml` for the
+home-page cover gallery and project page. Original files are retained and
+used in the full-screen artwork viewer. Animated GIFs are converted to WebM
+and H.264/MP4 previews with WebP posters; originals remain as no-JavaScript/
+browser fallbacks and are preserved in the project folders. Browsers download
+only a supported video format. Previews autoplay only when near the viewport
+and when reduced motion is not requested. Animated WebP files are left
+untouched. Other formats are served as-is.
 
-The included SVG artworks are sample illustrations; replace them with the artist's images when ready.
+The GitHub Actions build installs the pinned image dependencies, generates
+derivatives, builds with Jekyll, and checks generated HTML for missing image
+alt text and broken local links.
+
+The home page shows project covers only. Landscape covers span two gallery
+columns on wider screens; the gallery adapts to smaller screens. Project
+artwork opens in a full-screen viewer when selected.

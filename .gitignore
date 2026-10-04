@@ -2,3 +2,7 @@ _site/
 .jekyll-cache/
 .sass-cache/
 .DS_Store
+__pycache__/
+*.py[cod]
+/assets/optimized/
+/_data/generated_image_variants.json
