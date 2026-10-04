@@ -114,14 +114,33 @@ h2, p { margin-top: 0; }
 .linkedin-link span { font: 700 30px/1 Arial, Helvetica, sans-serif; letter-spacing: -.08em; }
 
 .gallery {
-  columns: 3;
-  column-gap: 22px;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  align-items: start;
+  gap: 22px;
   padding-bottom: 42px;
 }
-.gallery figure { break-inside: avoid; margin: 0 0 22px; }
-.gallery-link { display: block; }
+.gallery figure { min-width: 0; margin: 0; }
+.gallery figure.is-landscape { grid-column: span 2; }
+.gallery-link { position: relative; display: block; overflow: hidden; }
 .gallery img { display: block; width: 100%; height: auto; }
-.gallery-link:hover img { opacity: .88; }
+.gallery-title {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  background: rgb(0 0 0 / 58%);
+  color: #fff;
+  font-size: 14px;
+  line-height: 1.4;
+  text-align: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .18s ease, visibility .18s ease;
+}
+.gallery-link:hover .gallery-title,
+.gallery-link:focus-visible .gallery-title { opacity: 1; visibility: visible; }
 
 .project-header {
   display: grid;
@@ -205,11 +224,24 @@ h2, p { margin-top: 0; }
   .social-nav { gap: 10px; padding-top: 12px; }
   .nav-item { width: 48px; height: 48px; }
   .bio-link { font-size: 17px; line-height: 48px; }
-  .gallery { columns: 2; column-gap: 14px; }
-  .gallery figure { margin-bottom: 14px; }
+  .gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
   .works { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .project-works img { max-height: calc(100svh - 220px); }
   .project-page { padding-block: 36px 58px; }
+}
+
+@media (hover: none) {
+  .gallery-title {
+    position: static;
+    display: block;
+    padding: 8px 0 0;
+    background: none;
+    color: #252525;
+    font-size: 12px;
+    text-align: left;
+    opacity: 1;
+    visibility: visible;
+  }
 }
 
 @media (max-width: 440px) {
@@ -223,7 +255,8 @@ h2, p { margin-top: 0; }
   .email-contact .email-address { font-size: 10px; white-space: normal; overflow-wrap: anywhere; }
   .email-link svg, .instagram-link svg { width: 26px; }
   .linkedin-link span { font-size: 25px; }
-  .gallery { columns: 1; }
+  .gallery { grid-template-columns: 1fr; }
+  .gallery figure.is-landscape { grid-column: auto; }
   .works { grid-template-columns: 1fr; }
   .project-works img { max-height: calc(100svh - 200px); }
   .project-header { padding-block: 18px; }

@@ -24,16 +24,19 @@ layout: project
 title: My project
 description: A short description.
 permalink: /projects/my-project/
+cover:
+  file: project-cover.webp
+  alt: Description of the project cover
 images:
-  - file: cover.png
-    alt: Description of the image
-    caption: Optional caption
   - file: 01.png
+    alt: Description of the first image
+    caption: Optional caption
+  - file: 02.png
     alt: Another image
 ---
 Optional longer project description.
 ```
 
-The project page and home-page gallery are generated automatically from these files. Image paths are relative to the project folder. Use `cover.png`, `01.png`, `02.png`, etc. (SVG and other browser-supported image formats also work). The home page uses a responsive masonry gallery; project images fit within the viewport height and open in a full-screen viewer when selected.
+The project page and home-page gallery are generated automatically from these files. Image paths are relative to the project folder. The optional `cover` appears in the home-page gallery alongside every image listed under `images`; the image list also appears on the project page. Use descriptive names such as `project-cover.webp`, `01.png`, `02.webp`, etc. (SVG and other browser-supported image formats also work). The home page uses a responsive three-column grid: landscape images span two columns on larger screens and all images retain their full proportions. Project images fit within the viewport height and open in a full-screen viewer when selected.
 
 The included SVG artworks are sample illustrations; replace them with the artist's images when ready.

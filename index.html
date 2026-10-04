@@ -42,13 +42,14 @@
       <section class="gallery" id="gallery" aria-label="Selected paintings">
         {% assign projects = site.pages | where_exp: "project", "project.layout == 'project'" | sort: "title" %}
         {% for project in projects %}
-          {% for image in project.images %}
+          {% if project.cover %}
         <figure>
           <a class="gallery-link" href="{{ project.url | relative_url }}" aria-label="View {{ project.title | escape }} project">
-            <img src="{{ project.url | append: image.file | relative_url }}" alt="{{ image.alt | default: image.caption | default: project.title | escape }}" loading="lazy">
+            <img src="{{ project.url | append: project.cover.file | relative_url }}" alt="{{ project.cover.alt | default: project.title | escape }}" loading="lazy">
+            <span class="gallery-title">{{ project.title | escape }}</span>
           </a>
         </figure>
-          {% endfor %}
+          {% endif %}
         {% endfor %}
       </section>
     </main>
@@ -66,5 +67,6 @@
 
     <script src="{{ '/assets/js/analytics.js' | relative_url }}"></script>
     <script src="{{ '/assets/js/bio.js' | relative_url }}"></script>
+    <script src="{{ '/assets/js/gallery.js' | relative_url }}"></script>
   </body>
 </html>
