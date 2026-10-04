@@ -25,9 +25,9 @@
         {% assign image_alt = image.alt | default: image.caption | default: page.title | escape %}
         {% assign image_count = page.images | size %}
         {% if image_count < 3 %}
-          {% assign image_sizes = "(max-width: 440px) calc(100vw - 28px), (max-width: 632px) calc(100vw - 32px), (max-width: 760px) 600px, (max-width: 1248px) calc(100vw - 48px), 1200px" %}
+          {% assign image_sizes = "(max-width: 440px) calc(100vw - 40px), (max-width: 612px) calc(100vw - 42px), (max-width: 760px) 570px, (max-width: 1616px) calc(100vw - 46px), 1570px" %}
         {% else %}
-          {% assign image_sizes = "(max-width: 440px) calc(100vw - 28px), (max-width: 632px) calc((100vw - 44px) / 2), (max-width: 760px) 294px, (max-width: 1248px) calc((100vw - 80px) / 3), 395px" %}
+          {% assign image_sizes = "(max-width: 440px) calc(100vw - 40px), (max-width: 612px) calc((100vw - 54px) / 2), (max-width: 760px) 279px, (max-width: 1616px) calc((100vw - 78px) / 3), 513px" %}
         {% endif %}
         <figure>
           {% if responsive_image.motion %}
