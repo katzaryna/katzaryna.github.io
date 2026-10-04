@@ -59,6 +59,39 @@ images:
 Optional longer project description.
 ```
 
+The `images` list controls display order. Add an optional `gallery` block to
+set the project layout, column count, gaps, and (for a grid) the height of one
+grid row:
+
+```yaml
+gallery:
+  layout: grid
+  columns: 3
+  row_height: 8px
+  gap:
+    horizontal: 24px
+    vertical: 18px
+images:
+  - file: 01.png
+    alt: Wide illustration
+    span:
+      columns: 2
+    gap:
+      horizontal: 12px
+      vertical: 10px
+```
+
+Omit `gallery.layout: grid` to keep the default masonry-style columns. In grid
+mode, `span.columns` and `span.rows` set an image's grid size; if `rows` is
+omitted, its row span is calculated from the source image proportions.
+`row_height` sets the grid's row unit and is only used in grid mode.
+`gallery.gap` sets the project's horizontal and vertical spacing, while an
+image's optional `gap` values override either direction for that image. Grid
+column spans adapt down to two columns on tablet and one on narrow phones;
+explicit row spans are automatically relaxed on phones.
+Per-image gaps are applied around each image; when neighboring images specify
+different gaps, their half-gaps combine at the shared edge.
+
 Use the original filename in `cover.file` and `images[].file`. Static JPEG,
 PNG, and WebP images are automatically converted into responsive WebP
 derivatives at widths configured in `config/image_optimization.toml` for the

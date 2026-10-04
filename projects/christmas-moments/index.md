@@ -6,11 +6,23 @@ permalink: /projects/christmas-moments/
 cover:
   file: behance-cover.webp
   alt: "Christmas Moments | Narrative Book Illustrations cover"
+gallery:
+  layout: grid
+  columns: 3
+  row_height: 8px
+  gap:
+    horizontal: 24px
+    vertical: 18px
 images:
   - file: cover.webp
     alt: "Christmas Moments | Narrative Book Illustrations"
   - file: 01.webp
     alt: "Christmas Moments | Narrative Book Illustrations - image 2"
+    span:
+      columns: 2
+    gap:
+      horizontal: 12px
+      vertical: 10px
   - file: 02.webp
     alt: "Christmas Moments | Narrative Book Illustrations - image 3"
   - file: 03.webp

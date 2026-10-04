@@ -17,7 +17,11 @@
     <main class="page project-page">
       <h1 class="project-title">{{ page.title | escape }}</h1>
       {% if content != "" %}<div class="project-description">{{ content }}</div>{% endif %}
-      <section class="works project-works" aria-label="{{ page.title | escape }} images">
+      <section
+        class="works project-works{% if page.gallery.layout == 'grid' %} is-grid{% endif %}"
+        aria-label="{{ page.title | escape }} images"
+        {% if page.gallery.columns or page.gallery.gap.horizontal or page.gallery.gap.vertical or page.gallery.row_height %}style="{% if page.gallery.columns %}--gallery-columns: {{ page.gallery.columns }};{% endif %}{% if page.gallery.gap.horizontal %} --gallery-gap-x: {{ page.gallery.gap.horizontal | escape }};{% endif %}{% if page.gallery.gap.vertical %} --gallery-gap-y: {{ page.gallery.gap.vertical | escape }};{% endif %}{% if page.gallery.row_height %} --gallery-row-height: {{ page.gallery.row_height | escape }};{% endif %}"{% endif %}
+      >
         {% assign project_directory = page.path | remove: "/index.md" %}
         {% for image in page.images %}
         {% assign image_key = project_directory | append: "/" | append: image.file %}
@@ -29,7 +33,11 @@
         {% else %}
           {% assign image_sizes = "(max-width: 440px) calc(100vw - 40px), (max-width: 612px) calc((100vw - 54px) / 2), (max-width: 760px) 279px, (max-width: 1616px) calc((100vw - 78px) / 3), 513px" %}
         {% endif %}
-        <figure>
+        <figure
+          {% if image.span.columns or image.span.rows or image.gap.horizontal or image.gap.vertical %}style="{% if image.span.columns %}--image-columns: {{ image.span.columns }};{% endif %}{% if image.span.rows %} --image-rows: {{ image.span.rows }};{% endif %}{% if image.gap.horizontal %} --image-gap-x: {{ image.gap.horizontal | escape }};{% endif %}{% if image.gap.vertical %} --image-gap-y: {{ image.gap.vertical | escape }};{% endif %}"{% endif %}
+          data-image-columns="{{ image.span.columns | default: 1 }}"{% if image.span.rows %} data-image-rows="{{ image.span.rows }}"{% endif %}
+          {% if responsive_image %}data-image-width="{{ responsive_image.width }}" data-image-height="{{ responsive_image.height }}"{% endif %}
+        >
           {% if responsive_image.motion %}
           <a class="lightbox-link motion-link" href="{{ page.url | append: image.file | relative_url }}" data-lightbox-video="{{ responsive_image.motion.src | relative_url }}" data-lightbox-mp4="{{ responsive_image.motion.mp4 | relative_url }}" aria-label="{{ image_alt }}">
             <video class="artwork-motion" width="{{ responsive_image.width }}" height="{{ responsive_image.height }}" aria-label="{{ image_alt }}" poster="{{ responsive_image.motion.poster | relative_url }}" muted loop playsinline preload="none">
@@ -59,6 +67,7 @@
     {% include consent.html %}
     <script src="{{ '/assets/js/analytics.js' | relative_url }}" data-measurement-id="{{ site.analytics.measurement_id | escape }}"></script>
     <script src="{{ '/assets/js/bio.js' | relative_url }}"></script>
+    {% if page.gallery.layout == 'grid' %}<script src="{{ '/assets/js/project-gallery.js' | relative_url }}"></script>{% endif %}
     <script src="{{ '/assets/js/lightbox.js' | relative_url }}"></script>
   </body>
 </html>
