@@ -8,6 +8,7 @@
     <meta name="description" content="{{ site.description | escape }}">
     <meta name="theme-color" content="#ffffff">
     <title>{{ site.title | escape }}</title>
+    <script>document.documentElement.classList.add('gallery-intro-supported');</script>
     <link rel="stylesheet" href="{{ '/assets/css/styles.css' | relative_url }}">
   </head>
   <body>
@@ -26,7 +27,7 @@
     {% include social-links.html %}
 
     <main class="page">
-      <section class="gallery" id="gallery" aria-label="Selected paintings">
+      <section class="gallery is-intro-fit" id="gallery" aria-label="Selected paintings">
         {% assign projects = site.pages | where_exp: "project", "project.layout == 'project'" | sort: "title" %}
         {% for project in projects %}
           {% if project.cover %}
@@ -63,6 +64,7 @@
     </footer>
 
     {% include consent.html %}
+    <script src="{{ '/assets/js/gallery-intro.js' | relative_url }}"></script>
     <script src="{{ '/assets/js/analytics.js' | relative_url }}" data-measurement-id="{{ site.analytics.measurement_id | escape }}"></script>
     <script src="{{ '/assets/js/bio.js' | relative_url }}"></script>
   </body>
