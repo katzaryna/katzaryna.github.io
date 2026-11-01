@@ -3,9 +3,7 @@ layout: project
 title: "KNEIPP | Cosmetic Packaging | Bath Oil Collection"
 description: "KNEIPP | Cosmetic Packaging | Bath Oil Collection by Katzaryna."
 permalink: /projects/kneipp-demo/
-cover:
-  file: behance-cover.webp
-  alt: "KNEIPP | Cosmetic Packaging | Bath Oil Collection cover"
+gallery_order: 4
 images:
   - file: cover.webp
     alt: "KNEIPP | Cosmetic Packaging | Bath Oil Collection"
@@ -13,6 +11,7 @@ images:
     alt: "KNEIPP | Cosmetic Packaging | Bath Oil Collection - image 2"
   - file: 02.webp
     alt: "KNEIPP | Cosmetic Packaging | Bath Oil Collection - image 3"
+    cover: true
   - file: 03.webp
     alt: "KNEIPP | Cosmetic Packaging | Bath Oil Collection - image 4"
   - file: 04.webp

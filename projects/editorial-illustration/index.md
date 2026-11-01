@@ -3,12 +3,11 @@ layout: project
 title: "Editorial illustration | Lifestyle | Personal project"
 description: "Editorial illustration | Lifestyle | Personal project by Katzaryna."
 permalink: /projects/editorial-illustration/
-cover:
-  file: behance-cover.png
-  alt: "Editorial illustration | Lifestyle | Personal project cover"
+gallery_order: 3
 images:
   - file: cover.webp
     alt: "Editorial illustration | Lifestyle | Personal project"
+    cover: true
   - file: 01.webp
     alt: "Editorial illustration | Lifestyle | Personal project - image 2"
   - file: 02.webp

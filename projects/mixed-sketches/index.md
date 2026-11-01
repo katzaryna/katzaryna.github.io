@@ -3,9 +3,7 @@ layout: project
 title: "Mixed Media Sketches | Urban Character Drawing 2025"
 description: "Mixed Media Sketches | Urban Character Drawing 2025 by Katzaryna."
 permalink: /projects/mixed-sketches/
-cover:
-  file: behance-cover.webp
-  alt: "Mixed Media Sketches | Urban Character Drawing 2025 cover"
+gallery_order: 5
 images:
   - file: cover.webp
     alt: "Mixed Media Sketches | Urban Character Drawing 2025"
@@ -33,6 +31,7 @@ images:
     alt: "Mixed Media Sketches | Urban Character Drawing 2025 - image 12"
   - file: 12.webp
     alt: "Mixed Media Sketches | Urban Character Drawing 2025 - image 13"
+    cover: true
   - file: 13.webp
     alt: "Mixed Media Sketches | Urban Character Drawing 2025 - image 14"
   - file: 14.webp

@@ -1,44 +1,9 @@
-const portraitBioToggle = document.getElementById("portrait-bio-toggle");
 const artistBio = document.getElementById("artist-bio");
 
-if (portraitBioToggle && artistBio) {
+if (artistBio) {
   const artistBioText = document.getElementById("artist-bio-text");
-  const wordmark = document.querySelector(".site-header .wordmark");
   let bioOpen = false;
   let bioFrame;
-
-  if (wordmark) {
-    const updateBioLinkVisibility = () => {
-      const wordmarkText = document.createRange();
-      wordmarkText.selectNodeContents(wordmark);
-      const bioBounds = artistBio.getBoundingClientRect();
-      const portraitBounds = portraitBioToggle.getBoundingClientRect();
-      const textBounds = Array.from(wordmarkText.getClientRects());
-      const overlaps = bounds => textBounds.some(text =>
-        text.left < bounds.right &&
-        text.right > bounds.left &&
-        text.top < bounds.bottom &&
-        text.bottom > bounds.top
-      );
-      const overlapsBio = overlaps(bioBounds);
-      const overlapsPortrait = overlaps(portraitBounds);
-
-      artistBio.classList.toggle("is-obscured", overlapsBio);
-      artistBio.setAttribute("aria-hidden", String(overlapsBio));
-      artistBio.tabIndex = overlapsBio ? -1 : 0;
-      portraitBioToggle.classList.toggle("is-obscured", overlapsPortrait);
-      portraitBioToggle.setAttribute("aria-hidden", String(overlapsPortrait));
-      portraitBioToggle.tabIndex = overlapsPortrait ? -1 : 0;
-    };
-
-    const headerObserver = new ResizeObserver(updateBioLinkVisibility);
-    headerObserver.observe(wordmark);
-    headerObserver.observe(artistBio);
-    headerObserver.observe(portraitBioToggle);
-    window.addEventListener("resize", updateBioLinkVisibility);
-    document.fonts.ready.then(updateBioLinkVisibility);
-    updateBioLinkVisibility();
-  }
 
   function setBioOpen(open) {
     if (bioFrame) cancelAnimationFrame(bioFrame);
@@ -47,7 +12,6 @@ if (portraitBioToggle && artistBio) {
     artistBioText.style.height = `${currentHeight}px`;
     artistBioText.classList.remove("is-open", "is-closing");
     bioOpen = open;
-    portraitBioToggle.setAttribute("aria-expanded", String(open));
     artistBio.setAttribute("aria-expanded", String(open));
     artistBioText.setAttribute("aria-hidden", String(!open));
 
@@ -64,7 +28,6 @@ if (portraitBioToggle && artistBio) {
 
   const toggleBio = () => setBioOpen(!bioOpen);
 
-  portraitBioToggle.addEventListener("click", toggleBio);
   artistBio.addEventListener("click", toggleBio);
   artistBioText.addEventListener("transitionend", event => {
     if (event.propertyName !== "height") return;

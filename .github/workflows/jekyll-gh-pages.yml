@@ -35,9 +35,19 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: requirements-images.txt
-      - name: Install image optimization dependencies
-        run: python -m pip install -r requirements-images.txt
+          cache-dependency-path: |
+            requirements-images.txt
+            requirements-dev.txt
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install build and development dependencies
+        run: |
+          python -m pip install -r requirements-images.txt -r requirements-dev.txt
+          npm ci --no-audit --no-fund
+      - name: Lint and test
+        run: make check
       - name: Generate responsive image variants
         run: python scripts/generate_image_variants.py
       - name: Build with Jekyll
