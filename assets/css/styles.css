@@ -5,8 +5,8 @@
   --color-surface: #fff;
   --page-max-width: 1570px;
   --page-gutter: 46px;
-  --portrait-size: 130px;
-  --bio-circle-size: 19.5px;
+  --portrait-size: 94.77px;
+  --bio-circle-size: 14.22px;
   --nav-size: 38.4px;
   --nav-gap: 8px;
   --gallery-edge-fade: 1.2%;
@@ -29,7 +29,7 @@ h2, p { margin-top: 0; }
   grid-template-columns: var(--portrait-size) minmax(0, 1fr);
   align-items: start;
   gap: 20px;
-  padding-block: 12px 18px;
+  padding-block: 8.75px 13.12px;
   border-bottom: 1px solid #deddd7;
 }
 .portrait-column { position: relative; min-width: 0; }
@@ -117,6 +117,8 @@ h2, p { margin-top: 0; }
   background: var(--color-surface);
   box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
 }
+.email-contact { color: #000; }
+.linkedin-link, .instagram-link { color: #000; }
 .email-contact { order: 0; }
 .instagram-link { order: 1; }
 .linkedin-link { order: 2; }
@@ -144,7 +146,7 @@ h2, p { margin-top: 0; }
   bottom: 7px;
   width: var(--bio-circle-size);
   height: var(--bio-circle-size);
-  color: #000;
+  color: #98d0ff;
   fill: currentColor;
   pointer-events: none;
 }
@@ -234,7 +236,7 @@ h2, p { margin-top: 0; }
   transition-delay: 0s;
 }
 .instagram-link svg { width: 20.4px; }
-.linkedin-link svg { width: 20.4px; fill: #0a66c2; }
+.linkedin-link svg { width: 20.4px; fill: currentColor; }
 
 .gallery {
   columns: 3;
@@ -350,6 +352,31 @@ html.gallery-intro-supported .gallery.is-intro-fit figure { grid-column: span va
   margin: 0;
   padding: 0 calc(var(--image-gap-x) / 2) var(--image-gap-y);
 }
+.project-works.is-grid .project-image-row {
+  grid-column: 1 / -1;
+  grid-row: span var(--image-rows, 1);
+  display: grid;
+  grid-template-columns: repeat(var(--gallery-row-columns, 1), minmax(0, 1fr));
+  align-items: center;
+  justify-self: center;
+  column-gap: var(--gallery-gap, 5px);
+  padding-bottom: var(--gallery-gap-y, var(--gallery-gap, 5px));
+}
+.project-works.is-grid .project-image-row figure {
+  grid-column: span var(--image-columns, 1);
+  grid-row: auto;
+  min-width: 0;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+}
+.project-works.is-grid .project-image-row .lightbox-link { flex: 0 1 auto; }
+.project-works.is-grid .project-image-row img,
+.project-works.is-grid .project-image-row video {
+  width: 100%;
+  height: auto;
+  max-height: min(70svh, 560px);
+}
 .project-works.is-grid .lightbox-link {
   flex: 1;
   min-height: 0;
@@ -420,9 +447,9 @@ html.gallery-intro-supported .gallery.is-intro-fit figure { grid-column: span va
 @media (max-width: 760px) {
   :root { --page-gutter: 42px; }
   .page { width: min(calc(100% - var(--page-gutter)), 570px); }
-  :root { --portrait-size: 71px; }
-  :root { --bio-circle-size: 10.65px; }
-  .site-header { grid-template-columns: var(--portrait-size) minmax(0, 1fr); gap: 12px; padding-block: 12px 16px; }
+  :root { --portrait-size: 51.76px; }
+  :root { --bio-circle-size: 7.76px; }
+  .site-header { grid-template-columns: var(--portrait-size) minmax(0, 1fr); gap: 12px; padding-block: 8.75px 11.66px; }
   .wordmark { min-height: 62px; padding-inline: 12px; font-size: calc(1.15 * clamp(34px, 9vw, 52px)); }
   .site-header .wordmark { max-width: calc(100% - 100px); }
   .social-nav { top: 12px; gap: 6px; }
@@ -439,12 +466,13 @@ html.gallery-intro-supported .gallery.is-intro-fit figure { grid-column: span va
   }
   .works figure { margin-bottom: var(--image-gap-y); }
   .project-works.is-grid { grid-template-columns: repeat(var(--gallery-columns-effective, 2), minmax(0, 1fr)); }
+  .project-works.is-grid .project-image-row { display: contents; }
   .project-works img, .project-works video { max-height: calc(100svh - 220px); }
   .project-page { padding-block: 24px 58px; }
 }
 
 @media (max-width: 1100px) {
-  .site-header { padding-bottom: 18px; }
+  .site-header { padding-bottom: 13.12px; }
   .site-header .header-content {
     display: grid;
     grid-template-columns: max-content max-content max-content;
@@ -474,7 +502,7 @@ html.gallery-intro-supported .gallery.is-intro-fit figure { grid-column: span va
 }
 
 @media (max-width: 760px) {
-  .site-header { padding-bottom: 16px; }
+  .site-header { padding-bottom: 11.66px; }
   .artist-full-name,
   .site-header .artist-description,
   .artist-label-separator { display: none; }
@@ -504,8 +532,8 @@ html.gallery-intro-supported .gallery.is-intro-fit figure { grid-column: span va
 
 @media (max-width: 440px) {
   :root { --page-gutter: 40px; }
-  :root { --portrait-size: 55px; }
-  :root { --bio-circle-size: 8.25px; }
+  :root { --portrait-size: 40.1px; }
+  :root { --bio-circle-size: 6.01px; }
   .page { width: calc(100% - var(--page-gutter)); }
   .site-header { grid-template-columns: var(--portrait-size) minmax(0, 1fr); gap: 10px; }
   .wordmark { min-height: 54px; padding-inline: 9px; font-size: calc(1.15 * clamp(29px, 8vw, 38px)); }

@@ -1,5 +1,8 @@
 target_widths = [480, 960, 1440]
 webp_quality = 88
-animation_max_width = 1440
-webm_crf = 32
-mp4_crf = 28
+preview_max_width = 1440
+preview_webm_crf = 32
+preview_mp4_crf = 28
+lightbox_max_width = 1920
+lightbox_webm_crf = 26
+lightbox_mp4_crf = 24

@@ -18,11 +18,11 @@
       <h1 class="project-title">{{ page.title | escape }}</h1>
       {% if content != "" %}<div class="project-description">{{ content }}</div>{% endif %}
       {% assign project_grid_enabled = false %}
-      {% if page.gallery.layout == 'grid' %}
+      {% if page.gallery.layout == 'grid' or page.gallery_columns %}
         {% assign project_grid_enabled = true %}
       {% else %}
         {% for image in page.images %}
-          {% if image.span.columns %}
+          {% if image.span_columns or image.row %}
             {% assign project_grid_enabled = true %}
           {% endif %}
         {% endfor %}
@@ -30,7 +30,7 @@
       <section
         class="works project-works{% if project_grid_enabled %} is-grid{% endif %}"
         aria-label="{{ page.title | escape }} images"
-        style="--gallery-gap: {{ site.home_gallery.gap | default: '5px' | escape }};{% if page.gallery.columns %} --gallery-columns: {{ page.gallery.columns }};{% endif %}{% if page.gallery.gap.horizontal %} --gallery-gap-x: {{ page.gallery.gap.horizontal | escape }};{% endif %}{% if page.gallery.gap.vertical %} --gallery-gap-y: {{ page.gallery.gap.vertical | escape }};{% endif %}{% if page.gallery.row_height %} --gallery-row-height: {{ page.gallery.row_height | escape }};{% endif %}"
+        style="--gallery-gap: {{ site.home_gallery.gap | default: '5px' | escape }};{% if page.gallery_columns %} --gallery-columns: {{ page.gallery_columns }};{% endif %}{% if page.gallery.gap.horizontal %} --gallery-gap-x: {{ page.gallery.gap.horizontal | escape }};{% endif %}{% if page.gallery.gap.vertical %} --gallery-gap-y: {{ page.gallery.gap.vertical | escape }};{% endif %}{% if page.gallery.row_height %} --gallery-row-height: {{ page.gallery.row_height | escape }};{% endif %}"
       >
         {% assign project_directory = page.path | remove: "/index.md" %}
         {% for image in page.images %}
@@ -45,12 +45,14 @@
           {% assign image_sizes = "(max-width: 440px) calc(100vw - 40px), (max-width: 612px) calc((100vw - 54px) / 2), (max-width: 760px) 279px, (max-width: 1616px) calc((100vw - 78px) / 3), 513px" %}
         {% endif %}
         <figure
-          {% if image.span.columns or image.span.rows or image.gap.horizontal or image.gap.vertical %}style="{% if image.span.columns %}--image-columns: {{ image.span.columns }};{% endif %}{% if image.span.rows %} --image-rows: {{ image.span.rows }};{% endif %}{% if image.gap.horizontal %} --image-gap-x: {{ image.gap.horizontal | escape }};{% endif %}{% if image.gap.vertical %} --image-gap-y: {{ image.gap.vertical | escape }};{% endif %}"{% endif %}
-          data-image-columns="{{ image.span.columns | default: 1 }}"{% if image.span.rows %} data-image-rows="{{ image.span.rows }}"{% endif %}
+          {% if image.span_columns or image.span.rows or image.gap.horizontal or image.gap.vertical %}style="{% if image.span_columns %}--image-columns: {{ image.span_columns }};{% endif %}{% if image.span.rows %} --image-rows: {{ image.span.rows }};{% endif %}{% if image.gap.horizontal %} --image-gap-x: {{ image.gap.horizontal | escape }};{% endif %}{% if image.gap.vertical %} --image-gap-y: {{ image.gap.vertical | escape }};{% endif %}"{% endif %}
+          data-image-columns="{{ image.span_columns | default: 1 }}"{% if image.span.rows %} data-image-rows="{{ image.span.rows }}"{% endif %}{% if image.row %} data-image-row="{{ image.row | escape }}"{% endif %}
           {% if responsive_image %}data-image-width="{{ responsive_image.width }}" data-image-height="{{ responsive_image.height }}"{% endif %}
         >
           {% if responsive_image.motion %}
-          <a class="lightbox-link motion-link" href="{{ original_image_url }}" data-lightbox-video="{{ responsive_image.motion.src | relative_url }}" data-lightbox-mp4="{{ responsive_image.motion.mp4 | relative_url }}" aria-label="{{ image_alt }}">
+            {% assign lightbox_video = responsive_image.motion.lightbox_src | default: responsive_image.motion.src %}
+            {% assign lightbox_mp4 = responsive_image.motion.lightbox_mp4 | default: responsive_image.motion.mp4 %}
+            <a class="lightbox-link motion-link" href="{{ original_image_url }}" data-lightbox-video="{{ lightbox_video | relative_url }}" data-lightbox-mp4="{{ lightbox_mp4 | relative_url }}" aria-label="{{ image_alt }}">
             <video class="artwork-motion" width="{{ responsive_image.width }}" height="{{ responsive_image.height }}" aria-label="{{ image_alt }}" poster="{{ responsive_image.motion.poster | relative_url }}" muted loop playsinline preload="none">
               <source src="{{ responsive_image.motion.src | relative_url }}" type="video/webm">
               <source src="{{ responsive_image.motion.mp4 | relative_url }}" type="video/mp4">

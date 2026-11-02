@@ -15,10 +15,67 @@ MANIFEST = ROOT / "_data" / "generated_image_variants.json"
 CONFIG = tomli.loads((ROOT / "config" / "image_optimization.toml").read_text())
 TARGET_WIDTHS = tuple(CONFIG["target_widths"])
 WEBP_QUALITY = int(CONFIG["webp_quality"])
-ANIMATION_MAX_WIDTH = int(CONFIG["animation_max_width"])
-WEBM_CRF = int(CONFIG["webm_crf"])
-MP4_CRF = int(CONFIG["mp4_crf"])
+PREVIEW_MAX_WIDTH = int(CONFIG["preview_max_width"])
+PREVIEW_WEBM_CRF = int(CONFIG["preview_webm_crf"])
+PREVIEW_MP4_CRF = int(CONFIG["preview_mp4_crf"])
+LIGHTBOX_MAX_WIDTH = int(CONFIG["lightbox_max_width"])
+LIGHTBOX_WEBM_CRF = int(CONFIG["lightbox_webm_crf"])
+LIGHTBOX_MP4_CRF = int(CONFIG["lightbox_mp4_crf"])
 STATIC_FORMATS = {".jpg", ".jpeg", ".png", ".webp"}
+
+
+def create_animation_videos(
+    source: Path,
+    output_directory: Path,
+    ffmpeg: str,
+    maximum_width: int,
+    webm_crf: int,
+    mp4_crf: int,
+    filename_prefix: str = "",
+) -> tuple[Path, Path]:
+    stem = f"{filename_prefix}animation" if filename_prefix else "animation"
+    webm_output = output_directory / f"{stem}.webm"
+    mp4_output = output_directory / f"{stem}.mp4"
+    output_directory.mkdir(parents=True, exist_ok=True)
+    scale_filter = f"scale=w='trunc(min({maximum_width},iw)/2)*2':h=-2:flags=lanczos"
+
+    subprocess.run(
+        [
+            ffmpeg,
+            "-y",
+            "-v", "error",
+            "-i", str(source),
+            "-an",
+            "-vf", scale_filter,
+            "-c:v", "libvpx-vp9",
+            "-crf", str(webm_crf),
+            "-b:v", "0",
+            "-deadline", "good",
+            "-cpu-used", "4",
+            "-row-mt", "1",
+            "-pix_fmt", "yuv420p",
+            str(webm_output),
+        ],
+        check=True,
+    )
+    subprocess.run(
+        [
+            ffmpeg,
+            "-y",
+            "-v", "error",
+            "-i", str(source),
+            "-an",
+            "-vf", scale_filter,
+            "-c:v", "libx264",
+            "-crf", str(mp4_crf),
+            "-preset", "medium",
+            "-pix_fmt", "yuv420p",
+            "-movflags", "+faststart",
+            str(mp4_output),
+        ],
+        check=True,
+    )
+    return webm_output, mp4_output
 
 
 def create_variants() -> None:
@@ -36,41 +93,25 @@ def create_variants() -> None:
             if source.suffix.lower() == ".gif" and getattr(opened, "n_frames", 1) > 1:
                 motion_video = output_directory / "animation.webm"
                 motion_mp4 = output_directory / "animation.mp4"
+                lightbox_video = output_directory / "lightbox-animation.webm"
+                lightbox_mp4 = output_directory / "lightbox-animation.mp4"
                 motion_poster = output_directory / "poster.webp"
-                motion_video.parent.mkdir(parents=True, exist_ok=True)
-                command = [
+                motion_video, motion_mp4 = create_animation_videos(
+                    source,
+                    motion_video.parent,
                     ffmpeg,
-                    "-y",
-                    "-v", "error",
-                    "-i", str(source),
-                    "-an",
-                    "-vf", f"scale=w='trunc(min({ANIMATION_MAX_WIDTH},iw)/2)*2':h=-2:flags=lanczos",
-                    "-c:v", "libvpx-vp9",
-                    "-crf", str(WEBM_CRF),
-                    "-b:v", "0",
-                    "-deadline", "good",
-                    "-cpu-used", "4",
-                    "-row-mt", "1",
-                    "-pix_fmt", "yuv420p",
-                    str(motion_video),
-                ]
-                subprocess.run(command, check=True)
-                subprocess.run(
-                    [
-                        ffmpeg,
-                        "-y",
-                        "-v", "error",
-                        "-i", str(source),
-                        "-an",
-                        "-vf", f"scale=w='trunc(min({ANIMATION_MAX_WIDTH},iw)/2)*2':h=-2:flags=lanczos",
-                        "-c:v", "libx264",
-                        "-crf", str(MP4_CRF),
-                        "-preset", "medium",
-                        "-pix_fmt", "yuv420p",
-                        "-movflags", "+faststart",
-                        str(motion_mp4),
-                    ],
-                    check=True,
+                    PREVIEW_MAX_WIDTH,
+                    PREVIEW_WEBM_CRF,
+                    PREVIEW_MP4_CRF,
+                )
+                lightbox_video, lightbox_mp4 = create_animation_videos(
+                    source,
+                    lightbox_video.parent,
+                    ffmpeg,
+                    LIGHTBOX_MAX_WIDTH,
+                    LIGHTBOX_WEBM_CRF,
+                    LIGHTBOX_MP4_CRF,
+                    filename_prefix="lightbox-",
                 )
 
                 opened.seek(0)
@@ -83,13 +124,17 @@ def create_variants() -> None:
                         Image.Resampling.LANCZOS,
                     )
                 first_frame.save(motion_poster, "WEBP", quality=WEBP_QUALITY, method=6)
-                expected_files.update((motion_video, motion_mp4, motion_poster))
+                expected_files.update(
+                    (motion_video, motion_mp4, lightbox_video, lightbox_mp4, motion_poster)
+                )
                 variants[key] = {
                     "width": opened.width,
                     "height": opened.height,
                     "motion": {
                         "src": "/" + motion_video.relative_to(ROOT).as_posix(),
                         "mp4": "/" + motion_mp4.relative_to(ROOT).as_posix(),
+                        "lightbox_src": "/" + lightbox_video.relative_to(ROOT).as_posix(),
+                        "lightbox_mp4": "/" + lightbox_mp4.relative_to(ROOT).as_posix(),
                         "poster": "/" + motion_poster.relative_to(ROOT).as_posix(),
                     },
                 }

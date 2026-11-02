@@ -3,23 +3,32 @@ layout: project
 title: "Christmas Moments | Narrative Book Illustrations"
 description: "Christmas Moments | Narrative Book Illustrations by Katzaryna."
 permalink: /projects/christmas-moments/
-gallery_order: 1
 images:
   - file: cover.webp
     alt: "Christmas Moments | Narrative Book Illustrations"
-    cover: true
+    cover: false
+    span_columns: 3
   - file: 01.webp
-    alt: "Christmas Moments | Narrative Book Illustrations - image 2"
+    alt: "Christmas Moments | Narrative Book Illustrations"
+    span_columns: 3
   - file: 02.webp
-    alt: "Christmas Moments | Narrative Book Illustrations - image 3"
+    alt: "Christmas Moments | Narrative Book Illustrations"
+    span_columns: 3
   - file: 03.webp
-    alt: "Christmas Moments | Narrative Book Illustrations - image 4"
+    alt: "Christmas Moments | Narrative Book Illustrations"
+    span_columns: 3
   - file: 04.webp
-    alt: "Christmas Moments | Narrative Book Illustrations - image 5"
+    alt: "Christmas Moments | Narrative Book Illustrations"
+    cover: true
+    gallery_order: 2
+    span_columns: 3
   - file: 05.webp
-    alt: "Christmas Moments | Narrative Book Illustrations - image 6"
+    alt: "Christmas Moments | Narrative Book Illustrations"
+    span_columns: 3
   - file: 06.webp
-    alt: "Christmas Moments | Narrative Book Illustrations - image 7"
+    alt: "Christmas Moments | Narrative Book Illustrations"
+    span_columns: 3
   - file: 07.webp
-    alt: "Christmas Moments | Narrative Book Illustrations - image 8"
+    alt: "Christmas Moments | Narrative Book Illustrations"
+    span_columns: 3
 ---
