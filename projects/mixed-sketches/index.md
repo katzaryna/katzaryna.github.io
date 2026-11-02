@@ -3,42 +3,44 @@ layout: project
 title: "Mixed Media Sketches | Urban Character Drawing 2025"
 description: "Mixed Media Sketches | Urban Character Drawing 2025 by Katzaryna."
 permalink: /projects/mixed-sketches/
-cover:
-  file: behance-cover.webp
-  alt: "Mixed Media Sketches | Urban Character Drawing 2025 cover"
+gallery_columns: 2
 images:
   - file: cover.webp
     alt: "Mixed Media Sketches | Urban Character Drawing 2025"
   - file: 01.webp
-    alt: "Mixed Media Sketches | Urban Character Drawing 2025 - image 2"
+    alt: "Mixed Media Sketches | Urban Character Drawing 2025"
   - file: 02.webp
-    alt: "Mixed Media Sketches | Urban Character Drawing 2025 - image 3"
+    alt: "Mixed Media Sketches | Urban Character Drawing 2025"
   - file: 03.webp
-    alt: "Mixed Media Sketches | Urban Character Drawing 2025 - image 4"
+    alt: "Mixed Media Sketches | Urban Character Drawing 2025"
   - file: 04.webp
-    alt: "Mixed Media Sketches | Urban Character Drawing 2025 - image 5"
+    alt: "Mixed Media Sketches | Urban Character Drawing 2025"
   - file: 05.webp
-    alt: "Mixed Media Sketches | Urban Character Drawing 2025 - image 6"
+    alt: "Mixed Media Sketches | Urban Character Drawing 2025"
   - file: 06.webp
-    alt: "Mixed Media Sketches | Urban Character Drawing 2025 - image 7"
+    alt: "Mixed Media Sketches | Urban Character Drawing 2025"
   - file: 07.webp
-    alt: "Mixed Media Sketches | Urban Character Drawing 2025 - image 8"
+    alt: "Mixed Media Sketches | Urban Character Drawing 2025"
   - file: 08.webp
-    alt: "Mixed Media Sketches | Urban Character Drawing 2025 - image 9"
+    alt: "Mixed Media Sketches | Urban Character Drawing 2025"
   - file: 09.webp
-    alt: "Mixed Media Sketches | Urban Character Drawing 2025 - image 10"
+    alt: "Mixed Media Sketches | Urban Character Drawing 2025"
+    cover: true
+    gallery_order: 1
   - file: 10.webp
-    alt: "Mixed Media Sketches | Urban Character Drawing 2025 - image 11"
+    alt: "Mixed Media Sketches | Urban Character Drawing 2025"
   - file: 11.webp
-    alt: "Mixed Media Sketches | Urban Character Drawing 2025 - image 12"
+    alt: "Mixed Media Sketches | Urban Character Drawing 2025"
   - file: 12.webp
-    alt: "Mixed Media Sketches | Urban Character Drawing 2025 - image 13"
+    alt: "Mixed Media Sketches | Urban Character Drawing 2025"
+    cover: true
+    gallery_order: 5
   - file: 13.webp
-    alt: "Mixed Media Sketches | Urban Character Drawing 2025 - image 14"
+    alt: "Mixed Media Sketches | Urban Character Drawing 2025"
   - file: 14.webp
-    alt: "Mixed Media Sketches | Urban Character Drawing 2025 - image 15"
+    alt: "Mixed Media Sketches | Urban Character Drawing 2025"
   - file: 15.webp
-    alt: "Mixed Media Sketches | Urban Character Drawing 2025 - image 16"
+    alt: "Mixed Media Sketches | Urban Character Drawing 2025"
   - file: 16.webp
-    alt: "Mixed Media Sketches | Urban Character Drawing 2025 - image 17"
+    alt: "Mixed Media Sketches | Urban Character Drawing 2025"
 ---

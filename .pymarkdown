@@ -1,0 +1,16 @@
+{
+  "plugins": {
+    "md013": {
+      "line_length": 120
+    },
+    "md024": {
+      "siblings_only": true
+    },
+    "md033": {
+      "allowed_elements": ["details", "summary"]
+    },
+    "md041": {
+      "enabled": false
+    }
+  }
+}

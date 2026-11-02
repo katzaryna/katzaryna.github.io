@@ -1,118 +1,236 @@
 # Katzaryna — Artist portfolio
 
-A responsive Jekyll portfolio hosted on GitHub Pages. Project pages and the
-home-page cover gallery are generated from the Markdown files in `projects/`.
-Keep original artwork in those project folders; the build automatically
-creates ignored, responsive WebP derivatives for supported static images.
+A responsive Jekyll portfolio for illustrator Katsiaryna Zarouskaya, published
+with GitHub Pages. The project is data-driven: project pages and the home-page
+gallery are rendered from Markdown files under `projects/`.
 
-## Publish with GitHub Pages
+## Repository map
 
-The GitHub Actions workflow builds the site, prepares responsive image
-derivatives, and deploys the result. In **Settings → Pages**, choose **GitHub
-Actions** as the build and deployment source.
+- `_config.yml` — Jekyll settings and artist/site content, social links,
+  analytics ID, and the home-gallery gap.
+- `projects/<slug>/index.md` — one project's metadata, artwork list, and
+  optional project-page gallery settings.
+- `_layouts/project.html` — project-page template.
+- `_includes/` — shared social-links and analytics-consent UI.
+- `_includes/site-header.html` — shared responsive header, avatar, and bio
+  toggle used on the home page and project pages.
+- `index.html` — home page, project-cover selection, and cover ordering.
+- `assets/css/styles.css` — shared responsive styles for the header, home
+  gallery, project galleries, and artwork viewer.
+- `assets/js/` — biography toggle, project-gallery sizing, artwork viewer,
+  and consent-gated analytics.
+- `config/image_optimization.toml` — responsive image/video conversion
+  settings.
+- `scripts/generate_image_variants.py` — generates ignored WebP/video
+  derivatives and the Jekyll data manifest.
+- `scripts/check_project_covers.py` and `scripts/validate_site.py` — checks
+  project cover metadata and the generated site's HTML/local URLs.
+- `.github/workflows/jekyll-gh-pages.yml` — lint, test, build, validate, and
+  deploy to GitHub Pages on pushes to `main`.
 
-## Local development
+Generated files under `assets/optimized/` and
+`_data/generated_image_variants.json` are build products; do not edit or commit
+them. Original artwork stays in each project's directory.
 
-Install the image-processing dependencies once, then generate and validate
-the site:
+## How the pages are assembled
 
-```sh
-python3 -m pip install -r requirements-images.txt
-python3 scripts/generate_image_variants.py
-jekyll build
-python3 scripts/validate_site.py --site-dir _site
-```
+Jekyll discovers project pages by their `layout: project` front matter. The
+home page selects images explicitly marked `cover: true`, orders each selected
+image by its own numeric `gallery_order`, and links it to its project page.
+This allows multiple covers from one project to be interleaved with covers
+from other projects.
+The project layout renders all entries in `images` in their listed order.
+`permalink` controls the page URL, not the location of its artwork files.
 
-The generated files in `assets/optimized/` and their temporary Jekyll data
-manifest are git-ignored. Re-run the generator after adding, replacing, or
-removing project images. It also removes stale derivatives.
+The home gallery and project galleries by default use CSS multi-column
+masonry. Images keep their original aspect ratios and are never cropped;
+figures are kept whole when flowing between columns. On desktop galleries use
+three columns, on tablet two, and on narrow screens one. CSS columns flow down
+each column before continuing to the next, so visual reading order is
+top-to-bottom within a column, not row-by-row. A project can opt into a fixed
+grid and set its own desktop column count. The `home_gallery.gap` value in
+`_config.yml` controls horizontal and vertical spacing on both types of
+gallery; the current value is `5px`.
 
-## Artist information and analytics
+The home page initially fits its selected covers into the remaining viewport
+height. JavaScript tries every possible column count and chooses the layout
+that gives the images the greatest total displayed area without cropping; it
+spreads an incomplete final row across the available width. The first scroll
+switches to the normal masonry gallery with a short position-preserving
+animation. If JavaScript is unavailable, the page starts directly in masonry.
+Project pages use masonry by default; `gallery_columns` or image spans enable
+the fixed grid.
+Project-page artwork opens in a full-screen lightbox; animated GIFs use
+generated video previews when available.
 
-Update `_config.yml` to change the artist name, bio, portrait, email, social
-profile links, site description, and copyright year.
+## Add or change a project
 
-GA4 is configured in `_config.yml` under `analytics.measurement_id`. Analytics
-loads only after a visitor allows it. Clear the ID to disable analytics.
-
-## Add a project
-
-Create a directory under `projects/`, put the original images in it, and add
-an `index.md` file:
+Create `projects/<slug>/index.md` and put original artwork in that same
+directory. A typical front matter block looks like this:
 
 ```yaml
 ---
 layout: project
 title: My project
-description: A short description.
+description: A short description for search and sharing.
 permalink: /projects/my-project/
-cover:
-  file: cover.png
-  alt: Description of the project cover
 images:
   - file: 01.png
     alt: Description of the first image
     caption: Optional caption
+    cover: true
+    gallery_order: 1
   - file: 02.jpg
     alt: Description of the second image
 ---
 Optional longer project description.
 ```
 
-The `images` list controls display order. Add an optional `gallery` block to
-set the project layout, column count, gaps, and (for a grid) the height of one
-grid row:
+Requirements and behavior:
+
+- Mark each home-page cover with `cover: true` and give it a unique positive
+  integer `gallery_order`; higher values appear first, starting at the upper
+  left of the gallery. Covers from the same
+  project can be placed anywhere in the overall sequence. Orders must be unique
+  integers from 1 to 9,999,999,999.
+- Only entries marked `cover: true` appear in the home gallery. The old
+  top-level `cover.file` format is not used. The cover checker warns if a
+  project has no selected image and checks that cover orders are unique.
+- List all project-page artwork under `images`. `file` is relative to that
+  project's directory. Provide meaningful `alt` text; `caption` is optional
+  and also serves as a fallback alt-text source.
+- `permalink` changes the project page URL only; keep artwork next to
+  `index.md` and use the original file name in `images[].file`.
+- Project text after the YAML front matter is optional and appears below the
+  project title.
+
+### Spanning project images across columns
+
+Masonry is the default for every gallery. To make an image span multiple
+columns, set `span_columns` on that image. This automatically switches that
+project gallery to the fixed grid layout:
 
 ```yaml
-gallery:
-  layout: grid
-  columns: 3
-  row_height: 8px
-  gap:
-    horizontal: 24px
-    vertical: 18px
+gallery_columns: 4
 images:
   - file: 01.png
     alt: Wide illustration
-    span:
-      columns: 2
-    gap:
-      horizontal: 12px
-      vertical: 10px
+    span_columns: 2
 ```
 
-Omit `gallery.layout: grid` to keep the default masonry-style columns. In grid
-mode, `span.columns` and `span.rows` set an image's grid size; if `rows` is
-omitted, its row span is calculated from the source image proportions.
-`row_height` sets the grid's row unit and is only used in grid mode.
-`gallery.gap` sets the project's horizontal and vertical spacing, while an
-image's optional `gap` values override either direction for that image. Grid
-column spans adapt down to two columns on tablet and one on narrow phones;
-explicit row spans are automatically relaxed on phones.
-Per-image gaps are applied around each image; when neighboring images specify
-different gaps, their half-gaps combine at the shared edge.
+`gallery_columns` enables the fixed grid and chooses its desktop column count
+even when no image has an explicit span. The default is three columns;
+`gallery.row_height` sets the grid's row unit. If `span.rows` is omitted,
+`assets/js/project-gallery.js` calculates the row span from the image
+dimensions. Grid columns adapt to two on tablet and one on narrow phones;
+explicit column spans are clamped to the available columns.
+`gallery.layout: grid` also enables the grid when you want to configure rows
+without setting a column count. `gallery.gap` sets grid spacing; per-image
+`gap` values override either direction for that image.
 
-`permalink` sets only the project page URL. Keep image files in the project
-directory: the templates resolve original image URLs from that directory, so
-changing a project's permalink does not move its images.
+To keep a consecutive set of images together in a row and center them
+vertically against the tallest image, give each image the same `row` value:
 
-Use the original filename in `cover.file` and `images[].file`. Static JPEG,
-PNG, and WebP images are automatically converted into responsive WebP
-derivatives at widths configured in `config/image_optimization.toml` for the
-home-page cover gallery and project page. Original files are retained and
-used in the full-screen artwork viewer. Animated GIFs are converted to WebM
-and H.264/MP4 previews with WebP posters; originals remain as no-JavaScript/
-browser fallbacks and are preserved in the project folders. Browsers download
-only a supported video format. Previews autoplay only when near the viewport
-and when reduced motion is not requested. Animated WebP files are left
-untouched. Other formats are served as-is.
+```yaml
+images:
+  - file: portrait-01.png
+    alt: First portrait
+    row: portraits
+  - file: portrait-02.png
+    alt: Second portrait
+    row: portraits
+  - file: portrait-03.png
+    alt: Third portrait
+    row: portraits
+```
 
-The GitHub Actions build installs the pinned image dependencies, generates
-derivatives, builds with Jekyll, and checks generated HTML for missing image
-alt text and broken local links. Run the same validation command locally after
-building; it catches missing image files and other broken local URLs before
-deployment.
+Grouped images keep their original aspect ratios and stay on one horizontal
+line on wide screens. Their configured column spans determine their relative
+widths, and they are centered vertically against the tallest image. At tablet
+and phone sizes they return to the regular gallery flow. Images in one group
+must be consecutive in the `images` list.
 
-The home page shows project covers only. Landscape covers span two gallery
-columns on wider screens; the gallery adapts to smaller screens. Project
-artwork opens in a full-screen viewer when selected.
+The same shared header appears on the home page and project pages, with a
+matching bottom divider. On wide screens, the artist's full name and
+profession flank the centered site name with a 30px gap, and use matching
+Sedan SC typography and color. The centered site name uses Whisper, project
+titles use Tenor Sans, and image hover captions use Inter. At
+intermediate widths, the two labels move below the site name as
+`Katsiaryna Zarouskaya | Commercial Illustrator`; on narrow screens they
+disappear, leaving the centered name unobstructed. The avatar is 15% smaller
+than its original desktop, tablet, and phone sizes. The three-dot button's
+circle scales to 15% of the avatar height while its dots retain their
+previous size, and stays anchored to the avatar's lower-right corner.
+Clicking the avatar returns to the home page. The black-and-white three-dot
+button opens and closes the About me bio panel from the avatar's
+upper-right corner.
+
+## Images and animation
+
+Use original JPEG, PNG, or WebP files for static images. The build makes
+responsive WebP derivatives at widths in `config/image_optimization.toml`
+(currently 480, 960, and 1440 pixels; a source smaller than those widths gets
+one derivative at its original width). Templates use the generated responsive
+sources where present and fall back to the original file. Original artwork is
+also used by the full-screen viewer.
+
+Animated GIFs are converted to WebM and H.264/MP4 previews, plus a WebP poster.
+Lightweight animation previews play in the gallery; the full-screen viewer
+loads a separate higher-quality version generated up to 1920 pixels wide.
+Static full-screen images use the original file, so a derivative cannot
+restore detail missing from its source; for sharp Retina-sized viewing, use
+original exports with a longest edge of around 2800 pixels or more when the
+artwork permits.
+The browser selects a supported video source, starts previews near the
+viewport, pauses them when they leave it, and does not autoplay when reduced
+motion is requested. If video playback is unavailable, the original GIF is
+used. Animated WebP files and other formats are served as-is.
+
+After adding, replacing, or removing artwork, run the image generator (or
+`make build`) to refresh derivatives and the manifest. The generator removes
+stale derivatives. Do not remove or rename an artwork file still referenced
+by a project's `images` list.
+
+## Artist settings and behavior
+
+Edit `_config.yml` to update the site title/description, artist name and full
+name, profession, bio, portrait and alt text, email, social profile URLs,
+copyright year, home-gallery gap, and analytics measurement ID.
+
+Google Analytics loads only after the visitor accepts analytics consent. The
+choice is saved in browser local storage. Setting
+`analytics.measurement_id` to an empty value disables the consent prompt and
+analytics loading.
+
+## Local development and validation
+
+Requirements: Python, Node.js/npm, Ruby with Jekyll, and the dependencies
+listed in `requirements-images.txt`, `requirements-dev.txt`, and
+`package-lock.json`. Install Python and Node dependencies with:
+
+```sh
+make setup
+```
+
+Useful commands:
+
+```sh
+make lint       # Python, JavaScript, CSS, templates, YAML, Markdown, TOML, images
+make test       # Python tests and selected-cover checks
+make check      # all linters and tests
+make build-fast # Jekyll build only; does not refresh image derivatives
+make build      # tests, image generation, Jekyll build, generated-site validation
+```
+
+`make build` validates every generated HTML page for missing image alt text
+and broken local URLs. `make check` runs the configured linters for Python,
+JavaScript, CSS, Liquid/HTML, YAML, Markdown, TOML formatting, and image file
+integrity. Tests live under `tests/`.
+
+## Deployment
+
+The GitHub Actions workflow runs on pushes to `main` or by manual dispatch.
+It installs pinned Python and Node dependencies, runs `make check`, generates
+image derivatives, builds with the GitHub Pages Jekyll action, validates the
+generated site, and deploys it. In repository **Settings → Pages**, select
+**GitHub Actions** as the deployment source.

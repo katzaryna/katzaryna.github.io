@@ -1,0 +1,7 @@
+extends: relaxed
+rules:
+  document-start: disable
+  line-length:
+    max: 240
+  truthy:
+    allowed-values: ["true", "false", "on"]

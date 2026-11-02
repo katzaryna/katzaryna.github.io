@@ -4,9 +4,13 @@ markdown: kramdown
 plugins: []
 include:
   - assets/optimized
+exclude:
+  - tests
 
 artist:
   name: Katzaryna
+  full_name: Katsiaryna Zarouskaya
+  description: Commercial Illustrator
   bio: >-
     I’m Katsiaryna Zarouskaya, a professional illustrator based in Warsaw, Poland.
     Bachelor’s degree in Graphic Design (Belarusian State Academy of Arts).
@@ -21,6 +25,9 @@ artist:
   instagram_url: https://www.instagram.com/kat.zaryna/
 
 copyright_year: 2026
+
+home_gallery:
+  gap: 5px
 
 analytics:
   measurement_id: G-7S5P7ELFYF
