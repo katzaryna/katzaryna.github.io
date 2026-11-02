@@ -6,6 +6,7 @@ include:
   - assets/optimized
 exclude:
   - tests
+  - node_modules
 
 artist:
   name: Katzaryna
