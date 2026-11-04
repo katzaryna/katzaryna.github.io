@@ -1,13 +1,14 @@
-PYTHON ?= python3
+PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 NPM ?= npm
 
 .DEFAULT_GOAL := help
-.PHONY: help setup lint lint-python lint-javascript lint-css lint-html lint-yaml lint-markdown lint-toml lint-images test check build build-full
+.PHONY: help setup builder lint lint-python lint-javascript lint-css lint-html lint-yaml lint-markdown lint-toml lint-images test check build build-full
 
 help:
 	@printf '%s\n' \
 		'Portfolio project commands:' \
 		'  make setup            Install build, lint, and test dependencies' \
+		'  make builder          Open the local site builder at http://127.0.0.1:8765' \
 		'  make lint             Run all configured linters' \
 		'  make test             Run pytest and check project covers' \
 		'  make check            Run all linters and tests' \
@@ -18,19 +19,22 @@ setup:
 	$(PYTHON) -m pip install -r requirements-images.txt -r requirements-dev.txt
 	$(NPM) ci --no-audit --no-fund
 
+builder:
+	$(PYTHON) scripts/site_builder.py
+
 lint: lint-python lint-javascript lint-css lint-html lint-yaml lint-markdown lint-toml lint-images
 
 lint-python:
 	$(PYTHON) -m ruff check scripts tests
 
 lint-javascript:
-	$(NPM) exec -- eslint eslint.config.mjs "assets/js/**/*.js"
+	$(NPM) exec -- eslint eslint.config.mjs "assets/js/**/*.js" site-builder/app.js
 
 lint-css:
-	$(NPM) exec -- stylelint "assets/css/**/*.css"
+	$(NPM) exec -- stylelint "assets/css/**/*.css" site-builder/styles.css
 
 lint-html:
-	$(PYTHON) -m djlint index.html _includes _layouts --lint
+	$(PYTHON) -m djlint index.html _includes _layouts site-builder/index.html --lint
 
 lint-yaml:
 	$(PYTHON) -m yamllint .github/workflows _config.yml

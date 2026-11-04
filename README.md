@@ -19,6 +19,8 @@ gallery are rendered from Markdown files under `projects/`.
   gallery, project galleries, and artwork viewer.
 - `assets/js/` — biography toggle, project-gallery sizing, artwork viewer,
   and consent-gated analytics.
+- `site-builder/` and `scripts/site_builder.py` — a local-only visual editor
+  for site settings and project galleries.
 - `config/image_optimization.toml` — responsive image/video conversion
   settings.
 - `scripts/generate_image_variants.py` — generates ignored WebP/video
@@ -220,6 +222,25 @@ listed in `requirements-images.txt`, `requirements-dev.txt`, and
 ```sh
 make setup
 ```
+
+Start the local visual site builder from the repository root with:
+
+```sh
+make builder
+```
+
+Then open `http://127.0.0.1:8765` in a browser. The builder edits `_config.yml`
+and project Markdown files in place, and stores uploaded originals in the
+selected project folder. Use **Save** before leaving an edited project.
+Removing an image from a project gallery only removes its metadata entry; it
+does not delete the original file. The builder is bound to localhost and is
+excluded from the published Jekyll site. Use **Предпросмотр обложек** to see
+unsaved cover order and captions, then save your changes and choose
+**Собрать предпросмотр** to rebuild the local site. **Открыть сайт** serves
+that build from a separate local-only address shown by the builder, so the
+site's root-relative scripts, styles, and images load normally. A full
+`make build` afterward also runs project tests and validates the generated
+site.
 
 Useful commands:
 

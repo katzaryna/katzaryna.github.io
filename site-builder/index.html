@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f6f5f1">
+    <title>Конструктор сайта — Katzaryna</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">K</span>
+        <span><strong>Katzaryna</strong><small>локальный конструктор сайта</small></span>
+      </div>
+      <nav class="tabs" aria-label="Разделы конструктора">
+        <button class="tab is-active" type="button" data-view="settings">Настройки</button>
+        <button class="tab" type="button" data-view="projects">Проекты</button>
+      </nav>
+      <button id="build-preview" class="button button-secondary" type="button">Собрать предпросмотр</button>
+      <button id="open-preview" class="button button-primary" type="button" hidden>Открыть сайт</button>
+      <span class="local-badge"><span aria-hidden="true">•</span> Только на этом компьютере</span>
+    </header>
+
+    <main>
+      <div id="flash" class="flash" role="status" aria-live="polite" hidden></div>
+
+      <section id="settings-view" class="view">
+        <div class="page-heading">
+          <div>
+            <p class="eyebrow">САЙТ</p>
+            <h1>Настройки сайта</h1>
+            <p>Поля сгруппированы по разделам. Сохраняются в <code>_config.yml</code>.</p>
+          </div>
+          <button id="save-settings" class="button button-primary" type="button">Сохранить настройки</button>
+        </div>
+        <div id="settings-fields" class="settings-grid"></div>
+      </section>
+
+      <section id="projects-view" class="view" hidden>
+        <div class="page-heading">
+          <div>
+            <p class="eyebrow">ГАЛЕРЕЯ</p>
+            <h1>Проекты и обложки</h1>
+            <p>Создавайте проекты, загружайте изображения и управляйте их подписями и порядком.</p>
+          </div>
+        </div>
+        <div class="project-workspace">
+          <aside class="project-sidebar">
+            <form id="new-project-form" class="new-project-form">
+              <h2>Новый проект</h2>
+              <label class="field">
+                <span>Название</span>
+                <input name="title" required maxlength="120" placeholder="Например, Summer Stories">
+              </label>
+              <label class="field">
+                <span>Адресная часть</span>
+                <input name="slug" required pattern="[a-z0-9]+(-[a-z0-9]+)*" placeholder="summer-stories">
+              </label>
+              <button class="button button-secondary" type="submit">Создать проект</button>
+            </form>
+            <div class="project-list-heading">
+              <h2>Ваши проекты</h2>
+              <span id="project-count" class="count-badge">0</span>
+            </div>
+            <div id="project-list" class="project-list"></div>
+          </aside>
+          <section id="project-editor" class="project-editor">
+            <div class="empty-state">
+              <span class="empty-icon">✳</span>
+              <h2>Выберите проект</h2>
+              <p>Или создайте новый — он появится в списке слева.</p>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+    <dialog id="cover-preview" class="cover-preview">
+      <div class="preview-dialog-heading">
+        <div><p class="eyebrow">ПРЕДПРОСМОТР</p><h2 id="preview-title"></h2></div>
+        <button id="close-cover-preview" class="button button-quiet" type="button">Закрыть</button>
+      </div>
+      <div id="preview-covers" class="preview-covers"></div>
+    </dialog>
+    <script src="/app.js" defer></script>
+  </body>
+</html>
