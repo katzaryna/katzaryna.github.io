@@ -17,7 +17,7 @@ images:
   - file: 01.webp
     alt: "Museum Invitation Card | Illustrative design"
     cover: true
-    gallery_order: 87
+    gallery_order: 9
     span_columns: 4
   - file: 24.webp
     alt: "Museum Invitation Card | Illustrative design"

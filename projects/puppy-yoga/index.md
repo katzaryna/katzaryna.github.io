@@ -8,7 +8,7 @@ images:
   - file: 01.webp
     alt: "Puppy Yoga | Editorial Lifestyle Illustration"
     cover: true
-    gallery_order: 75
+    gallery_order: 8
     span_columns: 3
   - file: 06.png
     alt: "Puppy Yoga | Editorial Lifestyle Illustration"

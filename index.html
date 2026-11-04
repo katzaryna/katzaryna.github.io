@@ -8,7 +8,7 @@
     <meta name="description" content="{{ site.description | escape }}">
     <meta name="theme-color" content="#ffffff">
     <title>{{ site.title | escape }}</title>
-    <script>document.documentElement.classList.add('gallery-intro-supported');</script>
+    {% if site.home_gallery.compact %}<script>document.documentElement.classList.add('gallery-intro-supported');</script>{% endif %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter&family=Sedan+SC&family=Tenor+Sans&family=Whisper&display=swap" rel="stylesheet">
@@ -19,7 +19,7 @@
     {% include social-links.html %}
 
     <main class="page home-page">
-      <section class="gallery is-intro-fit" id="gallery" aria-label="Selected paintings" style="--gallery-gap: {{ site.home_gallery.gap | default: '5px' | escape }}">
+      <section class="gallery{% if site.home_gallery.compact %} is-intro-fit{% endif %}" id="gallery" aria-label="Selected paintings" style="--gallery-gap: {{ site.home_gallery.gap | default: '5px' | escape }}">
         {% assign projects = site.pages | where_exp: "project", "project.layout == 'project'" %}
         {%- capture cover_order_values -%}
           {%- for project in projects -%}
@@ -51,13 +51,18 @@
             {% assign cover_key = project_directory | append: "/" | append: cover.file %}
             {% assign responsive_cover = site.data.generated_image_variants[cover_key] %}
             {% assign original_cover_url = "/" | append: project_directory | append: "/" | append: cover.file | relative_url %}
+            {% assign cover_alt = cover.alt | default: project.title %}
         <figure>
-          <a class="gallery-link" href="{{ project.url | relative_url }}" aria-label="View {{ project.title | escape }} project">
+          <a
+            class="gallery-link{% if site.home_gallery.single_page %} home-lightbox-link{% endif %}"
+            href="{% if site.home_gallery.single_page %}{{ original_cover_url }}{% else %}{{ project.url | relative_url }}{% endif %}"
+            {% if site.home_gallery.single_page %}data-caption="{{ cover.caption | default: project.title | escape }}" aria-label="Enlarge {{ project.title | escape }} cover"{% else %}aria-label="View {{ project.title | escape }} project"{% endif %}
+          >
         {% if responsive_cover %}
           {% assign cover_sizes = "(max-width: 440px) calc(100vw - 40px), (max-width: 612px) calc((100vw - 54px) / 2), (max-width: 760px) 282px, (max-width: 1616px) calc((100vw - 56px) / 3), 520px" %}
-        <img src="{{ responsive_cover.src | relative_url }}" srcset="{% for source in responsive_cover.sources %}{{ source.src | relative_url }} {{ source.width }}w{% unless forloop.last %}, {% endunless %}{% endfor %}" sizes="{{ cover_sizes }}" width="{{ responsive_cover.width }}" height="{{ responsive_cover.height }}" alt="{{ cover.alt | default: project.title | escape }}" loading="{{ cover_loading }}"{{ cover_fetchpriority }}>
+        <img src="{{ responsive_cover.src | relative_url }}" srcset="{% for source in responsive_cover.sources %}{{ source.src | relative_url }} {{ source.width }}w{% unless forloop.last %}, {% endunless %}{% endfor %}" sizes="{{ cover_sizes }}" width="{{ responsive_cover.width }}" height="{{ responsive_cover.height }}" alt="{{ cover_alt | escape }}" loading="{{ cover_loading }}"{{ cover_fetchpriority }}>
             {% else %}
-            <img src="{{ original_cover_url }}" alt="{{ cover.alt | default: project.title | escape }}" loading="{{ cover_loading }}"{{ cover_fetchpriority }}>
+            <img src="{{ original_cover_url }}" alt="{{ cover_alt | escape }}" loading="{{ cover_loading }}"{{ cover_fetchpriority }}>
             {% endif %}
             <span class="gallery-title">{{ project.title | escape }}</span>
           </a>
@@ -75,7 +80,8 @@
     </footer>
 
     {% include consent.html %}
-    <script src="{{ '/assets/js/gallery-intro.js' | relative_url }}"></script>
+    {% if site.home_gallery.compact %}<script src="{{ '/assets/js/gallery-intro.js' | relative_url }}"></script>{% endif %}
+    {% if site.home_gallery.single_page %}<script src="{{ '/assets/js/home-lightbox.js' | relative_url }}"></script>{% endif %}
     <script src="{{ '/assets/js/analytics.js' | relative_url }}" data-measurement-id="{{ site.analytics.measurement_id | escape }}"></script>
     <script src="{{ '/assets/js/bio.js' | relative_url }}"></script>
   </body>

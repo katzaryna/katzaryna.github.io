@@ -7,7 +7,7 @@ images:
   - file: cover.webp
     alt: "Detective Card Game | Character Illustrations"
     cover: true
-    gallery_order: 100
+    gallery_order: 12
     span_columns: 3
   - file: 02.webp
     alt: "Detective Card Game | Character Illustrations"

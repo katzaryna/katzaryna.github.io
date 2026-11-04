@@ -8,7 +8,7 @@ images:
   - file: cover.webp
     alt: "Editorial illustration | Lifestyle | Personal project"
     cover: false
-    gallery_order: 30
+    gallery_order: 6
     span_columns: 6
   - file: 01.webp
     alt: "Editorial illustration | Lifestyle | Personal project"
@@ -37,7 +37,7 @@ images:
   - file: 04.webp
     alt: "Editorial illustration | Lifestyle | Personal project"
     cover: true
-    gallery_order: 3
+    gallery_order: 2
     row: playfulness
     span_columns: 4
   - file: 08.gif

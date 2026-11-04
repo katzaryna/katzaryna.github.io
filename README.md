@@ -7,7 +7,7 @@ gallery are rendered from Markdown files under `projects/`.
 ## Repository map
 
 - `_config.yml` — Jekyll settings and artist/site content, social links,
-  analytics ID, and the home-gallery gap.
+  analytics ID, and home-gallery settings.
 - `projects/<slug>/index.md` — one project's metadata, artwork list, and
   optional project-page gallery settings.
 - `_layouts/project.html` — project-page template.
@@ -35,12 +35,20 @@ them. Original artwork stays in each project's directory.
 ## How the pages are assembled
 
 Jekyll discovers project pages by their `layout: project` front matter. The
-home page selects images explicitly marked `cover: true`, orders each selected
-image by its own numeric `gallery_order`, and links it to its project page.
+home page selects images explicitly marked `cover: true` and orders each
+selected image by its own numeric `gallery_order`.
 This allows multiple covers from one project to be interleaved with covers
 from other projects.
 The project layout renders all entries in `images` in their listed order.
 `permalink` controls the page URL, not the location of its artwork files.
+
+The `home_gallery.compact` setting controls whether the covers initially fit
+into the viewport; when disabled, the home page opens directly as a regular
+masonry gallery. The `home_gallery.single_page` setting controls cover clicks.
+When enabled, a cover opens its original image and its `caption` (or the
+project title if no caption is set) in a lightbox, while project pages remain
+available at their direct URLs. When disabled, covers link to their project
+pages as usual. Both settings are in `_config.yml`.
 
 The home gallery and project galleries by default use CSS multi-column
 masonry. Images keep their original aspect ratios and are never cropped;
@@ -195,7 +203,8 @@ by a project's `images` list.
 
 Edit `_config.yml` to update the site title/description, artist name and full
 name, profession, bio, portrait and alt text, email, social profile URLs,
-copyright year, home-gallery gap, and analytics measurement ID.
+copyright year, home-gallery compact and single-page modes and gap, and
+analytics measurement ID.
 
 Google Analytics loads only after the visitor accepts analytics consent. The
 choice is saved in browser local storage. Setting

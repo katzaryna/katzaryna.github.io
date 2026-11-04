@@ -20,7 +20,7 @@ images:
   - file: 04.webp
     alt: "Christmas Moments | Narrative Book Illustrations"
     cover: true
-    gallery_order: 6
+    gallery_order: 4
     span_columns: 3
   - file: 05.webp
     alt: "Christmas Moments | Narrative Book Illustrations"

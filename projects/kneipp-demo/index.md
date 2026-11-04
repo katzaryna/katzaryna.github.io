@@ -11,7 +11,7 @@ images:
   - file: 01.webp
     alt: "KNEIPP | Cosmetic Packaging | Bath Oil Collection"
     cover: true
-    gallery_order: 98
+    gallery_order: 11
     span_columns: 2
 
   - file: 13.webp
@@ -51,7 +51,7 @@ images:
   - file: 09.webp
     alt: "KNEIPP | Cosmetic Packaging | Bath Oil Collection"
     cover: true
-    gallery_order: 96
+    gallery_order: 10
 
   - file: 15.webp
     alt: "KNEIPP | Cosmetic Packaging | Bath Oil Collection"

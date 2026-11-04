@@ -34,7 +34,7 @@ images:
   - file: 12.webp
     alt: "Mixed Media Sketches | Urban Character Drawing 2025"
     cover: true
-    gallery_order: 15
+    gallery_order: 5
   - file: 13.webp
     alt: "Mixed Media Sketches | Urban Character Drawing 2025"
   - file: 14.webp

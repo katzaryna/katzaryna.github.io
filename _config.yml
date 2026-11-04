@@ -28,7 +28,9 @@ artist:
 copyright_year: 2026
 
 home_gallery:
+  compact: true
   gap: 5px
+  single_page: true
 
 analytics:
   measurement_id: G-7S5P7ELFYF
