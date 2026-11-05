@@ -1,4 +1,4 @@
-Pillow==11.3.0
-imageio-ffmpeg==0.6.0
-tomli==2.2.1
-PyYAML==6.0.2
+Pillow==13.0.0
+imageio-ffmpeg==0.7.0
+tomli==2.5.0
+PyYAML==6.0.3
