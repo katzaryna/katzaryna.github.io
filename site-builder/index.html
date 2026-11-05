@@ -18,7 +18,12 @@
         <a class="tab" href="#home" data-view="home">Главная</a>
         <a class="tab" href="#projects" data-view="projects">Проекты</a>
         <a class="tab" href="#settings" data-view="settings">Настройки</a>
+        <a class="tab" href="#publish" data-view="publish">Публикация</a>
       </nav>
+      <a id="publish-pill" class="publish-pill" href="#publish" data-tone="muted">
+        <span class="publish-pill-dot" aria-hidden="true"></span>
+        <span id="publish-pill-text">Проверяю сайт…</span>
+      </a>
       <button id="preview-site" class="button button-secondary topbar-preview" type="button">
         <span data-label>Предпросмотр сайта</span> <span aria-hidden="true">↗</span>
       </button>
@@ -66,6 +71,11 @@
       <section id="settings-view" class="view settings-view" aria-labelledby="settings-heading" hidden>
         <h1 id="settings-heading">Настройки</h1>
         <form id="settings-form" class="settings-form" novalidate></form>
+      </section>
+
+      <section id="publish-view" class="view settings-view publish-view" aria-labelledby="publish-heading" hidden>
+        <h1 id="publish-heading">Публикация</h1>
+        <div id="publish-content"></div>
       </section>
     </main>
 

@@ -250,7 +250,7 @@ Start the local visual site builder from the repository root with:
 make builder
 ```
 
-Then open `http://127.0.0.1:8765` in a browser. The builder has three tabs:
+Then open `http://127.0.0.1:8765` in a browser. The builder has four tabs:
 
 - **Главная** — the home-page canvas (drag, swap, resize, crop, undo) and the
   home settings: what a cover click does, the gap between covers, and the
@@ -260,6 +260,10 @@ Then open `http://127.0.0.1:8765` in a browser. The builder has three tabs:
   select a tile to edit its alt text, caption, grid width, and row.
 - **Настройки** — artist details and portrait, contacts, browser title and
   search description, copyright year, and the analytics ID.
+- **Публикация** — what is not on the live site yet, in plain words, and the
+  **Опубликовать на сайт** button; the deployment state on GitHub; the history
+  with **Отменить** for each publication; deleted projects to bring back; and
+  a help report to copy when something goes wrong.
 
 All edits stay in the browser until **Сохранить** (or ⌘S/Ctrl+S) writes
 `_config.yml` and every changed project together; if any part is invalid,
@@ -279,6 +283,72 @@ directory and removes its home covers.
 separate local-only address. The builder is bound to localhost and is excluded
 from the published Jekyll site. A full `make build` afterward also runs project
 tests and validates the generated site.
+
+### Publishing from the builder
+
+The status pill in the top bar always says whether the site is up to date.
+Publishing commits only site content (`_config.yml`, `projects/`,
+`assets/images/`, `redirects/`) straight to `main` and pushes it; GitHub
+Actions then checks and deploys it, and the pill follows the run through the
+GitHub CLI (`gh`). Other changed files are never published from the builder.
+
+- Changes published from another computer are pulled in on start and every
+  few minutes while there are no unsaved edits. If the builder's own code
+  changed, it restarts itself and reloads the page.
+- If local and remote edits touch the same lines, nothing is merged
+  automatically: the local commit stays, a copy is pushed to a `help/<date>`
+  branch, and the owner is asked to send the help report.
+- Before committing, the builder checks the content (`SiteRepository.check_content`):
+  settings and every project parse, listed images exist and have alt text,
+  home covers match the ★ marks, and changed images open. Problems are listed
+  in plain words and nothing is committed. The full `make check` still runs in
+  CI; if it fails, the previous site stays live and the status turns red.
+- Project pages are rendered with `render_with_liquid: false` (`defaults` in
+  `_config.yml`), so `{{` or `{%` typed in a description shows as text instead
+  of breaking the build. Do not put Liquid in project descriptions.
+- Tests must not read real artwork (the owner may delete any project); use
+  files under `tests/fixtures/`.
+- **Отменить** in the history publishes a `git revert` of that publication.
+  Only content-only, single-parent commits offer it.
+- **Отменить неопубликованные правки** stashes uncommitted content changes
+  (`git stash list` shows them), so they can still be recovered.
+
+The logic lives in `scripts/site_publisher.py`; `python -m
+scripts.site_publisher status|sync|report` runs it from a terminal.
+
+### Setting up the builder on another Mac
+
+The owner does not need a GitHub account: the builder publishes with an access
+token you issue. Create it at **GitHub → Settings → Developer settings →
+Personal access tokens → Fine-grained tokens → Generate new token**:
+
+- **Resource owner**: `katzaryna`; **Repository access**: only
+  `katzaryna/katzaryna.github.io`.
+- **Repository permissions**: *Contents* — Read and write; *Actions* — Read
+  (for the deployment status). *Metadata* — Read is added automatically.
+- **Expiration**: as long as you are comfortable with. The builder warns two
+  weeks before it expires, and a new token is pasted on its **Публикация** tab
+  under **Доступ к GitHub**.
+
+Publications are pushed with that token but signed with the name and address
+set in the clone's git config (by default the artist's `full_name` and
+`site-builder@katzaryna.github.io`).
+
+Then run once in Terminal on that Mac (the macOS account must be an
+administrator); it asks for the token:
+
+```sh
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/katzaryna/katzaryna.github.io/main/scripts/mac/setup.sh)"
+```
+
+`scripts/mac/setup.sh` installs Homebrew, git, `gh`, Python and Ruby, stores
+the token in the macOS keychain through `gh`, checks that it can push, clones
+the site to `~/katzaryna-site`, installs the dependencies, and adds a
+**Мой сайт** app to the Dock. The app runs `scripts/mac/launch.sh`: it pulls in
+remote changes, reinstalls dependencies when their lock files change, starts
+the builder in the background, and opens it in the browser (or just opens it
+when it is already running). Its log is `.builder-cache/builder.log`. Running
+the setup again is safe.
 
 Useful commands:
 
