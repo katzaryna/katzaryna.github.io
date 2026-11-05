@@ -118,9 +118,8 @@ def test_upload_resizes_to_webp_and_preserves_wide_gamut_profile(tmp_path: Path)
     repository = create_site(tmp_path)
     repository.create_project("artwork", "Artwork")
     image = Image.new("RGB", (3000, 1500), color=(227, 71, 48))
-    p3_source = Path(__file__).parent.parent / "projects" / "book-covers" / "01.jpg"
-    with Image.open(p3_source) as source:
-        image.info["icc_profile"] = source.info["icc_profile"]
+    # A fixture, not real artwork: deleting a project must never break the tests.
+    image.info["icc_profile"] = (Path(__file__).parent / "fixtures" / "display-p3.icc").read_bytes()
     upload = BytesIO()
     image.save(upload, "JPEG", quality=95, icc_profile=image.info["icc_profile"])
 

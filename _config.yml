@@ -180,3 +180,8 @@ home_gallery:
       crop_y: 50
 analytics:
   measurement_id: G-7S5P7ELFYF
+defaults:
+  - scope:
+      path: projects
+    values:
+      render_with_liquid: false

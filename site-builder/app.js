@@ -6,6 +6,7 @@
     home: document.querySelector("#home-view"),
     projects: document.querySelector("#projects-view"),
     settings: document.querySelector("#settings-view"),
+    publish: document.querySelector("#publish-view"),
   };
   const homeView = views.home;
   const settingsForm = document.querySelector("#settings-form");
@@ -45,6 +46,7 @@
   let homeGalleryRedoStack = [];
   let homeGalleryNeedsFit = true;
   let imageDrag = null;
+  let adoptRefreshTimer = 0;
 
   // ---------------------------------------------------------------------------
   // Small helpers
@@ -121,7 +123,7 @@
     try {
       response = await fetch(url, options);
     } catch (error) {
-      throw new Error(`Конструктор не отвечает. Запущен ли make builder? (${error.message})`);
+      throw new Error(`Конструктор не отвечает. Откройте его снова иконкой «Сайт» — правки на этой странице не пропадут. (${error.message})`);
     }
     const responseType = response.headers.get("content-type") ?? "";
     const result = responseType.includes("application/json") ? await response.json() : null;
@@ -219,6 +221,9 @@
     if (selectedSlug && !projectBySlug()) selectedSlug = "";
     homeSelection = new Set([...homeSelection].filter(id => coverById(id)));
     if (!coverById(selectedHomeCover)) selectedHomeCover = "";
+    // Files on disk changed: the list of unpublished changes did too.
+    window.clearTimeout(adoptRefreshTimer);
+    adoptRefreshTimer = window.setTimeout(() => refreshPublishStatus(), 600);
   }
 
   function validateBeforeSave() {
@@ -326,13 +331,38 @@
   async function checkServerFreshness() {
     try {
       const status = await request("/api/status");
-      if (status.outdated && !staleWarningShown) {
+      if (!status.outdated) return;
+      // The builder's own code changed: restart it as soon as nothing unsaved would be lost.
+      if (!isDirty() && !saving && !publishing) {
+        await restartBuilder();
+      } else if (!staleWarningShown) {
         staleWarningShown = true;
-        toast("Код конструктора обновился. Сохраните правки, остановите make builder (Ctrl+C) и запустите снова.", true);
+        toast("Конструктор обновился. Сохраните правки — он перезапустится сам.");
       }
     } catch {
       // A stopped builder is reported when the user next saves.
     }
+  }
+
+  async function restartBuilder() {
+    try {
+      await postJson("/api/restart", {});
+    } catch {
+      return;
+    }
+    for (let attempt = 0; attempt < 60; attempt += 1) {
+      await new Promise(resolve => { window.setTimeout(resolve, 500); });
+      try {
+        const status = await request("/api/status");
+        if (!status.outdated) {
+          location.reload();
+          return;
+        }
+      } catch {
+        // Still restarting.
+      }
+    }
+    toast("Конструктор не перезапустился. Закройте вкладку и откройте его снова иконкой «Сайт».", true);
   }
 
   // ---------------------------------------------------------------------------
@@ -357,6 +387,7 @@
       if (imageIndex >= 0) selectedImageIndex = imageIndex;
       renderProjects();
     }
+    if (currentView === "publish") renderPublishView();
     if (currentView === "home") {
       renderHomeGalleryEditor();
       if (homeGalleryNeedsFit && homeGalleryViewport.clientWidth) {
@@ -2141,6 +2172,418 @@
   }).observe(homeGalleryViewport);
 
   // ---------------------------------------------------------------------------
+  // Publishing: status, publish, history, undo, trash, help
+  // ---------------------------------------------------------------------------
+  const publishPill = document.querySelector("#publish-pill");
+  const publishPillText = document.querySelector("#publish-pill-text");
+  const publishContent = document.querySelector("#publish-content");
+  const FETCH_EVERY_MS = 3 * 60 * 1000;
+  let publishStatus = null;
+  let publishHistory = null;
+  let publishing = false;
+  let publishNote = "";
+  let publishPollTimer = 0;
+  let lastFetchAt = 0;
+  let helpReport = "";
+  let tokenDraft = "";
+  let tokenSaving = false;
+  let tokenFormOpen = false;
+
+  const dateFormat = new Intl.DateTimeFormat("ru", {
+    day: "numeric", month: "long", hour: "2-digit", minute: "2-digit",
+  });
+
+  function formatDate(value) {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? "" : dateFormat.format(date);
+  }
+
+  function hasUnpublished(status = publishStatus) {
+    return Boolean(status && !status.error && (status.change_count > 0 || status.ahead > 0));
+  }
+
+  /** One sentence about the site, plus a tone for the dot. */
+  function publishSummary() {
+    const status = publishStatus;
+    if (publishing) return { tone: "info", short: "Публикую…", title: "Отправляю правки на сайт…" };
+    if (!status) return { tone: "muted", short: "Проверяю сайт…", title: "Проверяю сайт…" };
+    if (status.error) return { tone: "danger", short: "Конструктор не отвечает", title: "Конструктор не отвечает", text: status.error };
+    if (status.busy || status.branch !== "main") {
+      return {
+        tone: "danger",
+        short: "Нужна помощь",
+        title: "Сайт на этом компьютере в необычном состоянии",
+        text: "Ничего не потеряно, но публиковать сейчас нельзя. Нажмите «Скопировать отчёт» внизу и отправьте его тому, кто помогает с сайтом.",
+      };
+    }
+    const token = status.token?.state;
+    if (token === "missing" || token === "invalid") {
+      return {
+        tone: "danger",
+        short: "Нет доступа к GitHub",
+        title: token === "missing" ? "Этот компьютер ещё не подключён к GitHub" : "Ключ доступа к GitHub не работает",
+        text: "Править сайт можно, но публиковать — нет. Вставьте новый ключ в разделе «Доступ к GitHub» ниже.",
+      };
+    }
+    if (hasUnpublished(status)) {
+      const count = status.changes.length || status.change_count;
+      return {
+        tone: "warning",
+        short: count ? `Не опубликовано: ${count}` : "Не отправлено",
+        title: count ? "Эти правки ещё не на сайте" : "Правки ещё не дошли до сайта",
+        text: status.online === false
+          ? "Нет связи с GitHub. Правки сохранены на этом компьютере — опубликуйте их, когда появится интернет."
+          : "Посетители видят прежнюю версию, пока вы не нажмёте «Опубликовать».",
+      };
+    }
+    const deployment = status.deployment?.state;
+    if (deployment === "deploying" || deployment === "pending") {
+      return {
+        tone: "info",
+        short: "Сайт обновляется…",
+        title: "Сайт обновляется",
+        text: "Обычно это занимает 2–4 минуты. Можно продолжать работать или закрыть конструктор.",
+      };
+    }
+    if (deployment === "failed") {
+      return {
+        tone: "danger",
+        short: "Сайт не обновился",
+        title: "Последняя публикация не попала на сайт",
+        text: "Проверка на GitHub нашла ошибку, поэтому посетители по-прежнему видят прошлую версию. Скопируйте отчёт внизу и отправьте его тому, кто помогает с сайтом — или отмените последнюю публикацию в истории.",
+      };
+    }
+    return {
+      tone: "ok",
+      short: "Всё на сайте",
+      title: "Всё опубликовано",
+      text: status.online === false ? "Нет связи с GitHub, поэтому новости с других компьютеров сейчас не проверить." : "Сайт показывает последнюю версию.",
+    };
+  }
+
+  function renderPublishPill() {
+    const summary = publishSummary();
+    publishPill.dataset.tone = summary.tone;
+    publishPillText.textContent = summary.short;
+    publishPill.title = summary.text ?? summary.title;
+  }
+
+  function schedulePublishPoll() {
+    window.clearTimeout(publishPollTimer);
+    const deployment = publishStatus?.deployment?.state;
+    const busy = deployment === "deploying" || deployment === "pending";
+    publishPollTimer = window.setTimeout(() => refreshPublishStatus({ fetch: Date.now() - lastFetchAt > FETCH_EVERY_MS }), busy ? 8000 : 60000);
+  }
+
+  async function refreshPublishStatus({ fetch = false } = {}) {
+    try {
+      if (fetch) lastFetchAt = Date.now();
+      publishStatus = await request(`/api/publish/status${fetch ? "?fetch=1" : ""}`);
+      if (fetch) await bringInRemoteChanges();
+    } catch (error) {
+      publishStatus = { error: error.message };
+    }
+    renderPublishPill();
+    if (currentView === "publish") renderPublishView();
+    schedulePublishPoll();
+  }
+
+  /** Apply changes published from another computer, when nothing local is in the way. */
+  async function bringInRemoteChanges() {
+    if (!publishStatus?.behind || publishStatus.ahead || publishing || saving || isDirty()) return;
+    const result = await postJson("/api/publish/sync", {});
+    if (result.result !== "updated") return;
+    if (result.code_changed) {
+      toast("Загружено обновление конструктора — перезапускаю…");
+      await restartBuilder();
+      return;
+    }
+    adoptState(await request("/api/state"));
+    renderAll();
+    publishStatus = await request("/api/publish/status");
+    toast("Загружены правки, сделанные на другом компьютере.");
+  }
+
+  async function loadPublishHistory() {
+    try {
+      publishHistory = await request("/api/publish/history");
+    } catch (error) {
+      publishHistory = { error: error.message };
+    }
+    if (currentView === "publish") renderPublishView();
+  }
+
+  function renderPublishView() {
+    if (!publishHistory) loadPublishHistory();
+    const focused = publishContent.contains(document.activeElement) && document.activeElement.id
+      ? { id: document.activeElement.id, caret: document.activeElement.selectionStart }
+      : null;
+    const summary = publishSummary();
+    const status = publishStatus;
+    const pending = hasUnpublished(status);
+    const dirty = work ? isDirty() : false;
+    const changesList = pending && status.changes.length
+      ? `<ul class="change-list">${status.changes.map(line => `<li>${escapeHtml(line)}</li>`).join("")}</ul>`
+      : "";
+    const siteLink = status?.site_url
+      ? `<a class="button button-secondary" href="${escapeHtml(status.site_url)}" target="_blank" rel="noopener">Открыть сайт ↗</a>`
+      : "";
+    const deploymentLink = status?.deployment?.url && summary.tone === "danger"
+      ? `<a class="button button-ghost" href="${escapeHtml(status.deployment.url)}" target="_blank" rel="noopener">Подробности на GitHub</a>`
+      : "";
+    const publishForm = pending || dirty ? `
+      ${dirty ? `<p class="publish-note">Есть несохранённые правки — они сохранятся и тоже будут опубликованы.</p>` : ""}
+      <label class="field">
+        <span>Что изменилось <small class="field-help">— необязательно, для истории</small></span>
+        <input id="publish-message" maxlength="200" autocomplete="off" placeholder="Например: добавила новый проект с книгами" value="${escapeHtml(publishNote)}">
+      </label>
+      ${status?.last_error && !publishing ? `<p class="publish-error">${escapeHtml(status.last_error)}</p>` : ""}
+      <div class="publish-actions">
+        <button class="button button-primary button-large" type="button" data-publish-action="publish" ${publishing ? "disabled" : ""}>${publishing ? "Публикую…" : "Опубликовать на сайт"}</button>
+        ${pending && status.change_count ? `<button class="button button-ghost" type="button" data-publish-action="discard" ${publishing ? "disabled" : ""}>Отменить неопубликованные правки…</button>` : ""}
+      </div>` : "";
+
+    publishContent.innerHTML = `
+      <section class="card publish-status" data-tone="${summary.tone}">
+        <div class="publish-status-heading">
+          <span class="publish-status-dot" aria-hidden="true"></span>
+          <div>
+            <h2>${escapeHtml(summary.title)}</h2>
+            ${summary.text ? `<p>${escapeHtml(summary.text)}</p>` : ""}
+          </div>
+        </div>
+        ${changesList}
+        ${publishForm}
+        ${!pending && !dirty ? `<div class="publish-actions">${siteLink}${deploymentLink}<button class="button button-ghost" type="button" data-publish-action="refresh">Проверить ещё раз</button></div>` : ""}
+      </section>
+      ${renderHistoryCard()}
+      ${renderTrashCard()}
+      ${renderTokenCard()}
+      <section class="card">
+        <div class="card-heading"><div><h2>Что-то пошло не так?</h2><p>Скопируйте отчёт и отправьте его тому, кто помогает с сайтом. В нём нет паролей.</p></div></div>
+        <div class="publish-actions">
+          <button class="button button-secondary" type="button" data-publish-action="help">Скопировать отчёт</button>
+        </div>
+        ${helpReport ? `<label class="field help-report"><span>Отчёт (если не скопировался — выделите и скопируйте вручную)</span><textarea readonly class="is-tall">${escapeHtml(helpReport)}</textarea></label>` : ""}
+      </section>`;
+    const refocus = focused && publishContent.querySelector(`#${focused.id}`);
+    if (refocus) {
+      refocus.focus();
+      if (typeof focused.caret === "number") refocus.setSelectionRange?.(focused.caret, focused.caret);
+    }
+  }
+
+  function renderHistoryCard() {
+    const items = publishHistory?.history;
+    let body;
+    if (publishHistory?.error) body = `<p class="field-error">${escapeHtml(publishHistory.error)}</p>`;
+    else if (!items) body = `<p class="field-help">Загружаю…</p>`;
+    else if (!items.length) body = `<p class="field-help">Публикаций пока нет.</p>`;
+    else {
+      body = `<ol class="history-list">${items.slice(0, 25).map(item => `
+        <li class="history-item">
+          <div>
+            <strong>${escapeHtml(item.subject)}</strong>
+            <small>${escapeHtml(formatDate(item.date))} · ${item.mine ? "вы" : escapeHtml(item.author)}${item.technical ? " · техническое обновление" : ""}${item.published ? "" : " · ещё не на сайте"}</small>
+          </div>
+          ${item.can_undo ? `<button class="button button-ghost button-small" type="button" data-publish-action="undo" data-sha="${escapeHtml(item.sha)}">Отменить</button>` : ""}
+        </li>`).join("")}</ol>`;
+    }
+    return `
+      <section class="card">
+        <div class="card-heading"><div><h2>История</h2><p>Каждую публикацию можно отменить — сайт вернётся к виду до неё. Саму отмену тоже можно отменить.</p></div></div>
+        ${body}
+      </section>`;
+  }
+
+  function renderTrashCard() {
+    const items = publishHistory?.trash ?? [];
+    if (!items.length) return "";
+    return `
+      <section class="card">
+        <div class="card-heading"><div><h2>Удалённые проекты</h2><p>Их можно вернуть. Обложки для главной после этого нужно отметить ★ заново.</p></div></div>
+        <ol class="history-list">${items.map(item => `
+          <li class="history-item">
+            <div><strong>${escapeHtml(item.title)}</strong><small>удалён ${escapeHtml(formatDate(item.deleted))}</small></div>
+            <button class="button button-secondary button-small" type="button" data-publish-action="restore" data-name="${escapeHtml(item.name)}">Вернуть</button>
+          </li>`).join("")}</ol>
+      </section>`;
+  }
+
+  function renderTokenCard() {
+    const token = publishStatus?.token ?? { state: "unknown" };
+    const expires = token.expires ? new Intl.DateTimeFormat("ru", { day: "numeric", month: "long", year: "numeric" }).format(new Date(token.expires)) : "";
+    const texts = {
+      ok: expires ? `Ключ работает до ${expires}.` : "Ключ работает.",
+      expiring: `Ключ перестанет работать ${expires} (осталось ${plural(token.days_left ?? 0, "день", "дня", "дней")}). Попросите новый у того, кто помогает с сайтом.`,
+      invalid: "Ключ не подходит или истёк. Попросите новый у того, кто помогает с сайтом, и вставьте его сюда.",
+      missing: "Компьютер не подключён к GitHub. Вставьте ключ доступа, который вам дали.",
+      unknown: "Не удалось проверить ключ — возможно, нет интернета.",
+    };
+    const needsKey = ["expiring", "invalid", "missing"].includes(token.state);
+    const form = `
+      <div class="token-form">
+        <label class="field">
+          <span>Новый ключ</span>
+          <input id="token-input" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…" value="${escapeHtml(tokenDraft)}">
+        </label>
+        <button class="button button-primary" type="button" data-publish-action="token" ${tokenSaving ? "disabled" : ""}>${tokenSaving ? "Проверяю…" : "Сохранить ключ"}</button>
+      </div>`;
+    return `
+      <section class="card token-card" data-tone="${needsKey ? (token.state === "expiring" ? "warning" : "danger") : "ok"}">
+        <div class="card-heading"><div><h2>Доступ к GitHub</h2><p>${escapeHtml(texts[token.state] ?? texts.unknown)}</p></div></div>
+        ${needsKey ? form : `<details data-token-details ${tokenFormOpen ? "open" : ""}><summary>Заменить ключ</summary>${form}</details>`}
+      </section>`;
+  }
+
+  async function saveToken() {
+    if (tokenSaving || !tokenDraft.trim()) return;
+    tokenSaving = true;
+    renderPublishView();
+    try {
+      publishStatus = await postJson("/api/publish/token", { token: tokenDraft });
+      tokenDraft = "";
+      tokenFormOpen = false;
+      toast("Ключ сохранён — можно публиковать.");
+    } catch (error) {
+      toast(error.message, true);
+    } finally {
+      tokenSaving = false;
+      renderPublishPill();
+      renderPublishView();
+    }
+  }
+
+  async function reloadSiteState() {
+    adoptState(await request("/api/state"));
+    homeGalleryUndoStack = [];
+    homeGalleryRedoStack = [];
+    renderAll();
+  }
+
+  async function publishNow() {
+    if (publishing) return;
+    if (isDirty() && !(await saveAll())) return;
+    publishing = true;
+    renderPublishPill();
+    renderPublishView();
+    try {
+      publishStatus = await postJson("/api/publish", { message: publishNote });
+      publishNote = "";
+      publishHistory = null;
+      toast("Отправлено! Сайт обновится через 2–4 минуты.");
+    } catch (error) {
+      toast(error.message, true);
+    } finally {
+      publishing = false;
+      await refreshPublishStatus();
+    }
+  }
+
+  async function undoPublication(sha) {
+    const item = publishHistory?.history?.find(entry => entry.sha === sha);
+    if (!item) return;
+    if (isDirty() || publishStatus?.change_count) {
+      toast("Сначала опубликуйте или отмените текущие правки.", true);
+      return;
+    }
+    const accepted = await confirmAction({
+      title: "Отменить публикацию?",
+      message: `«${item.subject}» будет убрано с сайта: он вернётся к виду до этой публикации. Это сразу опубликуется.`,
+      accept: "Отменить публикацию",
+      danger: true,
+    });
+    if (!accepted) return;
+    publishing = true;
+    renderPublishView();
+    try {
+      publishStatus = await postJson("/api/publish/undo", { sha });
+      await reloadSiteState();
+      toast("Публикация отменена. Сайт обновится через 2–4 минуты.");
+    } catch (error) {
+      toast(error.message, true);
+    } finally {
+      publishing = false;
+      publishHistory = null;
+      await refreshPublishStatus();
+    }
+  }
+
+  async function discardUnpublished() {
+    const accepted = await confirmAction({
+      title: "Отменить неопубликованные правки?",
+      message: "Конструктор вернётся к тому, что сейчас на сайте. На всякий случай копия правок останется на компьютере.",
+      accept: "Отменить правки",
+      danger: true,
+    });
+    if (!accepted) return;
+    try {
+      publishStatus = await postJson("/api/publish/discard", {});
+      await reloadSiteState();
+      toast("Неопубликованные правки отменены.");
+    } catch (error) {
+      toast(error.message, true);
+    }
+    await refreshPublishStatus();
+  }
+
+  async function restoreProject(name) {
+    if (isDirty() && !(await saveAll())) return;
+    try {
+      adoptState(await postJson("/api/trash/restore", { name }));
+      renderAll();
+      publishHistory = null;
+      toast("Проект возвращён. Не забудьте опубликовать.");
+    } catch (error) {
+      toast(error.message, true);
+    }
+  }
+
+  async function copyHelpReport() {
+    try {
+      helpReport = (await request("/api/help-report")).report;
+    } catch (error) {
+      helpReport = `Не удалось собрать отчёт: ${error.message}`;
+    }
+    try {
+      await navigator.clipboard.writeText(helpReport);
+      toast("Отчёт скопирован — вставьте его в сообщение.");
+    } catch {
+      toast("Не получилось скопировать автоматически — скопируйте текст отчёта вручную.", true);
+    }
+    renderPublishView();
+  }
+
+  publishContent.addEventListener("input", event => {
+    if (event.target.id === "publish-message") publishNote = event.target.value;
+    if (event.target.id === "token-input") tokenDraft = event.target.value;
+  });
+  publishContent.addEventListener("toggle", event => {
+    if (event.target.matches("[data-token-details]")) tokenFormOpen = event.target.open;
+  }, true);
+  publishContent.addEventListener("keydown", event => {
+    if (event.key === "Enter" && event.target.id === "token-input") saveToken();
+  });
+  publishContent.addEventListener("click", event => {
+    const button = event.target.closest("[data-publish-action]");
+    if (!button) return;
+    const action = button.dataset.publishAction;
+    if (action === "publish") publishNow();
+    if (action === "discard") discardUnpublished();
+    if (action === "undo") undoPublication(button.dataset.sha);
+    if (action === "restore") restoreProject(button.dataset.name);
+    if (action === "help") copyHelpReport();
+    if (action === "token") saveToken();
+    if (action === "refresh") {
+      publishHistory = null;
+      refreshPublishStatus({ fetch: true });
+    }
+  });
+  window.addEventListener("focus", () => {
+    if (Date.now() - lastFetchAt > 30000) refreshPublishStatus({ fetch: true });
+  });
+
+  // ---------------------------------------------------------------------------
   // Global wiring
   // ---------------------------------------------------------------------------
   window.addEventListener("hashchange", routeFromHash);
@@ -2168,6 +2611,7 @@
       routeFromHash();
       refreshDirty();
       window.setInterval(checkServerFreshness, 5000);
+      refreshPublishStatus({ fetch: true });
     })
     .catch(error => {
       toast(error.message, true);

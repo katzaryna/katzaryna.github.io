@@ -8,6 +8,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from io import BytesIO
 import json
 import mimetypes
+import os
 from pathlib import Path
 import re
 import shutil
@@ -24,6 +25,7 @@ import tomli
 import yaml
 
 from scripts.image_utils import color_manage_image
+from scripts.site_publisher import GitCommandError, PublishError, Publisher
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -43,6 +45,7 @@ MAX_ANIMATED_FRAMES = 300
 LEGACY_COVER_KEYS = ("size", "columns", "rows")
 SITE_IMAGES_DIRECTORY = Path("assets") / "images"
 TRASH_DIRECTORY = ".builder-trash"
+TRASH_NAME = re.compile(r"(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)-(?P<stamp>\d{8}-\d{6})")
 THUMBNAIL_DIRECTORY = Path(".builder-cache") / "thumbnails"
 THUMBNAIL_WIDTHS = (160, 480, 1200)
 SERVER_SOURCES = (Path(__file__), Path(__file__).with_name("image_utils.py"))
@@ -690,6 +693,91 @@ class SiteRepository:
             raise
         return self.state()
 
+    def check_content(self, changed: list[str]) -> list[str]:
+        """Problems that would stop the site from building, in plain Russian; empty when all is well.
+
+        The builder already validates each save; this catches what can still slip
+        through (files edited by hand, damaged images, a gallery out of sync).
+        """
+        problems: list[str] = []
+        try:
+            config = self.read_config()
+            validate_home_gallery(config)
+        except (OSError, ValueError, yaml.YAMLError) as error:
+            problems.append(f"Настройки сайта повреждены и не читаются ({error}).")
+            config = None
+        projects = []
+        for project_file in sorted(self.projects_path.glob("*/index.md")):
+            slug = project_file.parent.name
+            try:
+                metadata, _ = parse_project(project_file.read_text(encoding="utf-8"))
+            except (OSError, ValueError, yaml.YAMLError):
+                problems.append(f"Проект «{slug}»: файл описания повреждён.")
+                continue
+            title = str(metadata.get("title") or slug).strip()
+            projects.append({"slug": slug, "metadata": metadata})
+            if not str(metadata.get("title") or "").strip():
+                problems.append(f"Проект «{slug}»: нет названия.")
+            for image in metadata.get("images") or []:
+                filename = str(image.get("file", "")) if isinstance(image, dict) else ""
+                if not filename or not (project_file.parent / filename).is_file():
+                    problems.append(f"Проект «{title}»: нет файла картинки {filename or '(без имени)'}.")
+                elif not str(image.get("alt") or "").strip():
+                    problems.append(f"Проект «{title}»: у картинки {filename} нет описания (alt).")
+        if config is not None:
+            try:
+                validate_home_gallery_references(config, projects)
+            except (KeyError, TypeError, ValueError):
+                problems.append("Главная страница: список обложек не совпадает с отмеченными ★. Откройте вкладку «Главная» и сохраните.")
+        for path in changed:
+            file = self.root / path
+            if file.suffix.lower() not in IMAGE_EXTENSIONS or not file.is_file():
+                continue
+            try:
+                with Image.open(file) as image:
+                    image.verify()
+            except (OSError, SyntaxError, ValueError, Image.DecompressionBombError):
+                problems.append(f"Картинка {path} повреждена — загрузите её заново.")
+        return problems
+
+    def list_trash(self) -> list[dict]:
+        """Deleted projects that can still be brought back, newest first."""
+        trash = self.root / TRASH_DIRECTORY
+        items = []
+        for directory in sorted(trash.glob("*/index.md")) if trash.is_dir() else []:
+            folder = directory.parent
+            match = TRASH_NAME.fullmatch(folder.name)
+            if not match:
+                continue
+            try:
+                metadata, _ = parse_project(directory.read_text(encoding="utf-8"))
+            except (OSError, ValueError, yaml.YAMLError):
+                metadata = {}
+            items.append({
+                "name": folder.name,
+                "slug": match.group("slug"),
+                "title": str(metadata.get("title") or match.group("slug")),
+                "deleted": time.strftime(
+                    "%Y-%m-%dT%H:%M:%S", time.strptime(match.group("stamp"), "%Y%m%d-%H%M%S")
+                ),
+            })
+        return sorted(items, key=lambda item: item["deleted"], reverse=True)
+
+    @locked
+    def restore_project(self, name: str) -> dict:
+        """Move a deleted project back from the trash; its covers must be starred again."""
+        match = TRASH_NAME.fullmatch(name or "")
+        if not match:
+            raise NotFoundError("Project is not in the trash.")
+        source = (self.root / TRASH_DIRECTORY / name).resolve()
+        if not source.is_relative_to((self.root / TRASH_DIRECTORY).resolve()) or not source.is_dir():
+            raise NotFoundError("Project is not in the trash.")
+        destination = self.project_directory(match.group("slug"))
+        if destination.exists():
+            raise ConflictError("Проект с таким адресом уже есть. Переименуйте или удалите его сначала.")
+        shutil.move(str(source), str(destination))
+        return self.state()
+
     @locked
     def save_image(self, slug: str, filename: str, content: bytes) -> str:
         project_directory = self.project_directory(slug)
@@ -793,6 +881,7 @@ class BuilderServer(ThreadingHTTPServer):
     ) -> None:
         self.repository = repository
         self.preview_url = preview_url
+        self.publisher = Publisher(repository.root, lock=repository._lock, checker=repository.check_content)
         super().__init__(address, BuilderHandler)
 
 
@@ -830,14 +919,24 @@ class BuilderHandler(BaseHTTPRequestHandler):
                 self._send_json(200, {"outdated": source_fingerprint() != STARTED_FINGERPRINT})
             elif path == "/api/state":
                 self._send_json(200, self.server.repository.state())
+            elif path == "/api/publish/status":
+                fetch = query.get("fetch", ["0"])[0] == "1"
+                self._send_json(200, self.server.publisher.status(fetch=fetch))
+            elif path == "/api/publish/history":
+                self._send_json(200, {
+                    "history": self.server.publisher.history(),
+                    "trash": self.server.repository.list_trash(),
+                })
+            elif path == "/api/help-report":
+                self._send_json(200, {"report": self.server.publisher.help_report()})
             elif path in STATIC_FILES:
                 filename, content_type = STATIC_FILES[path]
                 self._send_bytes((BUILDER_DIR / filename).read_bytes(), content_type)
             else:
                 raise NotFoundError("Page not found.")
-        except BuilderError as error:
+        except (BuilderError, PublishError) as error:
             self._send_error(error)
-        except (OSError, ValueError, yaml.YAMLError) as error:
+        except (OSError, ValueError, yaml.YAMLError, GitCommandError) as error:
             self._send_error(BuilderError(str(error)))
 
     def do_POST(self) -> None:
@@ -861,11 +960,26 @@ class BuilderHandler(BaseHTTPRequestHandler):
                     200,
                     {"ok": True, "preview_url": self.server.preview_url, "output": output},
                 )
+            elif path == "/api/publish":
+                self._send_json(200, self.server.publisher.publish(str(payload.get("message", ""))[:200]))
+            elif path == "/api/publish/sync":
+                self._send_json(200, self.server.publisher.sync())
+            elif path == "/api/publish/undo":
+                self._send_json(200, self.server.publisher.undo(str(payload.get("sha", ""))))
+            elif path == "/api/publish/token":
+                self._send_json(200, self.server.publisher.set_token(str(payload.get("token", ""))))
+            elif path == "/api/publish/discard":
+                self._send_json(200, self.server.publisher.discard())
+            elif path == "/api/trash/restore":
+                self._send_json(200, self.server.repository.restore_project(str(payload.get("name", ""))))
+            elif path == "/api/restart":
+                self._send_json(200, {"ok": True})
+                threading.Thread(target=restart_process, daemon=True).start()
             else:
                 raise NotFoundError("API endpoint not found.")
-        except BuilderError as error:
+        except (BuilderError, PublishError) as error:
             self._send_error(error)
-        except (OSError, ValueError, yaml.YAMLError) as error:
+        except (OSError, ValueError, yaml.YAMLError, GitCommandError) as error:
             self._send_error(BuilderError(str(error)))
 
     def do_PUT(self) -> None:
@@ -888,9 +1002,9 @@ class BuilderHandler(BaseHTTPRequestHandler):
             else:
                 portrait = self.server.repository.save_portrait(portrait_match.group(1), content)
                 self._send_json(201, {"ok": True, "portrait": portrait})
-        except BuilderError as error:
+        except (BuilderError, PublishError) as error:
             self._send_error(error)
-        except (OSError, ValueError, yaml.YAMLError) as error:
+        except (OSError, ValueError, yaml.YAMLError, GitCommandError) as error:
             self._send_error(BuilderError(str(error)))
 
     def do_DELETE(self) -> None:
@@ -902,9 +1016,9 @@ class BuilderHandler(BaseHTTPRequestHandler):
             if not project_match:
                 raise NotFoundError("API endpoint not found.")
             self._send_json(200, self.server.repository.delete_project(project_match.group(1)))
-        except BuilderError as error:
+        except (BuilderError, PublishError) as error:
             self._send_error(error)
-        except (OSError, ValueError, yaml.YAMLError) as error:
+        except (OSError, ValueError, yaml.YAMLError, GitCommandError) as error:
             self._send_error(BuilderError(str(error)))
 
     def _send_bytes(self, content: bytes, content_type: str, cache: str = "no-store") -> None:
@@ -969,7 +1083,7 @@ class BuilderHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(content)
 
-    def _send_error(self, error: BuilderError) -> None:
+    def _send_error(self, error: BuilderError | PublishError) -> None:
         self._send_json(error.status, {"error": str(error)})
 
     def log_message(self, format_string: str, *args: object) -> None:
@@ -1022,6 +1136,13 @@ class PreviewHandler(BaseHTTPRequestHandler):
 
     def log_message(self, format_string: str, *args: object) -> None:
         super().log_message(format_string, *args)
+
+
+def restart_process() -> None:
+    """Replace this process with a fresh builder, e.g. after its code was updated."""
+    time.sleep(0.5)  # let the response reach the browser
+    os.chdir(ROOT)
+    os.execv(sys.executable, [sys.executable, "-m", "scripts.site_builder", *sys.argv[1:]])
 
 
 def main() -> None:
