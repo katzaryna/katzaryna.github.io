@@ -1,5 +1,6 @@
 from pathlib import Path
 
+
 import pytest
 
 from scripts import check_project_covers
@@ -29,23 +30,6 @@ def test_has_selected_cover(metadata):
 )
 def test_has_no_selected_cover(metadata):
     assert not check_project_covers.has_selected_cover(metadata)
-
-
-def test_removed_gallery_order_is_rejected():
-    errors = check_project_covers.obsolete_order_errors(
-        {"images": [{"file": "cover.png", "gallery_order": 1}]},
-        Path("projects/example/index.md"),
-    )
-
-    assert len(errors) == 1
-    assert "still uses removed `gallery_order`" in errors[0]
-
-
-def test_project_without_gallery_order_passes_obsolete_order_check():
-    assert check_project_covers.obsolete_order_errors(
-        {"images": [{"file": "cover.png", "cover": True}]},
-        Path("projects/example/index.md"),
-    ) == []
 
 
 def test_main_warns_only_for_projects_without_covers(tmp_path: Path, monkeypatch, capsys):

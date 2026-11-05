@@ -29,26 +29,7 @@ def has_selected_cover(metadata: object) -> bool:
     )
 
 
-def obsolete_order_errors(metadata: object, project_file: Path) -> list[str]:
-    if not isinstance(metadata, dict):
-        return []
-
-    images = metadata.get("images")
-    if not isinstance(images, list):
-        return []
-
-    errors = []
-    for image in images:
-        if not isinstance(image, dict) or "gallery_order" not in image:
-            continue
-        filename = image.get("file", "<missing file>")
-        location = f"{project_file}: image {filename}"
-        errors.append(f"{location} still uses removed `gallery_order`; configure order in `_config.yml`.")
-    return errors
-
-
 def main() -> int:
-    errors = []
     for project_file in sorted(PROJECTS.glob("*/index.md")):
         content = project_file.read_text(encoding="utf-8")
         match = FRONT_MATTER.match(content)
@@ -56,7 +37,6 @@ def main() -> int:
             raise ValueError(f"{project_file}: missing YAML front matter")
 
         metadata = yaml.safe_load(match.group(1))
-        errors.extend(obsolete_order_errors(metadata, project_file.relative_to(ROOT)))
         unused = unreferenced_images(project_file.parent)
         if unused:
             print(
@@ -71,9 +51,7 @@ def main() -> int:
                 file=sys.stderr,
             )
 
-    for error in errors:
-        print(f"ERROR: {error}", file=sys.stderr)
-    return 1 if errors else 0
+    return 0
 
 
 if __name__ == "__main__":

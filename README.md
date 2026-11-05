@@ -53,19 +53,31 @@ project title if no caption is set) in a lightbox, while project pages remain
 available at their direct URLs. When disabled, covers link to their project
 pages as usual. Both settings are in `_config.yml`.
 
-The home gallery uses a free-placement canvas. In the builder, drag a cover
-through other covers to reach an open spot, or hold it over another cover for a
-moment to swap their positions and tile sizes. Covers cannot overlap when
-dropped or saved. Resize a cover by dragging its bottom-right corner, and drag
-the image inside the crop preview to adjust its crop. Resizing can be freeform
-or preserve the tile's aspect ratio; optional size snapping uses a configurable
-pixel step, defaulting to 20 px. Optional magnetic alignment pulls nearby edges
-together and matches neighboring tile sizes within 12 px.
+The home gallery uses a free-placement canvas. The white artboard with a grid
+is the page itself (12 columns wide); the dashed orange line marks what a
+1440×900 window shows without scrolling, and 100% zoom matches that window.
+The grey pasteboard around it holds parked covers: they are saved with
+`parked: true` but not shown on the site, which is handy while rearranging.
 
-The builder's gallery toolbar provides undo/redo (up to 50 actions), zoom,
-fit-to-view, and a hand tool for panning. While dragging or resizing, guides
-show aligned edges and nearby spacing. Arrow keys move the selected cover by
-one screen pixel; Shift+arrow moves it by ten. The published canvas scales
+Click a cover to select it, Shift+click or drag a frame to select several, and
+drag to move the selection. Hold a cover over another for a moment to swap
+their positions and sizes. Drag the corner handle to resize (Shift keeps the
+image proportions). Covers snap to neighbouring edges; hold Alt to place them
+freely, or turn on snapping to a quarter-column grid. Covers on the page cannot
+overlap: an invalid drop is shown in red and undone. With several covers
+selected, the side panel aligns edges, spaces them evenly, gives them the same
+height, or fits them into one full-width row with equal image heights;
+"Плитка по пропорциям" removes empty bands around an image. Covers below a
+changed row move down when they would overlap. **Уплотнить** pulls every cover
+up to close vertical gaps.
+
+Undo/redo keeps 50 steps. Space+drag pans, ⌘/Ctrl+wheel or a trackpad pinch
+zooms, arrows move the selection by one screen pixel (Shift: ten), Delete
+removes the selected covers from the home page (⌘Z brings them back), and
+Shift+1 shows everything. The **Телефон** view lists the covers in the
+single-column order used on phones; drag to reorder it. That order is the
+order of `home_gallery.covers`, and its first cover loads first and is used
+for link previews. The published canvas scales
 responsively while preserving the arrangement. Project galleries retain their
 own masonry or fixed-grid layout. The `home_gallery.gap` value in `_config.yml`
 controls spacing in both galleries.
@@ -100,8 +112,8 @@ Optional longer project description.
 
 Requirements and behavior:
 
-- Mark each home-page cover with `cover: true`, then set the order, size, and
-  crop in the builder's **Настроить главную** window. The matching
+- Mark each home-page cover with `cover: true` (★ in the builder), then set
+  the order, size, and crop on the builder's **Главная** tab. The matching
   `home_gallery.covers` list is the source of the visual sequence.
 - Only entries marked `cover: true` appear in the home gallery. The old
   top-level `cover.file` format is not used. The cover checker warns if a
@@ -112,6 +124,8 @@ Requirements and behavior:
 - Images in a project directory that are not listed under `images` are kept
   in the repository but are not published: the generator skips them, the
   build removes them from `_site`, and `make test` lists them as warnings.
+- When a project's URL changes, keep the old link working with a file in
+  `redirects/` (`layout: redirect`, the old `permalink`, and `redirect_to`).
 - `permalink` changes the project page URL only; keep artwork next to
   `index.md` and use the original file name in `images[].file`.
 - Project text after the YAML front matter is optional and appears below the
@@ -236,20 +250,35 @@ Start the local visual site builder from the repository root with:
 make builder
 ```
 
-Then open `http://127.0.0.1:8765` in a browser. The builder edits `_config.yml`
-and project Markdown files in place. Uploads become color-managed WebP at
-quality 95, capped at 2560 pixels on the longest side. Embedded color profiles
-such as Display P3 are preserved; untagged images are treated as sRGB.
-Animated GIFs remain animated. Use **Save** before leaving an edited project.
-Removing an image from a project gallery only removes its metadata entry; it
-does not delete the original file. The builder is bound to localhost and is
-excluded from the published Jekyll site. Use **Предпросмотр обложек** to see
-unsaved cover order and captions, then save your changes and choose
-**Собрать предпросмотр** to rebuild the local site. **Открыть сайт** serves
-that build from a separate local-only address shown by the builder, so the
-site's root-relative scripts, styles, and images load normally. A full
-`make build` afterward also runs project tests and validates the generated
-site.
+Then open `http://127.0.0.1:8765` in a browser. The builder has three tabs:
+
+- **Главная** — the home-page canvas (drag, swap, resize, crop, undo) and the
+  home settings: what a cover click does, the gap between covers, and the
+  compact start.
+- **Проекты** — create, edit, and delete projects; drop files onto a project
+  to upload them; drag tiles to reorder; ★ puts an image on the home page;
+  select a tile to edit its alt text, caption, grid width, and row.
+- **Настройки** — artist details and portrait, contacts, browser title and
+  search description, copyright year, and the analytics ID.
+
+All edits stay in the browser until **Сохранить** (or ⌘S/Ctrl+S) writes
+`_config.yml` and every changed project together; if any part is invalid,
+nothing is written. **Отменить** drops unsaved edits, and the browser warns
+before closing a tab with unsaved edits. Every image needs alt text before it
+can be saved.
+
+Uploads become color-managed WebP at quality 95, capped at 2560 pixels on the
+longest side, with file names transliterated to lowercase Latin and made
+unique. Embedded color profiles such as Display P3 are preserved; untagged
+images are treated as sRGB. Animated GIFs remain animated. Removing an image
+from a project only removes its metadata entry; the file stays in the project
+folder. Deleting a project moves its folder to the ignored `.builder-trash/`
+directory and removes its home covers.
+
+**Предпросмотр сайта** saves if needed, rebuilds the site, and opens it from a
+separate local-only address. The builder is bound to localhost and is excluded
+from the published Jekyll site. A full `make build` afterward also runs project
+tests and validates the generated site.
 
 Useful commands:
 

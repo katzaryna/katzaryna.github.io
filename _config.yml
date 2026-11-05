@@ -3,8 +3,6 @@ description: Illustrations and projects by Katzaryna
 url: https://katzaryna.github.io
 markdown: kramdown
 plugins: []
-include:
-  - assets/optimized
 exclude:
   - tests
   - node_modules
@@ -35,7 +33,7 @@ artist:
     beauty, wellness and lifestyle brands. Combining decorative detail with engaging narratives, she brings
     a distinctive visual identity to both print and commercial projects.
   portrait: /assets/images/avatar.png
-  portrait_alt: Illustrated artist portrait
+  portrait_alt: Katzaryna
   email: katzaryna@gmail.com
   linkedin_url: https://www.linkedin.com/in/katsiaryna-zarouskaya-9083a5105
   instagram_url: https://www.instagram.com/kat.zaryna/
@@ -46,85 +44,85 @@ home_gallery:
   single_page: true
   covers:
     - project: book-covers
-      file: 01.jpg
-      crop: false
-      crop_x: 50
-      crop_y: 63.44
-      x: 8.7676
-      y: 9.1648
-      width: 3.2324
-      height: 4.8448
-    - project: book-covers
       file: 02.jpg
       crop: false
       crop_x: 50
       crop_y: 50
       x: 0
       y: 0
-      width: 3.6727
-      height: 5.5048
-    - project: book-covers
-      file: 03.jpg
-      crop: false
-      crop_x: 50
-      crop_y: 50
-      x: 0
-      y: 9.2062
-      width: 3.3039
-      height: 4.952
-    - project: book-covers
-      file: 04.jpg
-      crop: false
-      crop_x: 50
-      crop_y: 50
-      x: 3.306
-      y: 9.2473
-      width: 5.4586
-      height: 4.8317
-    - project: museum-invitation-card
-      file: 02.webp
-      crop: false
-      crop_x: 50
-      crop_y: 50
-      x: 7.4564
-      y: 5.5569
-      width: 4.5436
-      height: 3.6076
-    - project: puppy-yoga
-      file: cover.webp
-      crop: false
-      crop_x: 50
-      crop_y: 50
-      x: 4.8529
-      y: 5.5568
-      width: 2.6025
-      height: 3.676
+      width: 3.7075
+      height: 5.471
     - project: westin-holiday
       file: cover.webp
-      x: 3.6749
+      x: 3.7075
       y: 0
-      width: 4.4451
-      height: 5.5564
+      width: 4.4112
+      height: 5.471
+      crop: false
+      crop_x: 50
+      crop_y: 50
+    - project: kneipp-bath-oil
+      file: flower.webp
+      x: 8.1187
+      y: 0
+      width: 3.8813
+      height: 5.471
       crop: false
       crop_x: 50
       crop_y: 50
     - project: relax-stress
       file: cover.webp
       x: 0
-      y: 5.5581
-      width: 4.8501
-      height: 3.6338
+      y: 5.4712
+      width: 4.8138
+      height: 3.6498
       crop: false
       crop_x: 50
       crop_y: 50
-    - project: kneipp-demo
-      file: flower.webp
-      x: 8.1225
-      y: 0
-      width: 3.8775
-      height: 5.5393
+    - project: puppy-yoga
+      file: cover.webp
       crop: false
       crop_x: 50
       crop_y: 50
+      x: 4.8138
+      y: 5.4712
+      width: 2.6342
+      height: 3.6498
+    - project: museum-invitation-card
+      file: 02.webp
+      crop: false
+      crop_x: 50
+      crop_y: 50
+      x: 7.448
+      y: 5.4712
+      width: 4.552
+      height: 3.6498
+    - project: book-covers
+      file: 03.jpg
+      crop: false
+      crop_x: 50
+      crop_y: 50
+      x: 0
+      y: 9.1468
+      width: 3.2815
+      height: 4.8325
+    - project: book-covers
+      file: 04.jpg
+      crop: false
+      crop_x: 50
+      crop_y: 50
+      x: 3.2815
+      y: 9.1468
+      width: 5.4371
+      height: 4.8325
+    - project: book-covers
+      file: 01.jpg
+      crop: false
+      crop_x: 50
+      crop_y: 63.44
+      x: 8.7185
+      y: 9.1468
+      width: 3.2815
+      height: 4.8325
 analytics:
   measurement_id: G-7S5P7ELFYF

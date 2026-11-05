@@ -2,7 +2,7 @@
 layout: project
 title: KNEIPP | Cosmetic Packaging | Bath Oil Collection
 description: KNEIPP | Cosmetic Packaging | Bath Oil Collection by Katzaryna.
-permalink: /projects/kneipp-demo/
+permalink: /projects/kneipp-bath-oil/
 gallery_columns: 4
 images:
 - file: cover.webp

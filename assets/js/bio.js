@@ -29,6 +29,15 @@ if (artistBio) {
   const toggleBio = () => setBioOpen(!bioOpen);
 
   artistBio.addEventListener("click", toggleBio);
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape" && bioOpen) {
+      setBioOpen(false);
+      artistBio.focus();
+    }
+  });
+  document.addEventListener("click", event => {
+    if (bioOpen && !artistBio.contains(event.target) && !artistBioText.contains(event.target)) setBioOpen(false);
+  });
   artistBioText.addEventListener("transitionend", event => {
     if (event.propertyName !== "height") return;
     if (bioOpen) {

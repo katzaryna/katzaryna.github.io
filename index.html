@@ -4,14 +4,17 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
+    {% include security-meta.html %}
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="{{ site.description | escape }}">
     <meta name="theme-color" content="#ffffff">
     <title>{{ site.title | escape }}</title>
-    {% if site.home_gallery.compact %}<script>document.documentElement.classList.add('gallery-intro-supported');</script>{% endif %}
-    {% assign meta_cover = site.home_gallery.covers | first %}
+    {% if site.home_gallery.compact %}<script src="{{ '/assets/js/gallery-intro-flag.js' | relative_url }}"></script>{% endif %}
+    {% assign home_covers = site.home_gallery.covers | where_exp: "cover", "cover.parked != true" %}
+    {% assign meta_cover = home_covers | first %}
     {% if meta_cover %}{% assign meta_image_key = "projects/" | append: meta_cover.project | append: "/" | append: meta_cover.file %}{% endif %}
     {% include head-meta.html title=site.title description=site.description image_key=meta_image_key %}
+    <link rel="preload" href="{{ '/assets/fonts/whisper-latin.woff2' | relative_url }}" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="{{ '/assets/css/fonts.css' | relative_url }}">
     <link rel="stylesheet" href="{{ '/assets/css/styles.css' | relative_url }}">
   </head>
@@ -21,12 +24,12 @@
 
     <main class="page home-page">
       {% assign home_layout_rows = 12 %}
-      {% for home_cover in site.home_gallery.covers %}
+      {% for home_cover in home_covers %}
         {% assign layout_bottom = home_cover.y | plus: home_cover.height %}
         {% if layout_bottom > home_layout_rows %}{% assign home_layout_rows = layout_bottom %}{% endif %}
       {% endfor %}
       <section class="gallery home-gallery{% if site.home_gallery.compact %} is-intro-fit{% endif %}" id="gallery" aria-label="Selected paintings" style="--gallery-gap: {{ site.home_gallery.gap | default: '5px' | escape }}; --home-gallery-rows: {{ home_layout_rows }}">
-        {% for home_cover in site.home_gallery.covers %}
+        {% for home_cover in home_covers %}
           {% assign project_directory = "projects/" | append: home_cover.project %}
           {% assign project_path = project_directory | append: "/index.md" %}
           {% assign project = site.pages | where: "path", project_path | first %}
@@ -68,10 +71,7 @@
       </section>
     </main>
 
-    <footer class="page site-footer">
-      <span>© {{ site.copyright_year }} {{ site.artist.name | escape | newline_to_br }}</span>
-      <a href="mailto:{{ site.artist.email | escape }}">{{ site.artist.email | escape }}</a>
-    </footer>
+    {% include site-footer.html %}
 
     {% include consent.html %}
     {% if site.home_gallery.compact %}<script src="{{ '/assets/js/gallery-intro.js' | relative_url }}"></script>{% endif %}

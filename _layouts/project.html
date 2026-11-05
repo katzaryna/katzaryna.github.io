@@ -2,6 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
+    {% include security-meta.html %}
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="{{ page.description | default: site.description | escape }}">
     <meta name="theme-color" content="#ffffff">
@@ -9,6 +10,7 @@
     {% assign meta_first_image = page.images | first %}
     {% if meta_first_image %}{% assign meta_image_key = page.path | remove: "/index.md" | append: "/" | append: meta_first_image.file %}{% endif %}
     {% include head-meta.html title=page.title description=page.description image_key=meta_image_key image_alt=meta_first_image.alt %}
+    <link rel="preload" href="{{ '/assets/fonts/whisper-latin.woff2' | relative_url }}" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="{{ '/assets/css/fonts.css' | relative_url }}">
     <link rel="stylesheet" href="{{ '/assets/css/styles.css' | relative_url }}">
   </head>
@@ -74,10 +76,7 @@
         {% endfor %}
       </section>
     </main>
-    <footer class="page site-footer">
-      <span>© {{ site.copyright_year }} {{ site.artist.name | escape | newline_to_br }}</span>
-      <a href="mailto:{{ site.artist.email | escape }}">{{ site.artist.email | escape }}</a>
-    </footer>
+    {% include site-footer.html %}
     {% include consent.html %}
     <script src="{{ '/assets/js/analytics.js' | relative_url }}" data-measurement-id="{{ site.analytics.measurement_id | escape }}"></script>
     <script src="{{ '/assets/js/bio.js' | relative_url }}"></script>
