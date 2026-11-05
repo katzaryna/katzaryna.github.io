@@ -1,0 +1,6 @@
+{%- comment -%}
+  Content Security Policy: only this site's own scripts, styles, fonts and media,
+  plus Google Analytics after consent. Inline style attributes are used by the layouts.
+{%- endcomment -%}
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.googletagmanager.com; connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com; img-src 'self' data: https://*.google-analytics.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; font-src 'self'; media-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+<meta name="referrer" content="strict-origin-when-cross-origin">

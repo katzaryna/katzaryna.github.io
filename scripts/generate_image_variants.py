@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import hashlib
 import json
 from pathlib import Path
 import subprocess
@@ -7,11 +8,15 @@ import tomli
 from PIL import Image, ImageOps
 import imageio_ffmpeg
 
+from scripts.image_utils import color_manage_image
+from scripts.project_files import unreferenced_images
+
 
 ROOT = Path(__file__).resolve().parent.parent
 PROJECTS = ROOT / "projects"
 OUTPUT = ROOT / "assets" / "optimized"
 MANIFEST = ROOT / "_data" / "generated_image_variants.json"
+CACHE = OUTPUT / ".build-cache.json"
 CONFIG = tomli.loads((ROOT / "config" / "image_optimization.toml").read_text())
 TARGET_WIDTHS = tuple(CONFIG["target_widths"])
 WEBP_QUALITY = int(CONFIG["webp_quality"])
@@ -22,6 +27,12 @@ LIGHTBOX_MAX_WIDTH = int(CONFIG["lightbox_max_width"])
 LIGHTBOX_WEBM_CRF = int(CONFIG["lightbox_webm_crf"])
 LIGHTBOX_MP4_CRF = int(CONFIG["lightbox_mp4_crf"])
 STATIC_FORMATS = {".jpg", ".jpeg", ".png", ".webp"}
+
+
+def responsive_widths(source_width: int, target_widths: tuple[int, ...] = TARGET_WIDTHS) -> list[int]:
+    """Return derivative widths: every target below the source plus the largest useful width."""
+    largest = min(source_width, max(target_widths))
+    return sorted({width for width in target_widths if width < largest} | {largest})
 
 
 def create_animation_videos(
@@ -78,108 +89,171 @@ def create_animation_videos(
     return webm_output, mp4_output
 
 
+def settings_fingerprint() -> str:
+    """Anything that changes the output: settings and the code that renders it."""
+    digest = hashlib.sha256()
+    for path in (ROOT / "config" / "image_optimization.toml", Path(__file__), Path(__file__).with_name("image_utils.py")):
+        digest.update(path.read_bytes())
+    return digest.hexdigest()
+
+
+def source_digest(source: Path, settings: str) -> str:
+    digest = hashlib.sha256(settings.encode())
+    digest.update(source.read_bytes())
+    return digest.hexdigest()
+
+
+def read_cache() -> dict:
+    try:
+        cache = json.loads(CACHE.read_text())
+    except (OSError, ValueError):
+        return {}
+    return cache if isinstance(cache, dict) else {}
+
+
+def build_source(source: Path, key: str, output_directory: Path, ffmpeg: str, variants: dict, expected_files: set) -> None:
+    with Image.open(source) as opened:
+        if getattr(opened, "n_frames", 1) > 1:
+            motion_video = output_directory / "animation.webm"
+            motion_mp4 = output_directory / "animation.mp4"
+            lightbox_video = output_directory / "lightbox-animation.webm"
+            lightbox_mp4 = output_directory / "lightbox-animation.mp4"
+            motion_poster = output_directory / "poster.webp"
+            motion_video, motion_mp4 = create_animation_videos(
+                source,
+                motion_video.parent,
+                ffmpeg,
+                PREVIEW_MAX_WIDTH,
+                PREVIEW_WEBM_CRF,
+                PREVIEW_MP4_CRF,
+            )
+            lightbox_video, lightbox_mp4 = create_animation_videos(
+                source,
+                lightbox_video.parent,
+                ffmpeg,
+                LIGHTBOX_MAX_WIDTH,
+                LIGHTBOX_WEBM_CRF,
+                LIGHTBOX_MP4_CRF,
+                filename_prefix="lightbox-",
+            )
+
+            opened.seek(0)
+            first_frame = color_manage_image(ImageOps.exif_transpose(opened.copy()))
+            poster_width = min(960, first_frame.width)
+            poster_height = max(1, round(first_frame.height * poster_width / first_frame.width))
+            if poster_width < first_frame.width:
+                first_frame = first_frame.resize(
+                    (poster_width, poster_height),
+                    Image.Resampling.LANCZOS,
+                )
+            first_frame.save(
+                motion_poster,
+                "WEBP",
+                quality=WEBP_QUALITY,
+                method=6,
+                icc_profile=first_frame.info["icc_profile"],
+            )
+            expected_files.update(
+                (motion_video, motion_mp4, lightbox_video, lightbox_mp4, motion_poster)
+            )
+            variants[key] = {
+                "width": opened.width,
+                "height": opened.height,
+                "motion": {
+                    "src": "/" + motion_video.relative_to(ROOT).as_posix(),
+                    "mp4": "/" + motion_mp4.relative_to(ROOT).as_posix(),
+                    "lightbox_src": "/" + lightbox_video.relative_to(ROOT).as_posix(),
+                    "lightbox_mp4": "/" + lightbox_mp4.relative_to(ROOT).as_posix(),
+                    "poster": "/" + motion_poster.relative_to(ROOT).as_posix(),
+                },
+            }
+            return
+
+        if source.suffix.lower() not in STATIC_FORMATS or getattr(opened, "n_frames", 1) != 1:
+            return
+
+        image = color_manage_image(ImageOps.exif_transpose(opened))
+        width, height = image.size
+        candidate_widths = responsive_widths(width)
+
+        source_variants = []
+        for target_width in candidate_widths:
+            target_height = max(1, round(height * target_width / width))
+            resized = image.resize(
+                (target_width, target_height),
+                Image.Resampling.LANCZOS,
+            )
+            if "A" in resized.getbands() or "transparency" in resized.info:
+                resized = resized.convert("RGBA")
+            else:
+                resized = resized.convert("RGB")
+
+            output = output_directory
+            output = output / f"{target_width}.webp"
+            output.parent.mkdir(parents=True, exist_ok=True)
+            resized.save(
+                output,
+                "WEBP",
+                quality=WEBP_QUALITY,
+                method=6,
+                icc_profile=image.info["icc_profile"],
+            )
+            expected_files.add(output)
+            source_variants.append(
+                {
+                    "src": "/" + output.relative_to(ROOT).as_posix(),
+                    "width": target_width,
+                }
+            )
+
+        variants[key] = {
+            "src": source_variants[0]["src"],
+            "width": width,
+            "height": height,
+            "landscape": width > height,
+            "sources": source_variants,
+        }
+
+
 def create_variants() -> None:
     variants = {}
     expected_files = set()
     ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
+    settings = settings_fingerprint()
+    cache = read_cache()
+    new_cache = {}
+    reused = built = 0
 
+    unused = {
+        path
+        for project_directory in PROJECTS.iterdir() if project_directory.is_dir()
+        for path in unreferenced_images(project_directory)
+    }
     for source in sorted(PROJECTS.rglob("*")):
         if not source.is_file() or source.suffix.lower() not in STATIC_FORMATS | {".gif"}:
+            continue
+        if source in unused:
             continue
 
         key = source.relative_to(ROOT).as_posix()
         output_directory = OUTPUT / source.relative_to(PROJECTS).parent / source.stem
-        with Image.open(source) as opened:
-            if source.suffix.lower() == ".gif" and getattr(opened, "n_frames", 1) > 1:
-                motion_video = output_directory / "animation.webm"
-                motion_mp4 = output_directory / "animation.mp4"
-                lightbox_video = output_directory / "lightbox-animation.webm"
-                lightbox_mp4 = output_directory / "lightbox-animation.mp4"
-                motion_poster = output_directory / "poster.webp"
-                motion_video, motion_mp4 = create_animation_videos(
-                    source,
-                    motion_video.parent,
-                    ffmpeg,
-                    PREVIEW_MAX_WIDTH,
-                    PREVIEW_WEBM_CRF,
-                    PREVIEW_MP4_CRF,
-                )
-                lightbox_video, lightbox_mp4 = create_animation_videos(
-                    source,
-                    lightbox_video.parent,
-                    ffmpeg,
-                    LIGHTBOX_MAX_WIDTH,
-                    LIGHTBOX_WEBM_CRF,
-                    LIGHTBOX_MP4_CRF,
-                    filename_prefix="lightbox-",
-                )
-
-                opened.seek(0)
-                first_frame = ImageOps.exif_transpose(opened.convert("RGBA"))
-                poster_width = min(960, first_frame.width)
-                poster_height = max(1, round(first_frame.height * poster_width / first_frame.width))
-                if poster_width < first_frame.width:
-                    first_frame = first_frame.resize(
-                        (poster_width, poster_height),
-                        Image.Resampling.LANCZOS,
-                    )
-                first_frame.save(motion_poster, "WEBP", quality=WEBP_QUALITY, method=6)
-                expected_files.update(
-                    (motion_video, motion_mp4, lightbox_video, lightbox_mp4, motion_poster)
-                )
-                variants[key] = {
-                    "width": opened.width,
-                    "height": opened.height,
-                    "motion": {
-                        "src": "/" + motion_video.relative_to(ROOT).as_posix(),
-                        "mp4": "/" + motion_mp4.relative_to(ROOT).as_posix(),
-                        "lightbox_src": "/" + lightbox_video.relative_to(ROOT).as_posix(),
-                        "lightbox_mp4": "/" + lightbox_mp4.relative_to(ROOT).as_posix(),
-                        "poster": "/" + motion_poster.relative_to(ROOT).as_posix(),
-                    },
-                }
-                continue
-
-            if source.suffix.lower() not in STATIC_FORMATS or getattr(opened, "n_frames", 1) != 1:
-                continue
-
-            image = ImageOps.exif_transpose(opened)
-            width, height = image.size
-            candidate_widths = [size for size in TARGET_WIDTHS if size <= width]
-            if not candidate_widths:
-                candidate_widths = [width]
-
-            source_variants = []
-            for target_width in candidate_widths:
-                target_height = max(1, round(height * target_width / width))
-                resized = image.resize(
-                    (target_width, target_height),
-                    Image.Resampling.LANCZOS,
-                )
-                if "A" in resized.getbands() or "transparency" in resized.info:
-                    resized = resized.convert("RGBA")
-                else:
-                    resized = resized.convert("RGB")
-
-                output = output_directory
-                output = output / f"{target_width}.webp"
-                output.parent.mkdir(parents=True, exist_ok=True)
-                resized.save(output, "WEBP", quality=WEBP_QUALITY, method=6)
-                expected_files.add(output)
-                source_variants.append(
-                    {
-                        "src": "/" + output.relative_to(ROOT).as_posix(),
-                        "width": target_width,
-                    }
-                )
-
-            variants[key] = {
-                "src": source_variants[0]["src"],
-                "width": width,
-                "height": height,
-                "landscape": width > height,
-                "sources": source_variants,
-            }
+        digest = source_digest(source, settings)
+        cached = cache.get(key)
+        if cached and cached["digest"] == digest and all((ROOT / path).is_file() for path in cached["files"]):
+            if cached["entry"] is not None:
+                variants[key] = cached["entry"]
+            expected_files.update(ROOT / path for path in cached["files"])
+            new_cache[key] = cached
+            reused += 1
+            continue
+        before = set(expected_files)
+        build_source(source, key, output_directory, ffmpeg, variants, expected_files)
+        new_cache[key] = {
+            "digest": digest,
+            "entry": variants.get(key),
+            "files": sorted(path.relative_to(ROOT).as_posix() for path in expected_files - before),
+        }
+        built += 1
 
     for stale_file in OUTPUT.rglob("*") if OUTPUT.exists() else ():
         if not stale_file.is_file() or stale_file.suffix not in {".webp", ".webm", ".mp4"}:
@@ -194,7 +268,8 @@ def create_variants() -> None:
 
     MANIFEST.parent.mkdir(parents=True, exist_ok=True)
     MANIFEST.write_text(json.dumps(variants, ensure_ascii=False, indent=2) + "\n")
-    print(f"Generated responsive variants for {len(variants)} project images.")
+    CACHE.write_text(json.dumps(new_cache, indent=1) + "\n")
+    print(f"Responsive variants for {len(variants)} project images: {built} built, {reused} unchanged.")
 
 
 if __name__ == "__main__":

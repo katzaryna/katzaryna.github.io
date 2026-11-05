@@ -1,5 +1,6 @@
 PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 NPM ?= npm
+JEKYLL ?= bundle exec jekyll
 
 .DEFAULT_GOAL := help
 .PHONY: help setup builder lint lint-python lint-javascript lint-css lint-html lint-yaml lint-markdown lint-toml lint-images test check build build-full
@@ -18,9 +19,10 @@ help:
 setup:
 	$(PYTHON) -m pip install -r requirements-images.txt -r requirements-dev.txt
 	$(NPM) ci --no-audit --no-fund
+	bundle install
 
 builder:
-	$(PYTHON) scripts/site_builder.py
+	$(PYTHON) -m scripts.site_builder
 
 lint: lint-python lint-javascript lint-css lint-html lint-yaml lint-markdown lint-toml lint-images
 
@@ -37,7 +39,7 @@ lint-html:
 	$(PYTHON) -m djlint index.html _includes _layouts site-builder/index.html --lint
 
 lint-yaml:
-	$(PYTHON) -m yamllint .github/workflows _config.yml
+	$(PYTHON) -m yamllint .github _config.yml
 
 lint-markdown:
 	$(PYTHON) -m pymarkdown scan README.md projects
@@ -55,9 +57,10 @@ test:
 check: lint test
 
 build-fast:
-	jekyll build
+	$(JEKYLL) build
 
 build: test
-	$(PYTHON) scripts/generate_image_variants.py
-	jekyll build
+	$(PYTHON) -m scripts.generate_image_variants
+	$(JEKYLL) build
+	$(PYTHON) -m scripts.prune_unused_assets --site-dir _site
 	$(PYTHON) scripts/validate_site.py --site-dir _site

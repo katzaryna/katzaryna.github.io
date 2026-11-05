@@ -3,15 +3,12 @@
     <a class="portrait-toggle" href="{{ '/' | relative_url }}" aria-label="Go to home page">
       <img class="portrait" src="{{ site.artist.portrait | relative_url }}" alt="{{ site.artist.portrait_alt | escape }}">
     </a>
-    <button class="nav-item bio-link" id="artist-bio" type="button" aria-label="About me" aria-controls="artist-bio-text" aria-expanded="false">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <circle class="bio-outline" cx="12" cy="12" r="10.5"/>
-        <circle cx="7" cy="12" r="1.333"/>
-        <circle cx="12" cy="12" r="1.333"/>
-        <circle cx="17" cy="12" r="1.333"/>
-      </svg>
-    </button>
-    <div class="artist-bio-text" id="artist-bio-text" aria-hidden="true">{{ site.artist.bio | escape }}</div>
+    <button class="bio-link" id="artist-bio" type="button" aria-label="About {{ site.artist.full_name | escape }}" aria-controls="artist-bio-text" aria-expanded="false">Bio</button>
+    <div class="artist-bio-text" id="artist-bio-text" role="region" aria-label="About" aria-hidden="true">
+      <p class="artist-bio-name">{{ site.artist.full_name | escape }}</p>
+      {% if site.artist.description %}<p class="artist-bio-role">{{ site.artist.description | escape }}</p>{% endif %}
+      <p class="artist-bio-body">{{ site.artist.bio | escape }}</p>
+    </div>
   </div>
   <div class="header-content">
     <span class="artist-full-name">{{ site.artist.full_name | escape }}</span>

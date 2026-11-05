@@ -64,6 +64,10 @@ if (gallery) {
 
   function openImage(link) {
     const image = document.createElement("img");
+    if (link.dataset.lightboxSrcset) {
+      image.srcset = link.dataset.lightboxSrcset;
+      image.sizes = "100vw";
+    }
     image.src = link.href;
     image.alt = link.querySelector("img")?.alt ?? link.getAttribute("aria-label") ?? "";
     dialog.replaceChildren(image);

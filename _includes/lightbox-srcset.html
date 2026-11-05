@@ -1,0 +1,14 @@
+{%- comment -%}
+  Renders a srcset of generated variants plus the original for the lightbox.
+  Parameters: variant (manifest entry), original (original image URL).
+{%- endcomment -%}
+{%- assign lightbox_last_width = 0 -%}
+{%- for source in include.variant.sources -%}
+  {%- unless forloop.first %}, {% endunless -%}
+  {{- source.src | relative_url }} {{ source.width }}w
+  {%- assign lightbox_last_width = source.width -%}
+{%- endfor -%}
+{%- if include.variant.width > lightbox_last_width -%}
+  {%- if lightbox_last_width > 0 %}, {% endif -%}
+  {{- include.original }} {{ include.variant.width }}w
+{%- endif -%}

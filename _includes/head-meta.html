@@ -1,0 +1,27 @@
+{% comment %}
+  Shared social-sharing metadata and favicon.
+  Parameters: title, description, image_key (projects/<slug>/<file>), image_alt.
+{% endcomment %}
+{% assign meta_variant = site.data.generated_image_variants[include.image_key] %}
+{% if meta_variant.motion.poster %}
+  {% assign meta_image = meta_variant.motion.poster %}
+{% elsif meta_variant.sources %}
+  {% assign meta_image = meta_variant.sources | last | map: "src" | first %}
+{% elsif include.image_key %}
+  {% assign meta_image = "/" | append: include.image_key %}
+{% else %}
+  {% assign meta_image = site.artist.portrait %}
+{% endif %}
+<link rel="icon" type="image/png" href="{{ site.artist.portrait | relative_url }}">
+<link rel="apple-touch-icon" href="{{ site.artist.portrait | relative_url }}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="{{ site.title | escape }}">
+<meta property="og:title" content="{{ include.title | escape }}">
+<meta property="og:description" content="{{ include.description | escape }}">
+<meta property="og:url" content="{{ page.url | absolute_url }}">
+<meta property="og:image" content="{{ meta_image | absolute_url }}">
+{% if include.image_alt %}<meta property="og:image:alt" content="{{ include.image_alt | escape }}">{% endif %}
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ include.title | escape }}">
+<meta name="twitter:description" content="{{ include.description | escape }}">
+<meta name="twitter:image" content="{{ meta_image | absolute_url }}">

@@ -4,84 +4,110 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#f6f5f1">
-    <title>Конструктор сайта — Katzaryna</title>
+    <title>Конструктор — Katzaryna</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%2216%22/%3E%3C/svg%3E">
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
     <header class="topbar">
-      <div class="brand">
-        <span class="brand-mark">K</span>
-        <span><strong>Katzaryna</strong><small>локальный конструктор сайта</small></span>
-      </div>
-      <nav class="tabs" aria-label="Разделы конструктора">
-        <button class="tab is-active" type="button" data-view="settings">Настройки</button>
-        <button class="tab" type="button" data-view="projects">Проекты</button>
+      <a class="brand" href="#home" aria-label="Конструктор сайта Katzaryna">
+        <span class="brand-mark" aria-hidden="true">K</span>
+        <span class="brand-name">Katzaryna</span>
+      </a>
+      <nav class="tabs" aria-label="Разделы">
+        <a class="tab" href="#home" data-view="home">Главная</a>
+        <a class="tab" href="#projects" data-view="projects">Проекты</a>
+        <a class="tab" href="#settings" data-view="settings">Настройки</a>
       </nav>
-      <button id="build-preview" class="button button-secondary" type="button">Собрать предпросмотр</button>
-      <button id="open-preview" class="button button-primary" type="button" hidden>Открыть сайт</button>
-      <span class="local-badge"><span aria-hidden="true">•</span> Только на этом компьютере</span>
+      <button id="preview-site" class="button button-secondary topbar-preview" type="button">
+        <span data-label>Предпросмотр сайта</span> <span aria-hidden="true">↗</span>
+      </button>
     </header>
 
     <main>
-      <div id="flash" class="flash" role="status" aria-live="polite" hidden></div>
-
-      <section id="settings-view" class="view">
-        <div class="page-heading">
-          <div>
-            <p class="eyebrow">САЙТ</p>
-            <h1>Настройки сайта</h1>
-            <p>Поля сгруппированы по разделам. Сохраняются в <code>_config.yml</code>.</p>
+      <section id="home-view" class="view home-view" aria-labelledby="home-heading" hidden>
+        <h1 id="home-heading" class="visually-hidden">Главная страница</h1>
+        <div id="home-gallery-board" class="home-board">
+          <div class="home-toolbar" role="toolbar" aria-label="Инструменты холста">
+            <div class="segmented" role="group" aria-label="Вид">
+              <button type="button" data-home-mode="desktop" aria-pressed="true">Компьютер</button>
+              <button type="button" data-home-mode="phone" aria-pressed="false">Телефон</button>
+            </div>
+            <span class="toolbar-divider" aria-hidden="true"></span>
+            <button type="button" class="icon-button" data-gallery-action="undo" aria-label="Отменить" title="Отменить (⌘Z)">↶</button>
+            <button type="button" class="icon-button" data-gallery-action="redo" aria-label="Повторить" title="Повторить (⇧⌘Z)">↷</button>
+            <span class="toolbar-divider" aria-hidden="true"></span>
+            <button type="button" class="text-button" data-gallery-action="compact" title="Подтянуть все обложки вверх и убрать пустоты">Уплотнить</button>
+            <span class="toolbar-spacer"></span>
+            <button type="button" class="icon-button" data-gallery-action="zoom-out" aria-label="Уменьшить" title="Уменьшить (⌘ + колесо)">−</button>
+            <button type="button" class="text-button zoom-level" data-gallery-action="zoom-real" title="100% — как на экране 1440 px"><span id="home-gallery-zoom-level">100%</span></button>
+            <button type="button" class="icon-button" data-gallery-action="zoom-in" aria-label="Увеличить" title="Увеличить (⌘ + колесо)">+</button>
+            <button type="button" class="text-button" data-gallery-action="zoom-fit" title="Показать всё (Shift+1)">Вписать</button>
           </div>
-          <button id="save-settings" class="button button-primary" type="button">Сохранить настройки</button>
+          <div id="home-gallery-viewport" class="home-viewport">
+            <div id="home-gallery-canvas" class="home-canvas" tabindex="0" aria-label="Раскладка обложек главной страницы. Выберите обложку и двигайте её стрелками."></div>
+          </div>
         </div>
-        <div id="settings-fields" class="settings-grid"></div>
+        <aside id="home-gallery-controls" class="panel home-panel" aria-label="Параметры главной"></aside>
       </section>
 
-      <section id="projects-view" class="view" hidden>
-        <div class="page-heading">
-          <div>
-            <p class="eyebrow">ГАЛЕРЕЯ</p>
-            <h1>Проекты и обложки</h1>
-            <p>Создавайте проекты, загружайте изображения и управляйте их подписями и порядком.</p>
+      <section id="projects-view" class="view projects-view" aria-label="Проекты" hidden>
+        <aside class="panel project-sidebar">
+          <div class="sidebar-heading">
+            <h1>Проекты</h1>
+            <button id="new-project" class="button button-primary button-small" type="button">+ Новый</button>
           </div>
-        </div>
-        <div class="project-workspace">
-          <aside class="project-sidebar">
-            <form id="new-project-form" class="new-project-form">
-              <h2>Новый проект</h2>
-              <label class="field">
-                <span>Название</span>
-                <input name="title" required maxlength="120" placeholder="Например, Summer Stories">
-              </label>
-              <label class="field">
-                <span>Адресная часть</span>
-                <input name="slug" required pattern="[a-z0-9]+(-[a-z0-9]+)*" placeholder="summer-stories">
-              </label>
-              <button class="button button-secondary" type="submit">Создать проект</button>
-            </form>
-            <div class="project-list-heading">
-              <h2>Ваши проекты</h2>
-              <span id="project-count" class="count-badge">0</span>
-            </div>
-            <div id="project-list" class="project-list"></div>
-          </aside>
-          <section id="project-editor" class="project-editor">
-            <div class="empty-state">
-              <span class="empty-icon">✳</span>
-              <h2>Выберите проект</h2>
-              <p>Или создайте новый — он появится в списке слева.</p>
-            </div>
-          </section>
-        </div>
+          <div id="project-list" class="project-list" role="list"></div>
+        </aside>
+        <section id="project-editor" class="project-editor"></section>
+        <aside id="image-inspector" class="panel image-inspector" aria-label="Параметры изображения"></aside>
+      </section>
+
+      <section id="settings-view" class="view settings-view" aria-labelledby="settings-heading" hidden>
+        <h1 id="settings-heading">Настройки</h1>
+        <form id="settings-form" class="settings-form" novalidate></form>
       </section>
     </main>
-    <dialog id="cover-preview" class="cover-preview">
-      <div class="preview-dialog-heading">
-        <div><p class="eyebrow">ПРЕДПРОСМОТР</p><h2 id="preview-title"></h2></div>
-        <button id="close-cover-preview" class="button button-quiet" type="button">Закрыть</button>
-      </div>
-      <div id="preview-covers" class="preview-covers"></div>
+
+    <div id="save-bar" class="save-bar" role="region" aria-label="Несохранённые изменения" hidden>
+      <span class="save-bar-dot" aria-hidden="true"></span>
+      <span id="save-bar-summary" class="save-bar-summary">Есть несохранённые изменения</span>
+      <button id="discard-changes" class="button button-ghost" type="button">Отменить</button>
+      <button id="save-changes" class="button button-primary" type="button">Сохранить <kbd>⌘S</kbd></button>
+    </div>
+
+    <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+
+    <dialog id="new-project-dialog" class="dialog">
+      <form method="dialog" id="new-project-form" class="dialog-body">
+        <h2>Новый проект</h2>
+        <label class="field">
+          <span>Название</span>
+          <input name="title" required maxlength="120" autocomplete="off" placeholder="Например, Summer Stories">
+        </label>
+        <label class="field">
+          <span>Адрес страницы</span>
+          <span class="input-prefix"><span>/projects/</span><input name="slug" required pattern="[a-z0-9]+(-[a-z0-9]+)*" autocomplete="off" spellcheck="false"></span>
+          <small class="field-help">Латиница, цифры и дефисы. Подставляется из названия.</small>
+        </label>
+        <div class="dialog-actions">
+          <button class="button button-ghost" type="button" value="cancel" data-close-dialog>Отмена</button>
+          <button class="button button-primary" type="submit">Создать</button>
+        </div>
+      </form>
     </dialog>
+
+    <dialog id="confirm-dialog" class="dialog">
+      <form method="dialog" class="dialog-body">
+        <h2 id="confirm-title"></h2>
+        <p id="confirm-message"></p>
+        <div class="dialog-actions">
+          <button class="button button-ghost" value="cancel">Отмена</button>
+          <button id="confirm-accept" class="button button-primary" value="ok"></button>
+        </div>
+      </form>
+    </dialog>
+
     <script src="/app.js" defer></script>
   </body>
 </html>
