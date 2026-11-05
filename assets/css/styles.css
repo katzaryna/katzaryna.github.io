@@ -239,44 +239,44 @@ h2, p { margin-top: 0; }
 .linkedin-link svg { width: 20.4px; fill: currentColor; }
 
 .gallery {
-  columns: 3;
-  column-gap: var(--gallery-gap, 5px);
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-auto-rows: var(--home-row-height, clamp(38px, 6vw, 85px));
+  grid-auto-flow: row;
+  gap: var(--gallery-gap, 5px);
   padding-bottom: 42px;
 }
-.gallery figure { min-width: 0; margin: 0 0 var(--gallery-gap, 5px); break-inside: avoid; }
+.gallery.home-gallery {
+  position: relative;
+  display: block;
+  height: auto;
+  aspect-ratio: 12 / var(--home-gallery-rows, 12);
+  padding-bottom: 0;
+}
 html.gallery-intro-supported .gallery.is-intro-fit { padding-bottom: 0; }
-html.gallery-intro-supported .gallery.is-intro-fit figure,
-html.gallery-intro-supported .gallery.is-intro-fit figure.is-landscape {
-  min-width: 0;
-  min-height: 0;
-  height: 100%;
-  grid-column: auto;
+.gallery figure { min-width: 0; min-height: 0; margin: 0; }
+.home-gallery .home-cover {
+  position: absolute;
+  top: var(--home-cover-top, 0%);
+  left: var(--home-cover-left, 0%);
+  width: var(--home-cover-width, 50%);
+  height: var(--home-cover-height, 33.333%);
+  padding: calc(var(--gallery-gap, 5px) / 2);
 }
-html.gallery-intro-supported .gallery.is-intro-fit .gallery-link { width: 100%; height: 100%; }
-html.gallery-intro-supported .gallery.is-intro-fit .gallery-link > img {
-  width: 100%;
-  max-width: 100%;
-  max-height: 100%;
-  height: 100%;
-  object-fit: contain;
-  object-position: center;
-}
-html.gallery-intro-supported .gallery.is-intro-fit .gallery-title { display: none; }
-html.gallery-intro-supported .gallery.is-intro-fit {
-  display: grid;
-  height: var(--intro-gallery-height, calc(100svh - 180px));
-  grid-template-columns: repeat(var(--intro-gallery-grid-columns, 3), minmax(0, 1fr));
-  grid-template-rows: repeat(var(--intro-gallery-rows, 2), minmax(0, 1fr));
-  align-items: stretch;
-  gap: var(--gallery-gap, 5px);
-}
-html.gallery-intro-supported .gallery.is-intro-fit figure { grid-column: span var(--intro-gallery-column-span, 1); }
 .gallery-link { position: relative; display: block; isolation: isolate; }
+.home-gallery .gallery-link { width: 100%; height: 100%; overflow: hidden; }
 .gallery img {
   display: block;
   width: 100%;
   height: auto;
 }
+.home-gallery .gallery-link > img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: var(--home-cover-position, 50% 50%);
+}
+.home-gallery .home-cover.is-cropped .gallery-link > img { object-fit: cover; }
 .gallery-title {
   position: absolute;
   inset: auto 0 0;
@@ -471,7 +471,25 @@ html.gallery-intro-supported .gallery.is-intro-fit figure { grid-column: span va
   .email-contact svg { width: 16.2px; }
   .linkedin-link svg, .instagram-link svg { width: 16.2px; }
   .artist-bio-text { top: 0; left: calc(100% + 8px); }
-  .gallery { columns: 2; }
+  .gallery {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    grid-auto-rows: clamp(36px, 8vw, 64px);
+  }
+  .gallery.home-gallery {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gallery-gap, 5px);
+    height: auto;
+    aspect-ratio: auto;
+  }
+  .home-gallery .home-cover {
+    position: static;
+    width: 100%;
+    height: auto;
+    padding: 0;
+  }
+  .home-gallery .gallery-link { height: auto; }
+  .home-gallery .gallery-link > img { height: auto; object-fit: initial; }
   .works { columns: 2; }
   .works figure {
     --image-gap-x: var(--gallery-gap-x, var(--gallery-gap, 5px));
@@ -531,13 +549,13 @@ html.gallery-intro-supported .gallery.is-intro-fit figure { grid-column: span va
 
 @media (hover: none) {
   .gallery-title {
-    position: static;
-    display: block;
-    padding: 8px 0 0;
-    background: none;
-    color: #252525;
+    display: grid;
+    min-height: 0;
+    padding: 6px;
+    background: rgb(0 0 0 / 48%);
+    color: #fff;
     font-size: 12px;
-    text-align: left;
+    text-align: center;
     opacity: 1;
     visibility: visible;
   }
@@ -556,7 +574,10 @@ html.gallery-intro-supported .gallery.is-intro-fit figure { grid-column: span va
   .linkedin-link svg, .instagram-link svg { width: 13.8px; }
   .artist-bio-text { width: min(260px, calc(100vw - 100px)); max-width: min(260px, calc(100vw - 100px)); }
   .email-contact .email-address { font-size: 10px; }
-  .gallery { columns: 1; }
+  .gallery {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-auto-rows: clamp(80px, 30vw, 150px);
+  }
   .works { columns: 1; }
   .works figure {
     --image-gap-x: var(--gallery-gap-x, var(--gallery-gap, 5px));

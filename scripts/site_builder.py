@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+import functools
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from io import BytesIO
 import json
@@ -13,10 +14,14 @@ import subprocess
 import sys
 import tempfile
 import threading
+import unicodedata
 from urllib.parse import unquote, urlsplit
 
-from PIL import Image
+from PIL import Image, ImageCms, ImageOps
+import tomli
 import yaml
+
+from scripts.image_utils import color_manage_image
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -32,6 +37,13 @@ IMAGE_EXTENSIONS = {
 MAX_JSON_BYTES = 2 * 1024 * 1024
 MAX_IMAGE_BYTES = 30 * 1024 * 1024
 MAX_IMAGE_PIXELS = 80_000_000
+MAX_ANIMATED_FRAMES = 300
+LEGACY_COVER_KEYS = ("size", "columns", "rows")
+LAYOUT_DECIMALS = 4
+LAYOUT_EPSILON = 1e-6
+IMAGE_SETTINGS = tomli.loads((ROOT / "config" / "image_optimization.toml").read_text())
+UPLOAD_MAX_DIMENSION = int(IMAGE_SETTINGS["upload_max_dimension"])
+UPLOAD_WEBP_QUALITY = int(IMAGE_SETTINGS["upload_webp_quality"])
 
 
 class BuilderError(Exception):
@@ -102,6 +114,16 @@ def validate_image_name(filename: str) -> str:
     return filename
 
 
+def normalize_upload_stem(filename: str) -> str:
+    ascii_stem = (
+        unicodedata.normalize("NFKD", Path(filename).stem)
+        .encode("ascii", "ignore")
+        .decode("ascii")
+        .lower()
+    )
+    return re.sub(r"[^a-z0-9]+", "-", ascii_stem).strip("-") or "image"
+
+
 def parse_project(text: str) -> tuple[dict, str]:
     match = re.match(r"\A---[ \t]*\r?\n(.*?)\r?\n---[ \t]*(?:\r?\n|\Z)(.*)\Z", text, re.DOTALL)
     if not match:
@@ -126,24 +148,6 @@ def serialize_project(metadata: dict, content: str) -> str:
     return f"---\n{front_matter}---\n{content}"
 
 
-def normalize_cover_orders(images: list[dict]) -> None:
-    covers = [
-        (index, image)
-        for index, image in enumerate(images)
-        if image.get("cover") is True
-    ]
-
-    def order_key(item: tuple[int, dict]) -> tuple[int, int]:
-        index, image = item
-        order = image.get("gallery_order")
-        if isinstance(order, int) and not isinstance(order, bool) and order > 0:
-            return -order, index
-        return 0, index
-
-    for order, (_, image) in enumerate(sorted(covers, key=order_key), start=1):
-        image["gallery_order"] = len(covers) - order + 1
-
-
 def validate_home_gallery(config: dict) -> None:
     home_gallery = config.get("home_gallery")
     if not isinstance(home_gallery, dict):
@@ -156,6 +160,62 @@ def validate_home_gallery(config: dict) -> None:
         character in gap for character in "<>{};"
     ):
         raise ValueError("Home gallery gap must be a simple CSS length.")
+    covers = home_gallery.get("covers")
+    if not isinstance(covers, list):
+        raise ValueError("home_gallery.covers must be a list.")
+    seen_covers = set()
+    layouts = []
+    for cover in covers:
+        if not isinstance(cover, dict):
+            raise ValueError("Each home gallery cover must be an object.")
+        project = validate_slug(cover.get("project", ""))
+        filename = validate_image_name(cover.get("file", ""))
+        legacy_keys = [key for key in LEGACY_COVER_KEYS if key in cover]
+        if legacy_keys:
+            raise ValueError(
+                f"Home gallery cover {project}/{filename} uses removed keys {legacy_keys}; "
+                "use x, y, width, and height."
+            )
+        layout = home_cover_layout(cover)
+        for coordinate in ("x", "y", "width", "height"):
+            value = layout[coordinate]
+            minimum = 0 if coordinate in {"x", "y"} else 0.5
+            maximum = 12 if coordinate in {"x", "width", "height"} else 120
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not minimum <= value <= maximum
+            ):
+                raise ValueError(
+                    f"Home gallery cover {coordinate} must be between {minimum} and {maximum}."
+                )
+        if layout["x"] + layout["width"] > 12:
+            raise ValueError("Home gallery cover must stay within the 12-column canvas.")
+        if layout["y"] + layout["height"] > 120:
+            raise ValueError("Home gallery cover must stay within the 120-row canvas.")
+        if any(
+            layout["x"] < other["x"] + other["width"] - LAYOUT_EPSILON
+            and layout["x"] + layout["width"] > other["x"] + LAYOUT_EPSILON
+            and layout["y"] < other["y"] + other["height"] - LAYOUT_EPSILON
+            and layout["y"] + layout["height"] > other["y"] + LAYOUT_EPSILON
+            for other in layouts
+        ):
+            raise ValueError("Home gallery covers must not overlap.")
+        layouts.append(layout)
+        if "crop" in cover and not isinstance(cover["crop"], bool):
+            raise ValueError("Home gallery cover crop must be enabled or disabled.")
+        for axis in ("crop_x", "crop_y"):
+            coordinate = cover.get(axis, 50)
+            if (
+                isinstance(coordinate, bool)
+                or not isinstance(coordinate, (int, float))
+                or not 0 <= coordinate <= 100
+            ):
+                raise ValueError(f"Home gallery cover {axis} must be between 0 and 100.")
+        identifier = (project, filename)
+        if identifier in seen_covers:
+            raise ValueError(f"Duplicate home gallery cover: {project}/{filename}.")
+        seen_covers.add(identifier)
     excluded = config.get("exclude")
     if (
         not isinstance(excluded, list)
@@ -163,6 +223,72 @@ def validate_home_gallery(config: dict) -> None:
         or "site-builder" not in excluded
     ):
         raise ValueError("Keep site-builder in the Jekyll exclude list so the local editor is not published.")
+
+
+def round_cover_layout(cover: object) -> object:
+    """Round layout numbers by edges, so touching covers stay touching and never overlap."""
+    if not isinstance(cover, dict):
+        return cover
+    rounded = dict(cover)
+
+    def is_number(value: object) -> bool:
+        return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+    for start, size in (("x", "width"), ("y", "height")):
+        if is_number(cover.get(start)) and is_number(cover.get(size)):
+            low = round(cover[start], LAYOUT_DECIMALS)
+            high = round(cover[start] + cover[size], LAYOUT_DECIMALS)
+            rounded[start] = low
+            rounded[size] = round(high - low, LAYOUT_DECIMALS)
+    for axis in ("crop_x", "crop_y"):
+        if is_number(cover.get(axis)):
+            rounded[axis] = round(cover[axis], LAYOUT_DECIMALS)
+    return rounded
+
+
+def locked(method):
+    """Serialize repository writes so concurrent builder requests cannot interleave."""
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs):
+        with self._lock:
+            return method(self, *args, **kwargs)
+    return wrapper
+
+
+def home_cover_layout(cover: dict) -> dict:
+    return {key: cover.get(key) for key in ("x", "y", "width", "height")}
+
+
+def validate_home_gallery_references(config: dict, projects: list[dict]) -> None:
+    selected = {
+        (project["slug"], image["file"])
+        for project in projects
+        for image in project["metadata"].get("images", [])
+        if image.get("cover") is True
+    }
+    configured = {
+        (cover["project"], cover["file"])
+        for cover in config["home_gallery"]["covers"]
+    }
+    if configured != selected:
+        missing = sorted(selected - configured)
+        stale = sorted(configured - selected)
+        details = []
+        if missing:
+            details.append(f"missing selected covers: {missing}")
+        if stale:
+            details.append(f"covers no longer selected: {stale}")
+        raise ValueError("Home gallery cover list is out of sync (" + "; ".join(details) + ").")
+
+
+def dump_config(config: dict) -> str:
+    return yaml.dump(
+        preserve_config_styles(config),
+        Dumper=SiteConfigDumper,
+        allow_unicode=True,
+        sort_keys=False,
+        width=100,
+    )
 
 
 def atomic_write(path: Path, text: str) -> None:
@@ -206,6 +332,7 @@ def atomic_write_bytes(path: Path, content: bytes) -> None:
 @dataclass
 class SiteRepository:
     root: Path
+    _lock: threading.RLock = field(default_factory=threading.RLock, repr=False, compare=False)
 
     @property
     def config_path(self) -> Path:
@@ -260,21 +387,25 @@ class SiteRepository:
     def state(self) -> dict:
         return {"config": self.read_config(), "projects": self.list_projects()}
 
+    @locked
     def save_config(self, config: dict) -> None:
         if not isinstance(config, dict):
             raise ValueError("Site settings must be an object.")
+        home_gallery = config.get("home_gallery")
+        if isinstance(home_gallery, dict) and isinstance(home_gallery.get("covers"), list):
+            home_gallery["covers"] = [round_cover_layout(cover) for cover in home_gallery["covers"]]
         validate_home_gallery(config)
-        atomic_write(
-            self.config_path,
-            yaml.dump(
-                preserve_config_styles(config),
-                Dumper=SiteConfigDumper,
-                allow_unicode=True,
-                sort_keys=False,
-                width=100,
-            ),
-        )
+        validate_home_gallery_references(config, self.list_projects())
+        atomic_write(self.config_path, dump_config(config))
 
+    @locked
+    def save_home_gallery(self, covers: list[dict]) -> list[dict]:
+        config = self.read_config()
+        config["home_gallery"]["covers"] = covers
+        self.save_config(config)
+        return config["home_gallery"]["covers"]
+
+    @locked
     def create_project(self, slug: str, title: str) -> dict:
         slug = validate_slug(slug)
         if not isinstance(title, str) or not title.strip():
@@ -294,7 +425,8 @@ class SiteRepository:
         atomic_write(project_file, serialize_project(metadata, ""))
         return {"slug": slug, "metadata": metadata, "content": "", "files": []}
 
-    def save_project(self, slug: str, metadata: dict, content: str) -> None:
+    @locked
+    def save_project(self, slug: str, metadata: dict, content: str) -> list[dict]:
         project_directory = self.project_directory(slug)
         project_file = project_directory / "index.md"
         if not project_file.is_file():
@@ -316,29 +448,69 @@ class SiteRepository:
         for image in images:
             if not isinstance(image, dict):
                 raise ValueError("Each project image must be an object.")
+            image.pop("gallery_order", None)
             filename = validate_image_name(image.get("file", ""))
             if not isinstance(image.get("alt"), str) or not image["alt"].strip():
                 raise ValueError(f"Image {filename} needs non-empty alt text.")
             image_path = (project_directory / filename).resolve()
             if not image_path.is_relative_to(project_directory) or not image_path.is_file():
                 raise ValueError(f"Image file does not exist: {filename}")
-            if image.get("cover") is True:
-                order = image.get("gallery_order")
-                if not isinstance(order, int) or isinstance(order, bool) or order < 1:
-                    raise ValueError(f"Cover {filename} needs a positive gallery order.")
-        cover_orders = [
-            image["gallery_order"]
-            for image in images
-            if image.get("cover") is True
-        ]
-        if len(cover_orders) != len(set(cover_orders)):
-            raise ValueError("Cover gallery_order values must be unique.")
-
-        normalize_cover_orders(images)
         metadata["title"] = metadata["title"].strip()
+        config = self.read_config()
+        selected_files = {
+            image["file"] for image in images if image.get("cover") is True
+        }
+        configured_covers = config["home_gallery"]["covers"]
+        retained = [
+            cover for cover in configured_covers
+            if cover["project"] != slug or cover["file"] in selected_files
+        ]
+        existing = {
+            (cover["project"], cover["file"])
+            for cover in retained
+        }
+        for image in images:
+            identifier = (slug, image["file"])
+            if image.get("cover") is True and identifier not in existing:
+                layout_y = max(
+                    (
+                        cover["y"] + cover["height"]
+                        for cover in retained
+                    ),
+                    default=0,
+                )
+                retained.append({
+                    "project": slug,
+                    "file": image["file"],
+                    "x": 0,
+                    "y": layout_y,
+                    "width": 6,
+                    "height": 4,
+                    "crop": False,
+                    "crop_x": 50,
+                    "crop_y": 50,
+                })
+                existing.add(identifier)
+        retained = [round_cover_layout(cover) for cover in retained]
+        config["home_gallery"]["covers"] = retained
+        validate_home_gallery(config)
+        projects = [
+            project for project in self.list_projects()
+            if project["slug"] != slug
+        ]
+        projects.append({"slug": slug, "metadata": metadata})
+        validate_home_gallery_references(config, projects)
+        previous_project = project_file.read_text(encoding="utf-8")
         atomic_write(project_file, serialize_project(metadata, content))
+        try:
+            atomic_write(self.config_path, dump_config(config))
+        except BaseException:
+            atomic_write(project_file, previous_project)
+            raise
+        return retained
 
-    def save_image(self, slug: str, filename: str, content: bytes) -> None:
+    @locked
+    def save_image(self, slug: str, filename: str, content: bytes) -> str:
         project_directory = self.project_directory(slug)
         if not project_directory.is_dir():
             raise NotFoundError("Project does not exist.")
@@ -346,21 +518,54 @@ class SiteRepository:
         if not content or len(content) > MAX_IMAGE_BYTES:
             raise ValueError("Image must be non-empty and no larger than 30 MB.")
 
+        expected_format = IMAGE_EXTENSIONS[Path(filename).suffix.lower()]
         try:
-            with Image.open(BytesIO(content)) as image:
-                expected_format = IMAGE_EXTENSIONS[Path(filename).suffix.lower()]
-                if image.format != expected_format:
+            with Image.open(BytesIO(content)) as probe:
+                if probe.format != expected_format:
                     raise ValueError("The image contents do not match the filename extension.")
-                if image.width * image.height > MAX_IMAGE_PIXELS:
+                if probe.width * probe.height > MAX_IMAGE_PIXELS:
                     raise ValueError("Image dimensions exceed the 80-megapixel upload limit.")
-                image.verify()
+                if getattr(probe, "n_frames", 1) > MAX_ANIMATED_FRAMES:
+                    raise ValueError(f"Animated images may contain at most {MAX_ANIMATED_FRAMES} frames.")
+                probe.verify()
+
+            with Image.open(BytesIO(content)) as image:
+                frame_count = getattr(image, "n_frames", 1)
+                durations = []
+                frames = []
+                for frame_index in range(frame_count):
+                    image.seek(frame_index)
+                    durations.append(image.info.get("duration", 100))
+                    frame = color_manage_image(ImageOps.exif_transpose(image.copy()))
+                    frame.thumbnail(
+                        (UPLOAD_MAX_DIMENSION, UPLOAD_MAX_DIMENSION),
+                        Image.Resampling.LANCZOS,
+                    )
+                    frames.append(frame)
+                loop = image.info.get("loop", 0)
         except Image.DecompressionBombError as error:
             raise ValueError("Image dimensions exceed the upload limit.") from error
+        except ImageCms.PyCMSError as error:
+            raise ValueError(f"Could not convert the embedded color profile: {error}") from error
 
-        destination = project_directory / filename
+        output = BytesIO()
+        frames[0].save(
+            output,
+            "WEBP",
+            save_all=len(frames) > 1,
+            append_images=frames[1:],
+            duration=durations if len(frames) > 1 else durations[0],
+            loop=loop,
+            quality=UPLOAD_WEBP_QUALITY,
+            method=6,
+            icc_profile=frames[0].info["icc_profile"],
+        )
+        optimized_filename = f"{normalize_upload_stem(filename)}.webp"
+        destination = project_directory / optimized_filename
         if destination.exists():
-            raise ConflictError(f"{filename} already exists in this project.")
-        atomic_write_bytes(destination, content)
+            raise ConflictError(f"{optimized_filename} already exists in this project.")
+        atomic_write_bytes(destination, output.getvalue())
+        return optimized_filename
 
     def read_image(self, slug: str, filename: str) -> tuple[bytes, str]:
         filename = validate_image_name(filename)
@@ -372,8 +577,9 @@ class SiteRepository:
 
     def build_site(self) -> str:
         commands = (
-            [sys.executable, "scripts/generate_image_variants.py"],
-            ["jekyll", "build"],
+            [sys.executable, "-m", "scripts.generate_image_variants"],
+            ["bundle", "exec", "jekyll", "build"],
+            [sys.executable, "-m", "scripts.prune_unused_assets", "--site-dir", "_site"],
         )
         output = []
         for command in commands:
@@ -426,6 +632,8 @@ class BuilderHandler(BaseHTTPRequestHandler):
     server: BuilderServer
 
     def do_GET(self) -> None:
+        if not self._check_local_request():
+            return
         path = unquote(urlsplit(self.path).path)
         image_match = re.fullmatch(r"/api/projects/([^/]+)/images/([^/]+)", path)
         if image_match:
@@ -482,6 +690,9 @@ class BuilderHandler(BaseHTTPRequestHandler):
             if path == "/api/config":
                 self.server.repository.save_config(payload.get("config"))
                 self._send_json(200, {"ok": True})
+            elif path == "/api/home-gallery":
+                covers = self.server.repository.save_home_gallery(payload.get("covers"))
+                self._send_json(200, {"ok": True, "covers": covers})
             elif path == "/api/projects":
                 project = self.server.repository.create_project(
                     payload.get("slug", ""),
@@ -512,20 +723,20 @@ class BuilderHandler(BaseHTTPRequestHandler):
                 content = self.rfile.read(length)
                 if len(content) != length:
                     raise ValueError("Incomplete image upload.")
-                self.server.repository.save_image(*image_match.groups(), content)
-                self._send_json(201, {"ok": True})
+                filename = self.server.repository.save_image(*image_match.groups(), content)
+                self._send_json(201, {"ok": True, "file": filename})
                 return
 
             project_match = re.fullmatch(r"/api/projects/([^/]+)", path)
             if not project_match:
                 raise NotFoundError("API endpoint not found.")
             payload = self._read_json()
-            self.server.repository.save_project(
+            covers = self.server.repository.save_project(
                 project_match.group(1),
                 payload.get("metadata"),
                 payload.get("content", ""),
             )
-            self._send_json(200, {"ok": True})
+            self._send_json(200, {"ok": True, "covers": covers})
         except BuilderError as error:
             self._send_error(error)
         except (OSError, ValueError, yaml.YAMLError) as error:

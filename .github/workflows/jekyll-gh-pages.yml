@@ -29,11 +29,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Setup Pages
+        id: pages
         uses: actions/configure-pages@v5
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version-file: .python-version
           cache: pip
           cache-dependency-path: |
             requirements-images.txt
@@ -49,12 +50,17 @@ jobs:
       - name: Lint and test
         run: make check
       - name: Generate responsive image variants
-        run: python scripts/generate_image_variants.py
-      - name: Build with Jekyll
-        uses: actions/jekyll-build-pages@v1
+        run: python -m scripts.generate_image_variants
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
         with:
-          source: ./
-          destination: ./_site
+          bundler-cache: true
+      - name: Build with Jekyll
+        run: bundle exec jekyll build --baseurl "${{ steps.pages.outputs.base_path }}"
+        env:
+          JEKYLL_ENV: production
+      - name: Remove unreferenced project images
+        run: python -m scripts.prune_unused_assets --site-dir _site
       - name: Validate generated site
         run: python scripts/validate_site.py --site-dir _site
       - name: Upload artifact

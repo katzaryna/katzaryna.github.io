@@ -37,39 +37,42 @@ them. Original artwork stays in each project's directory.
 ## How the pages are assembled
 
 Jekyll discovers project pages by their `layout: project` front matter. The
-home page selects images explicitly marked `cover: true` and orders each
-selected image by its own numeric `gallery_order`.
-This allows multiple covers from one project to be interleaved with covers
-from other projects.
+home page selects images explicitly marked `cover: true`; their sequence,
+position, dimensions, and crop are stored together in `home_gallery.covers` in
+`_config.yml`.
+Each entry identifies its project and filename, so covers from different
+projects can be interleaved without numeric order fields in project metadata.
 The project layout renders all entries in `images` in their listed order.
 `permalink` controls the page URL, not the location of its artwork files.
 
 The `home_gallery.compact` setting controls whether the covers initially fit
 into the viewport; when disabled, the home page opens directly as a regular
-masonry gallery. The `home_gallery.single_page` setting controls cover clicks.
+responsive grid. The `home_gallery.single_page` setting controls cover clicks.
 When enabled, a cover opens its original image and its `caption` (or the
 project title if no caption is set) in a lightbox, while project pages remain
 available at their direct URLs. When disabled, covers link to their project
 pages as usual. Both settings are in `_config.yml`.
 
-The home gallery and project galleries by default use CSS multi-column
-masonry. Images keep their original aspect ratios and are never cropped;
-figures are kept whole when flowing between columns. On desktop galleries use
-three columns, on tablet two, and on narrow screens one. CSS columns flow down
-each column before continuing to the next, so visual reading order is
-top-to-bottom within a column, not row-by-row. A project can opt into a fixed
-grid and set its own desktop column count. The `home_gallery.gap` value in
-`_config.yml` controls horizontal and vertical spacing on both types of
-gallery; the current value is `5px`.
+The home gallery uses a free-placement canvas. In the builder, drag a cover
+through other covers to reach an open spot, or hold it over another cover for a
+moment to swap their positions and tile sizes. Covers cannot overlap when
+dropped or saved. Resize a cover by dragging its bottom-right corner, and drag
+the image inside the crop preview to adjust its crop. Resizing can be freeform
+or preserve the tile's aspect ratio; optional size snapping uses a configurable
+pixel step, defaulting to 20 px. Optional magnetic alignment pulls nearby edges
+together and matches neighboring tile sizes within 12 px.
 
-The home page initially fits its selected covers into the remaining viewport
-height. JavaScript tries every possible column count and chooses the layout
-that gives the images the greatest total displayed area without cropping; it
-spreads an incomplete final row across the available width. The first scroll
-switches to the normal masonry gallery with a short position-preserving
-animation. If JavaScript is unavailable, the page starts directly in masonry.
-Project pages use masonry by default; `gallery_columns` or image spans enable
-the fixed grid.
+The builder's gallery toolbar provides undo/redo (up to 50 actions), zoom,
+fit-to-view, and a hand tool for panning. While dragging or resizing, guides
+show aligned edges and nearby spacing. Arrow keys move the selected cover by
+one screen pixel; Shift+arrow moves it by ten. The published canvas scales
+responsively while preserving the arrangement. Project galleries retain their
+own masonry or fixed-grid layout. The `home_gallery.gap` value in `_config.yml`
+controls spacing in both galleries.
+
+When `home_gallery.compact` is enabled, the home grid initially fits into the
+remaining viewport height and expands to its regular responsive size on the
+first scroll. If JavaScript is unavailable, the gallery uses its regular grid.
 Project-page artwork opens in a full-screen lightbox; animated GIFs use
 generated video previews when available.
 
@@ -89,7 +92,6 @@ images:
     alt: Description of the first image
     caption: Optional caption
     cover: true
-    gallery_order: 1
   - file: 02.jpg
     alt: Description of the second image
 ---
@@ -98,17 +100,18 @@ Optional longer project description.
 
 Requirements and behavior:
 
-- Mark each home-page cover with `cover: true` and give it a unique positive
-  integer `gallery_order`; higher values appear first, starting at the upper
-  left of the gallery. Covers from the same
-  project can be placed anywhere in the overall sequence. Orders must be unique
-  integers from 1 to 9,999,999,999.
+- Mark each home-page cover with `cover: true`, then set the order, size, and
+  crop in the builder's **Настроить главную** window. The matching
+  `home_gallery.covers` list is the source of the visual sequence.
 - Only entries marked `cover: true` appear in the home gallery. The old
   top-level `cover.file` format is not used. The cover checker warns if a
-  project has no selected image and checks that cover orders are unique.
+  project has no selected image.
 - List all project-page artwork under `images`. `file` is relative to that
   project's directory. Provide meaningful `alt` text; `caption` is optional
   and also serves as a fallback alt-text source.
+- Images in a project directory that are not listed under `images` are kept
+  in the repository but are not published: the generator skips them, the
+  build removes them from `_site`, and `make test` lists them as warnings.
 - `permalink` changes the project page URL only; keep artwork next to
   `index.md` and use the original file name in `images[].file`.
 - Project text after the YAML front matter is optional and appears below the
@@ -179,8 +182,9 @@ upper-right corner.
 
 Use original JPEG, PNG, or WebP files for static images. The build makes
 responsive WebP derivatives at widths in `config/image_optimization.toml`
-(currently 480, 960, and 1440 pixels; a source smaller than those widths gets
-one derivative at its original width). Templates use the generated responsive
+(currently 480, 960, and 1440 pixels). Each target narrower than the source is
+generated, plus one derivative at the source's own width when it falls between
+targets, so a 854-pixel source gets 480- and 854-pixel versions. Templates use the generated responsive
 sources where present and fall back to the original file. Original artwork is
 also used by the full-screen viewer.
 
@@ -215,9 +219,12 @@ analytics loading.
 
 ## Local development and validation
 
-Requirements: Python, Node.js/npm, Ruby with Jekyll, and the dependencies
-listed in `requirements-images.txt`, `requirements-dev.txt`, and
-`package-lock.json`. Install Python and Node dependencies with:
+Requirements: Python (version in `.python-version`), Node.js/npm, Ruby with
+Bundler (version in `.ruby-version`), and the dependencies listed in
+`requirements-images.txt`, `requirements-dev.txt`, `package-lock.json`, and
+`Gemfile.lock`. Jekyll is pinned in the `Gemfile` and always runs through
+`bundle exec`, so local builds match the deployed site. Install Python, Node,
+and Ruby dependencies with:
 
 ```sh
 make setup
@@ -230,8 +237,10 @@ make builder
 ```
 
 Then open `http://127.0.0.1:8765` in a browser. The builder edits `_config.yml`
-and project Markdown files in place, and stores uploaded originals in the
-selected project folder. Use **Save** before leaving an edited project.
+and project Markdown files in place. Uploads become color-managed WebP at
+quality 95, capped at 2560 pixels on the longest side. Embedded color profiles
+such as Display P3 are preserved; untagged images are treated as sRGB.
+Animated GIFs remain animated. Use **Save** before leaving an edited project.
 Removing an image from a project gallery only removes its metadata entry; it
 does not delete the original file. The builder is bound to localhost and is
 excluded from the published Jekyll site. Use **Предпросмотр обложек** to see
@@ -261,6 +270,6 @@ integrity. Tests live under `tests/`.
 
 The GitHub Actions workflow runs on pushes to `main` or by manual dispatch.
 It installs pinned Python and Node dependencies, runs `make check`, generates
-image derivatives, builds with the GitHub Pages Jekyll action, validates the
+image derivatives, builds with the bundled Jekyll version, validates the
 generated site, and deploys it. In repository **Settings → Pages**, select
 **GitHub Actions** as the deployment source.
