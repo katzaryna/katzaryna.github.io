@@ -31,33 +31,21 @@ def test_has_no_selected_cover(metadata):
     assert not check_project_covers.has_selected_cover(metadata)
 
 
-def test_cover_order_requires_positive_integer():
-    assert check_project_covers.cover_order_errors(
-        {"images": [{"file": "cover.png", "cover": True, "gallery_order": 2}]},
-        {},
+def test_removed_gallery_order_is_rejected():
+    errors = check_project_covers.obsolete_order_errors(
+        {"images": [{"file": "cover.png", "gallery_order": 1}]},
         Path("projects/example/index.md"),
-    ) == []
-
-    for invalid_order in (None, 0, -1, 1.5, True, "2"):
-        errors = check_project_covers.cover_order_errors(
-            {"images": [{"file": "cover.png", "cover": True, "gallery_order": invalid_order}]},
-            {},
-            Path("projects/example/index.md"),
-        )
-        assert len(errors) == 1
-        assert "positive integer `gallery_order`" in errors[0]
-
-
-def test_cover_order_must_be_unique():
-    seen_orders = {2: Path("projects/first/index.md")}
-    errors = check_project_covers.cover_order_errors(
-        {"images": [{"file": "cover.png", "cover": True, "gallery_order": 2}]},
-        seen_orders,
-        Path("projects/second/index.md"),
     )
 
     assert len(errors) == 1
-    assert "duplicates `gallery_order: 2`" in errors[0]
+    assert "still uses removed `gallery_order`" in errors[0]
+
+
+def test_project_without_gallery_order_passes_obsolete_order_check():
+    assert check_project_covers.obsolete_order_errors(
+        {"images": [{"file": "cover.png", "cover": True}]},
+        Path("projects/example/index.md"),
+    ) == []
 
 
 def test_main_warns_only_for_projects_without_covers(tmp_path: Path, monkeypatch, capsys):
@@ -71,7 +59,7 @@ def test_main_warns_only_for_projects_without_covers(tmp_path: Path, monkeypatch
         encoding="utf-8",
     )
     (with_cover / "index.md").write_text(
-        "---\nlayout: project\ntitle: Has cover\nimages:\n  - file: cover.png\n    cover: true\n    gallery_order: 1\n---\n",
+        "---\nlayout: project\ntitle: Has cover\nimages:\n  - file: cover.png\n    cover: true\n---\n",
         encoding="utf-8",
     )
     monkeypatch.setattr(check_project_covers, "ROOT", tmp_path)

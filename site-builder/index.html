@@ -44,6 +44,7 @@
             <h1>Проекты и обложки</h1>
             <p>Создавайте проекты, загружайте изображения и управляйте их подписями и порядком.</p>
           </div>
+          <button id="edit-home-gallery" class="button button-secondary" type="button">Настроить главную</button>
         </div>
         <div class="project-workspace">
           <aside class="project-sidebar">
@@ -81,6 +82,39 @@
         <button id="close-cover-preview" class="button button-quiet" type="button">Закрыть</button>
       </div>
       <div id="preview-covers" class="preview-covers"></div>
+    </dialog>
+    <dialog id="home-gallery-editor" class="home-gallery-editor">
+      <div class="preview-dialog-heading">
+        <div>
+          <p class="eyebrow">ГЛАВНАЯ СТРАНИЦА</p>
+          <h2>Порядок и оформление обложек</h2>
+          <p>Перетаскивайте обложки сквозь другие в свободное место или задержите одну над другой, чтобы поменять их местами. Стрелки перемещают выбранную обложку на 1 px, Shift+стрелки — на 10 px. Масштаб, панорамирование и отмена доступны на панели над холстом.</p>
+        </div>
+        <button id="close-home-gallery-editor" class="button button-quiet" type="button">Закрыть</button>
+      </div>
+      <div class="home-gallery-editor-layout">
+        <div id="home-gallery-board" class="home-gallery-board">
+          <div class="home-gallery-toolbar" role="toolbar" aria-label="Инструменты холста">
+            <button type="button" class="button button-quiet" data-gallery-action="undo" aria-label="Отменить" title="Отменить (⌘/Ctrl+Z)">↶</button>
+            <button type="button" class="button button-quiet" data-gallery-action="redo" aria-label="Повторить" title="Повторить (⌘/Ctrl+Shift+Z)">↷</button>
+            <span class="home-gallery-toolbar-divider" aria-hidden="true"></span>
+            <button type="button" class="button button-quiet" data-gallery-action="zoom-out" aria-label="Уменьшить масштаб">−</button>
+            <span id="home-gallery-zoom-level" class="home-gallery-zoom-level">100%</span>
+            <button type="button" class="button button-quiet" data-gallery-action="zoom-in" aria-label="Увеличить масштаб">+</button>
+            <button type="button" class="button button-quiet" data-gallery-action="zoom-fit">Вписать</button>
+            <button type="button" class="button button-quiet" data-gallery-action="pan" aria-pressed="false">Рука</button>
+          </div>
+          <div id="home-gallery-viewport" class="home-gallery-viewport" aria-label="Холст раскладки обложек">
+            <div id="home-gallery-canvas" class="home-gallery-canvas" tabindex="0" aria-label="Раскладка обложек. Выберите обложку и используйте стрелки для перемещения.">
+              <div id="home-gallery-guides" class="home-gallery-guides" aria-hidden="true"></div>
+            </div>
+          </div>
+        </div>
+        <aside id="home-gallery-controls" class="home-gallery-controls"></aside>
+      </div>
+      <div class="home-gallery-footer">
+        <button id="save-home-gallery" class="button button-primary" type="button">Сохранить раскладку</button>
+      </div>
     </dialog>
     <script src="/app.js" defer></script>
   </body>
