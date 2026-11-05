@@ -15,6 +15,7 @@ import yaml
 from scripts.site_builder import (
     BuilderServer,
     ConflictError,
+    NotFoundError,
     PreviewServer,
     SiteRepository,
     parse_project,
@@ -79,7 +80,8 @@ def test_upload_normalizes_filename(tmp_path: Path) -> None:
         "flower-large-final.webp"
     )
     assert repository.save_image("artwork", "Café_02.png", image_bytes()) == "cafe-02.webp"
-    assert repository.save_image("artwork", "обложка.png", image_bytes()) == "image.webp"
+    assert repository.save_image("artwork", "Обложка книги.png", image_bytes()) == "oblozhka-knigi.webp"
+    assert repository.save_image("artwork", "日本.png", image_bytes()) == "image.webp"
 
 
 def test_repository_creates_uploads_and_saves_project(tmp_path: Path) -> None:
@@ -100,7 +102,6 @@ def test_repository_creates_uploads_and_saves_project(tmp_path: Path) -> None:
         (0, 0, 6, 4),
         (0, 4, 6, 4),
     ]
-    assert "gallery_order" not in metadata["images"][0]
     metadata["images"][0]["alt"] = ""
     with pytest.raises(ValueError, match="needs non-empty alt text"):
         repository.save_project("summer-stories", metadata, "Description")
@@ -232,6 +233,115 @@ def test_save_project_restores_project_file_when_config_write_fails(
     assert project_file.read_text(encoding="utf-8") == original_text
 
 
+def test_save_all_writes_projects_and_config_together(tmp_path: Path) -> None:
+    repository = create_site(tmp_path)
+    first = repository.create_project("first", "First")
+    second = repository.create_project("second", "Second")
+    first_file = repository.save_image("first", "a.png", image_bytes())
+    second_file = repository.save_image("second", "b.png", image_bytes())
+    first["metadata"]["images"] = [{"file": first_file, "alt": "A", "cover": True}]
+    second["metadata"]["images"] = [{"file": second_file, "alt": "B", "cover": True}]
+    config = repository.read_config()
+    config["title"] = "Renamed"
+
+    state = repository.save_all(config, [
+        {"slug": "first", "metadata": first["metadata"], "content": "One"},
+        {"slug": "second", "metadata": second["metadata"], "content": "Two"},
+    ])
+
+    assert state["config"]["title"] == "Renamed"
+    covers = state["config"]["home_gallery"]["covers"]
+    assert [(cover["project"], cover["y"]) for cover in covers] == [("first", 0), ("second", 4)]
+    assert {project["slug"]: project["content"] for project in state["projects"]} == {
+        "first": "One", "second": "Two",
+    }
+
+
+def test_save_all_writes_nothing_when_one_project_is_invalid(tmp_path: Path) -> None:
+    repository = create_site(tmp_path)
+    good = repository.create_project("good", "Good")
+    repository.create_project("bad", "Bad")
+    config = repository.read_config()
+    config["title"] = "Changed"
+    config_before = (tmp_path / "_config.yml").read_text(encoding="utf-8")
+
+    with pytest.raises(ValueError, match="needs non-empty alt text"):
+        repository.save_all(config, [
+            {"slug": "good", "metadata": good["metadata"], "content": "Changed"},
+            {"slug": "bad", "metadata": {
+                "layout": "project", "title": "Bad", "images": [{"file": "x.webp", "alt": ""}],
+            }, "content": ""},
+        ])
+    assert (tmp_path / "_config.yml").read_text(encoding="utf-8") == config_before
+    assert "Changed" not in (tmp_path / "projects" / "good" / "index.md").read_text(encoding="utf-8")
+
+
+def test_delete_project_moves_folder_to_trash_and_drops_covers(tmp_path: Path) -> None:
+    repository = create_site(tmp_path)
+    project = repository.create_project("old-work", "Old Work")
+    filename = repository.save_image("old-work", "cover.png", image_bytes())
+    project["metadata"]["images"] = [{"file": filename, "alt": "Cover", "cover": True}]
+    repository.save_project("old-work", project["metadata"], "")
+
+    state = repository.delete_project("old-work")
+
+    assert state["projects"] == []
+    assert state["config"]["home_gallery"]["covers"] == []
+    assert not (tmp_path / "projects" / "old-work").exists()
+    trashed = list((tmp_path / ".builder-trash").iterdir())
+    assert len(trashed) == 1 and (trashed[0] / filename).is_file()
+
+
+def test_uploads_get_unique_names_and_portraits_go_to_site_images(tmp_path: Path) -> None:
+    repository = create_site(tmp_path)
+    repository.create_project("artwork", "Artwork")
+
+    assert repository.save_image("artwork", "cover.png", image_bytes()) == "cover.webp"
+    assert repository.save_image("artwork", "cover.png", image_bytes()) == "cover-2.webp"
+
+    portrait = repository.save_portrait("Me.png", image_bytes())
+    assert portrait == "/assets/images/portrait-me.webp"
+    content, content_type = repository.read_site_image(portrait)
+    assert content and content_type == "image/webp"
+    with pytest.raises(NotFoundError):
+        repository.read_site_image("/projects/artwork/cover.webp")
+    with pytest.raises(ValueError):
+        repository.read_site_image("/assets/images/../../_config.yml")
+
+
+def test_parked_covers_may_sit_beside_the_canvas_and_overlap() -> None:
+    base = {"project": "a", "x": 0, "y": 0, "width": 6, "height": 4}
+    config = {"exclude": ["site-builder"], "home_gallery": {"covers": [
+        {**base, "file": "1.png"},
+        {**base, "file": "2.png", "x": 13, "width": 4, "parked": True},
+        {**base, "file": "3.png", "x": 14, "y": -2, "width": 4, "parked": True},
+    ]}}
+    validate_home_gallery(config)
+
+    config["home_gallery"]["covers"][1]["x"] = 20
+    with pytest.raises(ValueError, match="pasteboard"):
+        validate_home_gallery(config)
+    config["home_gallery"]["covers"][1]["x"] = 13
+    config["home_gallery"]["covers"][1]["parked"] = "yes"
+    with pytest.raises(ValueError, match="parked must be"):
+        validate_home_gallery(config)
+
+
+def test_thumbnails_are_small_cached_and_versioned(tmp_path: Path) -> None:
+    repository = create_site(tmp_path)
+    repository.create_project("artwork", "Artwork")
+    filename = repository.save_image("artwork", "big.png", image_bytes())
+    version = repository.list_projects()[0]["versions"][filename]
+
+    content, content_type = repository.read_thumbnail("artwork", filename, 160)
+    with Image.open(BytesIO(content)) as preview:
+        assert content_type == "image/webp" and max(preview.size) <= 160
+    cached = list((tmp_path / ".builder-cache" / "thumbnails" / "artwork").iterdir())
+    assert [path.name for path in cached] == [f"{filename}.160.{version}.webp"]
+    with pytest.raises(ValueError, match="Preview width"):
+        repository.read_thumbnail("artwork", filename, 333)
+
+
 def test_validate_home_gallery_rejects_removed_legacy_keys() -> None:
     cover = {"project": "a", "file": "1.png", "x": 0, "y": 0, "width": 6, "height": 4}
     with pytest.raises(ValueError, match="removed keys"):
@@ -345,7 +455,7 @@ def test_local_http_server_serves_site_state(
     try:
         base_url = f"http://127.0.0.1:{server.server_port}"
         with urlopen(f"{base_url}/") as response:
-            assert "локальный конструктор" in response.read().decode("utf-8")
+            assert "<title>Конструктор — Katzaryna</title>" in response.read().decode("utf-8")
         with urlopen(f"{preview_url}") as response:
             assert response.read() == b"<h1>Preview</h1>"
         with urlopen(f"{preview_url}assets/styles.css") as response:
@@ -394,47 +504,46 @@ def test_local_http_server_serves_site_state(
 
         metadata = project["metadata"]
         metadata["images"] = [{"file": "cover.webp", "alt": "Cover", "cover": True}]
+        config = result["config"]
+        config["home_gallery"]["covers"] = []
         save_request = Request(
-            f"{base_url}/api/projects/new-work",
-            data=json.dumps({"metadata": metadata, "content": "Project text"}).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
-            method="PUT",
-        )
-        with urlopen(save_request) as response:
-            assert json.loads(response.read())["ok"] is True
-
-        with urlopen(f"{base_url}/api/state") as response:
-            saved_state = json.loads(response.read())
-        assert saved_state["projects"][0]["metadata"]["images"][0]["file"] == "cover.webp"
-        assert saved_state["config"]["home_gallery"]["covers"][0]["file"] == "cover.webp"
-
-        home_gallery_request = Request(
-            f"{base_url}/api/home-gallery",
+            f"{base_url}/api/save",
             data=json.dumps({
-                "covers": [{
-                    "project": "new-work",
-                    "file": "cover.webp",
-                    "x": 1.5,
-                    "y": 2.25,
-                    "width": 9.5,
-                    "height": 1.75,
-                    "crop_x": 20,
-                    "crop_y": 80,
-                }],
+                "config": config,
+                "projects": [{"slug": "new-work", "metadata": metadata, "content": "Project text"}],
             }).encode("utf-8"),
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-        with urlopen(home_gallery_request) as response:
-            saved_cover = json.loads(response.read())["covers"][0]
-            assert saved_cover["x"] == 1.5
-            assert saved_cover["y"] == 2.25
-            assert saved_cover["width"] == 9.5
-            assert saved_cover["height"] == 1.75
+        with urlopen(save_request) as response:
+            saved_state = json.loads(response.read())
+        assert saved_state["projects"][0]["metadata"]["images"][0]["file"] == "cover.webp"
+        assert saved_state["projects"][0]["content"] == "Project text"
+        saved_cover = saved_state["config"]["home_gallery"]["covers"][0]
+        assert saved_cover["file"] == "cover.webp"
+
+        saved_state["config"]["home_gallery"]["covers"] = [{
+            **saved_cover, "x": 1.5, "y": 2.25, "width": 9.5, "height": 1.75,
+        }]
+        layout_request = Request(
+            f"{base_url}/api/save",
+            data=json.dumps({"config": saved_state["config"], "projects": []}).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urlopen(layout_request) as response:
+            moved_cover = json.loads(response.read())["config"]["home_gallery"]["covers"][0]
+        assert (moved_cover["x"], moved_cover["y"], moved_cover["width"], moved_cover["height"]) == (
+            1.5, 2.25, 9.5, 1.75,
+        )
+
+        with pytest.raises(HTTPError) as error:
+            urlopen(f"{base_url}/api/site-image?path=/_config.yml")
+        assert error.value.code == 400
 
         cross_origin_request = Request(
-            f"{base_url}/api/config",
-            data=json.dumps({"config": result["config"]}).encode("utf-8"),
+            f"{base_url}/api/save",
+            data=json.dumps({"config": result["config"], "projects": []}).encode("utf-8"),
             headers={
                 "Content-Type": "application/json",
                 "Origin": "http://malicious.example",

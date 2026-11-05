@@ -10,12 +10,14 @@ import json
 import mimetypes
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
 import threading
+import time
 import unicodedata
-from urllib.parse import unquote, urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 
 from PIL import Image, ImageCms, ImageOps
 import tomli
@@ -39,8 +41,30 @@ MAX_IMAGE_BYTES = 30 * 1024 * 1024
 MAX_IMAGE_PIXELS = 80_000_000
 MAX_ANIMATED_FRAMES = 300
 LEGACY_COVER_KEYS = ("size", "columns", "rows")
+SITE_IMAGES_DIRECTORY = Path("assets") / "images"
+TRASH_DIRECTORY = ".builder-trash"
+THUMBNAIL_DIRECTORY = Path(".builder-cache") / "thumbnails"
+THUMBNAIL_WIDTHS = (160, 480, 1200)
+SERVER_SOURCES = (Path(__file__), Path(__file__).with_name("image_utils.py"))
+
+
+def source_fingerprint() -> tuple[float, ...]:
+    return tuple(path.stat().st_mtime if path.exists() else 0 for path in SERVER_SOURCES)
+
+
+STARTED_FINGERPRINT = source_fingerprint()
+STATIC_FILES = {
+    "/": ("index.html", "text/html; charset=utf-8"),
+    "/app.js": ("app.js", "text/javascript; charset=utf-8"),
+    "/styles.css": ("styles.css", "text/css; charset=utf-8"),
+}
 LAYOUT_DECIMALS = 4
-LAYOUT_EPSILON = 1e-6
+LAYOUT_EPSILON = 5e-4  # about 0.06 px on the site; absorbs rounding of touching edges
+# Covers can be "parked" on the builder's pasteboard around the 12-column canvas.
+# Parked covers are saved but not shown on the site, and may overlap.
+PASTEBOARD_SIDE = 6
+PASTEBOARD_TOP = 3
+PASTEBOARD_BOTTOM_LIMIT = 160
 IMAGE_SETTINGS = tomli.loads((ROOT / "config" / "image_optimization.toml").read_text())
 UPLOAD_MAX_DIMENSION = int(IMAGE_SETTINGS["upload_max_dimension"])
 UPLOAD_WEBP_QUALITY = int(IMAGE_SETTINGS["upload_webp_quality"])
@@ -114,9 +138,17 @@ def validate_image_name(filename: str) -> str:
     return filename
 
 
+CYRILLIC_TO_LATIN = str.maketrans({
+    "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "e", "ж": "zh", "з": "z",
+    "и": "i", "й": "y", "к": "k", "л": "l", "м": "m", "н": "n", "о": "o", "п": "p", "р": "r",
+    "с": "s", "т": "t", "у": "u", "ф": "f", "х": "h", "ц": "ts", "ч": "ch", "ш": "sh", "щ": "sch",
+    "ъ": "", "ы": "y", "ь": "", "э": "e", "ю": "yu", "я": "ya", "і": "i", "ў": "u",
+})
+
+
 def normalize_upload_stem(filename: str) -> str:
     ascii_stem = (
-        unicodedata.normalize("NFKD", Path(filename).stem)
+        unicodedata.normalize("NFKD", Path(filename).stem.lower().translate(CYRILLIC_TO_LATIN))
         .encode("ascii", "ignore")
         .decode("ascii")
         .lower()
@@ -177,7 +209,12 @@ def validate_home_gallery(config: dict) -> None:
                 "use x, y, width, and height."
             )
         layout = home_cover_layout(cover)
-        for coordinate in ("x", "y", "width", "height"):
+        parked = cover.get("parked", False)
+        if not isinstance(parked, bool):
+            raise ValueError("Home gallery cover parked must be enabled or disabled.")
+        if parked:
+            validate_parked_layout(layout)
+        for coordinate in ("x", "y", "width", "height") if not parked else ():
             value = layout[coordinate]
             minimum = 0 if coordinate in {"x", "y"} else 0.5
             maximum = 12 if coordinate in {"x", "width", "height"} else 120
@@ -189,19 +226,23 @@ def validate_home_gallery(config: dict) -> None:
                 raise ValueError(
                     f"Home gallery cover {coordinate} must be between {minimum} and {maximum}."
                 )
-        if layout["x"] + layout["width"] > 12:
+        if not parked and layout["x"] + layout["width"] > 12:
             raise ValueError("Home gallery cover must stay within the 12-column canvas.")
-        if layout["y"] + layout["height"] > 120:
+        if not parked and layout["y"] + layout["height"] > 120:
             raise ValueError("Home gallery cover must stay within the 120-row canvas.")
-        if any(
-            layout["x"] < other["x"] + other["width"] - LAYOUT_EPSILON
+        overlapping = None if parked else next((
+            other for other in layouts
+            if layout["x"] < other["x"] + other["width"] - LAYOUT_EPSILON
             and layout["x"] + layout["width"] > other["x"] + LAYOUT_EPSILON
             and layout["y"] < other["y"] + other["height"] - LAYOUT_EPSILON
             and layout["y"] + layout["height"] > other["y"] + LAYOUT_EPSILON
-            for other in layouts
-        ):
-            raise ValueError("Home gallery covers must not overlap.")
-        layouts.append(layout)
+        ), None)
+        if overlapping:
+            raise ValueError(
+                f"Home gallery covers must not overlap: {project}/{filename} and {overlapping['id']}."
+            )
+        if not parked:
+            layouts.append({**layout, "id": f"{project}/{filename}"})
         if "crop" in cover and not isinstance(cover["crop"], bool):
             raise ValueError("Home gallery cover crop must be enabled or disabled.")
         for axis in ("crop_x", "crop_y"):
@@ -223,6 +264,18 @@ def validate_home_gallery(config: dict) -> None:
         or "site-builder" not in excluded
     ):
         raise ValueError("Keep site-builder in the Jekyll exclude list so the local editor is not published.")
+
+
+def validate_parked_layout(layout: dict) -> None:
+    for coordinate, value in layout.items():
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError(f"Home gallery cover {coordinate} must be a number.")
+    if not 0.5 <= layout["width"] <= 12 or not 0.5 <= layout["height"] <= 12:
+        raise ValueError("Home gallery cover width and height must be between 0.5 and 12.")
+    if layout["x"] < -PASTEBOARD_SIDE or layout["x"] + layout["width"] > 12 + PASTEBOARD_SIDE:
+        raise ValueError("A parked cover must stay on the pasteboard beside the canvas.")
+    if layout["y"] < -PASTEBOARD_TOP or layout["y"] + layout["height"] > PASTEBOARD_BOTTOM_LIMIT:
+        raise ValueError("A parked cover must stay on the pasteboard.")
 
 
 def round_cover_layout(cover: object) -> object:
@@ -279,6 +332,97 @@ def validate_home_gallery_references(config: dict, projects: list[dict]) -> None
         if stale:
             details.append(f"covers no longer selected: {stale}")
         raise ValueError("Home gallery cover list is out of sync (" + "; ".join(details) + ").")
+
+
+def sync_project_covers(covers: list[dict], slug: str, images: list[dict]) -> list[dict]:
+    """Keep home covers in step with a project's `cover: true` images; new covers go below the rest."""
+    selected_files = {image["file"] for image in images if image.get("cover") is True}
+    retained = [
+        cover for cover in covers
+        if cover["project"] != slug or cover["file"] in selected_files
+    ]
+    existing = {(cover["project"], cover["file"]) for cover in retained}
+    for image in images:
+        identifier = (slug, image["file"])
+        if image.get("cover") is True and identifier not in existing:
+            layout_y = max(
+                (cover["y"] + cover["height"] for cover in retained if not cover.get("parked")),
+                default=0,
+            )
+            retained.append({
+                "project": slug,
+                "file": image["file"],
+                "x": 0,
+                "y": layout_y,
+                "width": 6,
+                "height": 4,
+                "crop": False,
+                "crop_x": 50,
+                "crop_y": 50,
+            })
+            existing.add(identifier)
+    return [round_cover_layout(cover) for cover in retained]
+
+
+def convert_upload(filename: str, content: bytes) -> bytes:
+    """Validate an uploaded image and return it as color-managed WebP, keeping animation."""
+    filename = validate_image_name(filename)
+    if not content or len(content) > MAX_IMAGE_BYTES:
+        raise ValueError("Image must be non-empty and no larger than 30 MB.")
+
+    expected_format = IMAGE_EXTENSIONS[Path(filename).suffix.lower()]
+    try:
+        with Image.open(BytesIO(content)) as probe:
+            if probe.format != expected_format:
+                raise ValueError("The image contents do not match the filename extension.")
+            if probe.width * probe.height > MAX_IMAGE_PIXELS:
+                raise ValueError("Image dimensions exceed the 80-megapixel upload limit.")
+            if getattr(probe, "n_frames", 1) > MAX_ANIMATED_FRAMES:
+                raise ValueError(f"Animated images may contain at most {MAX_ANIMATED_FRAMES} frames.")
+            probe.verify()
+
+        with Image.open(BytesIO(content)) as image:
+            frame_count = getattr(image, "n_frames", 1)
+            durations = []
+            frames = []
+            for frame_index in range(frame_count):
+                image.seek(frame_index)
+                durations.append(image.info.get("duration", 100))
+                frame = color_manage_image(ImageOps.exif_transpose(image.copy()))
+                frame.thumbnail(
+                    (UPLOAD_MAX_DIMENSION, UPLOAD_MAX_DIMENSION),
+                    Image.Resampling.LANCZOS,
+                )
+                frames.append(frame)
+            loop = image.info.get("loop", 0)
+    except Image.DecompressionBombError as error:
+        raise ValueError("Image dimensions exceed the upload limit.") from error
+    except ImageCms.PyCMSError as error:
+        raise ValueError(f"Could not convert the embedded color profile: {error}") from error
+
+    output = BytesIO()
+    frames[0].save(
+        output,
+        "WEBP",
+        save_all=len(frames) > 1,
+        append_images=frames[1:],
+        duration=durations if len(frames) > 1 else durations[0],
+        loop=loop,
+        quality=UPLOAD_WEBP_QUALITY,
+        method=6,
+        icc_profile=frames[0].info["icc_profile"],
+    )
+    return output.getvalue()
+
+
+def available_filename(directory: Path, stem: str, suffix: str) -> str:
+    """Return `stem.suffix`, or `stem-2.suffix`, `stem-3.suffix`... if it is taken."""
+    candidate = f"{stem}{suffix}"
+    counter = 2
+    while (directory / candidate).exists():
+        candidate = f"{stem}-{counter}{suffix}"
+        counter += 1
+    return candidate
 
 
 def dump_config(config: dict) -> str:
@@ -381,6 +525,10 @@ class SiteRepository:
                     if path.is_file() and path.name != "index.md"
                     and path.suffix.lower() in IMAGE_EXTENSIONS
                 ),
+                "versions": {
+                    path.name: path.stat().st_mtime_ns for path in project_file.parent.iterdir()
+                    if path.is_file() and path.suffix.lower() in IMAGE_EXTENSIONS
+                },
             })
         return projects
 
@@ -425,8 +573,8 @@ class SiteRepository:
         atomic_write(project_file, serialize_project(metadata, ""))
         return {"slug": slug, "metadata": metadata, "content": "", "files": []}
 
-    @locked
-    def save_project(self, slug: str, metadata: dict, content: str) -> list[dict]:
+    def _prepare_project(self, slug: str, metadata: dict, content: str) -> tuple[Path, str]:
+        """Validate a project edit and return its file and serialized text."""
         project_directory = self.project_directory(slug)
         project_file = project_directory / "index.md"
         if not project_file.is_file():
@@ -448,7 +596,6 @@ class SiteRepository:
         for image in images:
             if not isinstance(image, dict):
                 raise ValueError("Each project image must be an object.")
-            image.pop("gallery_order", None)
             filename = validate_image_name(image.get("file", ""))
             if not isinstance(image.get("alt"), str) or not image["alt"].strip():
                 raise ValueError(f"Image {filename} needs non-empty alt text.")
@@ -456,124 +603,154 @@ class SiteRepository:
             if not image_path.is_relative_to(project_directory) or not image_path.is_file():
                 raise ValueError(f"Image file does not exist: {filename}")
         metadata["title"] = metadata["title"].strip()
+        return project_file, serialize_project(metadata, content)
+
+    def _write_files(self, files: dict[Path, str]) -> None:
+        """Write several text files, restoring every previous version if any write fails."""
+        previous = {path: path.read_text(encoding="utf-8") for path in files if path.is_file()}
+        written = []
+        try:
+            for path, text in files.items():
+                atomic_write(path, text)
+                written.append(path)
+        except BaseException:
+            for path in written:
+                if path in previous:
+                    atomic_write(path, previous[path])
+                else:
+                    path.unlink(missing_ok=True)
+            raise
+
+    @locked
+    def save_project(self, slug: str, metadata: dict, content: str) -> list[dict]:
+        project_file, project_text = self._prepare_project(slug, metadata, content)
         config = self.read_config()
-        selected_files = {
-            image["file"] for image in images if image.get("cover") is True
-        }
-        configured_covers = config["home_gallery"]["covers"]
-        retained = [
-            cover for cover in configured_covers
-            if cover["project"] != slug or cover["file"] in selected_files
-        ]
-        existing = {
-            (cover["project"], cover["file"])
-            for cover in retained
-        }
-        for image in images:
-            identifier = (slug, image["file"])
-            if image.get("cover") is True and identifier not in existing:
-                layout_y = max(
-                    (
-                        cover["y"] + cover["height"]
-                        for cover in retained
-                    ),
-                    default=0,
-                )
-                retained.append({
-                    "project": slug,
-                    "file": image["file"],
-                    "x": 0,
-                    "y": layout_y,
-                    "width": 6,
-                    "height": 4,
-                    "crop": False,
-                    "crop_x": 50,
-                    "crop_y": 50,
-                })
-                existing.add(identifier)
-        retained = [round_cover_layout(cover) for cover in retained]
-        config["home_gallery"]["covers"] = retained
+        config["home_gallery"]["covers"] = sync_project_covers(
+            config["home_gallery"]["covers"], slug, metadata.get("images", []),
+        )
         validate_home_gallery(config)
-        projects = [
-            project for project in self.list_projects()
-            if project["slug"] != slug
-        ]
+        projects = [project for project in self.list_projects() if project["slug"] != slug]
         projects.append({"slug": slug, "metadata": metadata})
         validate_home_gallery_references(config, projects)
-        previous_project = project_file.read_text(encoding="utf-8")
-        atomic_write(project_file, serialize_project(metadata, content))
+        self._write_files({project_file: project_text, self.config_path: dump_config(config)})
+        return config["home_gallery"]["covers"]
+
+    @locked
+    def save_all(self, config: dict, projects: list[dict]) -> dict:
+        """Save site settings and any edited projects together, all or nothing."""
+        if not isinstance(config, dict):
+            raise ValueError("Site settings must be an object.")
+        if not isinstance(projects, list):
+            raise ValueError("Projects must be a list.")
+        files = {}
+        edited = {}
+        for project in projects:
+            if not isinstance(project, dict):
+                raise ValueError("Each project must be an object.")
+            slug = validate_slug(project.get("slug", ""))
+            metadata = project.get("metadata")
+            project_file, project_text = self._prepare_project(slug, metadata, project.get("content", ""))
+            files[project_file] = project_text
+            edited[slug] = metadata
+        home_gallery = config.get("home_gallery")
+        if not isinstance(home_gallery, dict) or not isinstance(home_gallery.get("covers"), list):
+            raise ValueError("home_gallery.covers must be a list.")
+        covers = [round_cover_layout(cover) for cover in home_gallery["covers"]]
+        for slug, metadata in edited.items():
+            covers = sync_project_covers(covers, slug, metadata.get("images", []))
+        home_gallery["covers"] = covers
+        validate_home_gallery(config)
+        all_projects = [
+            {"slug": project["slug"], "metadata": edited.get(project["slug"], project["metadata"])}
+            for project in self.list_projects()
+        ]
+        validate_home_gallery_references(config, all_projects)
+        files[self.config_path] = dump_config(config)
+        self._write_files(files)
+        return self.state()
+
+    @locked
+    def delete_project(self, slug: str) -> dict:
+        """Move a project folder to the ignored trash and drop its home covers."""
+        project_directory = self.project_directory(slug)
+        if not (project_directory / "index.md").is_file():
+            raise NotFoundError("Project does not exist.")
+        config = self.read_config()
+        config["home_gallery"]["covers"] = [
+            cover for cover in config["home_gallery"]["covers"] if cover["project"] != slug
+        ]
+        trash = self.root / TRASH_DIRECTORY
+        trash.mkdir(exist_ok=True)
+        destination = trash / f"{slug}-{time.strftime('%Y%m%d-%H%M%S')}"
+        shutil.move(str(project_directory), str(destination))
         try:
             atomic_write(self.config_path, dump_config(config))
         except BaseException:
-            atomic_write(project_file, previous_project)
+            shutil.move(str(destination), str(project_directory))
             raise
-        return retained
+        return self.state()
 
     @locked
     def save_image(self, slug: str, filename: str, content: bytes) -> str:
         project_directory = self.project_directory(slug)
         if not project_directory.is_dir():
             raise NotFoundError("Project does not exist.")
-        filename = validate_image_name(filename)
-        if not content or len(content) > MAX_IMAGE_BYTES:
-            raise ValueError("Image must be non-empty and no larger than 30 MB.")
-
-        expected_format = IMAGE_EXTENSIONS[Path(filename).suffix.lower()]
-        try:
-            with Image.open(BytesIO(content)) as probe:
-                if probe.format != expected_format:
-                    raise ValueError("The image contents do not match the filename extension.")
-                if probe.width * probe.height > MAX_IMAGE_PIXELS:
-                    raise ValueError("Image dimensions exceed the 80-megapixel upload limit.")
-                if getattr(probe, "n_frames", 1) > MAX_ANIMATED_FRAMES:
-                    raise ValueError(f"Animated images may contain at most {MAX_ANIMATED_FRAMES} frames.")
-                probe.verify()
-
-            with Image.open(BytesIO(content)) as image:
-                frame_count = getattr(image, "n_frames", 1)
-                durations = []
-                frames = []
-                for frame_index in range(frame_count):
-                    image.seek(frame_index)
-                    durations.append(image.info.get("duration", 100))
-                    frame = color_manage_image(ImageOps.exif_transpose(image.copy()))
-                    frame.thumbnail(
-                        (UPLOAD_MAX_DIMENSION, UPLOAD_MAX_DIMENSION),
-                        Image.Resampling.LANCZOS,
-                    )
-                    frames.append(frame)
-                loop = image.info.get("loop", 0)
-        except Image.DecompressionBombError as error:
-            raise ValueError("Image dimensions exceed the upload limit.") from error
-        except ImageCms.PyCMSError as error:
-            raise ValueError(f"Could not convert the embedded color profile: {error}") from error
-
-        output = BytesIO()
-        frames[0].save(
-            output,
-            "WEBP",
-            save_all=len(frames) > 1,
-            append_images=frames[1:],
-            duration=durations if len(frames) > 1 else durations[0],
-            loop=loop,
-            quality=UPLOAD_WEBP_QUALITY,
-            method=6,
-            icc_profile=frames[0].info["icc_profile"],
-        )
-        optimized_filename = f"{normalize_upload_stem(filename)}.webp"
-        destination = project_directory / optimized_filename
-        if destination.exists():
-            raise ConflictError(f"{optimized_filename} already exists in this project.")
-        atomic_write_bytes(destination, output.getvalue())
+        converted = convert_upload(filename, content)
+        optimized_filename = available_filename(project_directory, normalize_upload_stem(filename), ".webp")
+        atomic_write_bytes(project_directory / optimized_filename, converted)
         return optimized_filename
 
-    def read_image(self, slug: str, filename: str) -> tuple[bytes, str]:
-        filename = validate_image_name(filename)
-        image_path = self.project_directory(slug) / filename
-        resolved_image = image_path.resolve()
-        if not resolved_image.is_relative_to(self.project_directory(slug)) or not resolved_image.is_file():
+    @locked
+    def save_portrait(self, filename: str, content: bytes) -> str:
+        """Store a new artist portrait under assets/images and return its site path."""
+        converted = convert_upload(filename, content)
+        directory = self.root / SITE_IMAGES_DIRECTORY
+        directory.mkdir(parents=True, exist_ok=True)
+        portrait_filename = available_filename(directory, f"portrait-{normalize_upload_stem(filename)}", ".webp")
+        atomic_write_bytes(directory / portrait_filename, converted)
+        return f"/{SITE_IMAGES_DIRECTORY.as_posix()}/{portrait_filename}"
+
+    def read_site_image(self, site_path: str) -> tuple[bytes, str]:
+        """Read an image under assets/images by its site path, e.g. /assets/images/avatar.png."""
+        directory = (self.root / SITE_IMAGES_DIRECTORY).resolve()
+        filename = validate_image_name(Path(site_path or "").name)
+        if site_path.lstrip("/") != f"{SITE_IMAGES_DIRECTORY.as_posix()}/{filename}":
+            raise NotFoundError("Only images under /assets/images can be shown.")
+        path = (directory / filename).resolve()
+        if not path.is_relative_to(directory) or not path.is_file():
             raise NotFoundError("Image file does not exist.")
-        return resolved_image.read_bytes(), mimetypes.guess_type(filename)[0] or "application/octet-stream"
+        return path.read_bytes(), mimetypes.guess_type(filename)[0] or "application/octet-stream"
+
+    def _image_path(self, slug: str, filename: str) -> Path:
+        filename = validate_image_name(filename)
+        directory = self.project_directory(slug)
+        resolved_image = (directory / filename).resolve()
+        if not resolved_image.is_relative_to(directory) or not resolved_image.is_file():
+            raise NotFoundError("Image file does not exist.")
+        return resolved_image
+
+    def read_image(self, slug: str, filename: str) -> tuple[bytes, str]:
+        image_path = self._image_path(slug, filename)
+        return image_path.read_bytes(), mimetypes.guess_type(image_path.name)[0] or "application/octet-stream"
+
+    def read_thumbnail(self, slug: str, filename: str, width: int) -> tuple[bytes, str]:
+        """A small color-managed WebP preview for the builder, cached on disk by file version."""
+        if width not in THUMBNAIL_WIDTHS:
+            raise ValueError(f"Preview width must be one of {THUMBNAIL_WIDTHS}.")
+        image_path = self._image_path(slug, filename)
+        version = image_path.stat().st_mtime_ns
+        cached = self.root / THUMBNAIL_DIRECTORY / slug / f"{image_path.name}.{width}.{version}.webp"
+        if not cached.is_file():
+            with Image.open(image_path) as image:
+                preview = color_manage_image(ImageOps.exif_transpose(image))
+            preview.thumbnail((width, width), Image.Resampling.LANCZOS)
+            output = BytesIO()
+            preview.save(output, "WEBP", quality=82, method=4, icc_profile=preview.info.get("icc_profile"))
+            cached.parent.mkdir(parents=True, exist_ok=True)
+            for stale in cached.parent.glob(f"{image_path.name}.{width}.*.webp"):
+                stale.unlink(missing_ok=True)
+            atomic_write_bytes(cached, output.getvalue())
+        return cached.read_bytes(), "image/webp"
 
     def build_site(self) -> str:
         commands = (
@@ -634,52 +811,34 @@ class BuilderHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         if not self._check_local_request():
             return
-        path = unquote(urlsplit(self.path).path)
-        image_match = re.fullmatch(r"/api/projects/([^/]+)/images/([^/]+)", path)
-        if image_match:
-            try:
-                content, content_type = self.server.repository.read_image(*image_match.groups())
-                self.send_response(200)
-                self.send_header("Content-Type", content_type)
-                self.send_header("Content-Length", str(len(content)))
-                self.send_header("X-Content-Type-Options", "nosniff")
-                self.end_headers()
-                self.wfile.write(content)
-            except BuilderError as error:
-                self._send_error(error)
-            except (OSError, ValueError) as error:
-                self._send_error(BuilderError(str(error)))
-            return
-
-        if path == "/api/state":
-            try:
+        url = urlsplit(self.path)
+        path = unquote(url.path)
+        try:
+            image_match = re.fullmatch(r"/api/projects/([^/]+)/images/([^/]+)", path)
+            query = parse_qs(url.query)
+            # A versioned URL never changes its content, so the browser may keep it.
+            cache = "private, max-age=31536000, immutable" if query.get("v") else "no-store"
+            if image_match and query.get("w"):
+                width = int(query["w"][0]) if query["w"][0].isdigit() else 0
+                self._send_bytes(*self.server.repository.read_thumbnail(*image_match.groups(), width), cache=cache)
+            elif image_match:
+                self._send_bytes(*self.server.repository.read_image(*image_match.groups()), cache=cache)
+            elif path == "/api/site-image":
+                site_path = parse_qs(url.query).get("path", [""])[0]
+                self._send_bytes(*self.server.repository.read_site_image(site_path))
+            elif path == "/api/status":
+                self._send_json(200, {"outdated": source_fingerprint() != STARTED_FINGERPRINT})
+            elif path == "/api/state":
                 self._send_json(200, self.server.repository.state())
-            except (OSError, ValueError, yaml.YAMLError) as error:
-                self._send_error(BuilderError(f"Could not read site data: {error}"))
-            return
-
-        static_files = {
-            "/": ("index.html", "text/html; charset=utf-8"),
-            "/app.js": ("app.js", "text/javascript; charset=utf-8"),
-            "/styles.css": ("styles.css", "text/css; charset=utf-8"),
-        }
-        static_file = static_files.get(path)
-        if static_file:
-            filename, content_type = static_file
-            try:
-                content = (BUILDER_DIR / filename).read_bytes()
-            except OSError as error:
-                self._send_error(BuilderError(f"Could not read builder interface: {error}"))
-                return
-            self.send_response(200)
-            self.send_header("Content-Type", content_type)
-            self.send_header("Content-Length", str(len(content)))
-            self.send_header("X-Content-Type-Options", "nosniff")
-            self.end_headers()
-            self.wfile.write(content)
-            return
-
-        self._send_error(NotFoundError("Page not found."))
+            elif path in STATIC_FILES:
+                filename, content_type = STATIC_FILES[path]
+                self._send_bytes((BUILDER_DIR / filename).read_bytes(), content_type)
+            else:
+                raise NotFoundError("Page not found.")
+        except BuilderError as error:
+            self._send_error(error)
+        except (OSError, ValueError, yaml.YAMLError) as error:
+            self._send_error(BuilderError(str(error)))
 
     def do_POST(self) -> None:
         if not self._check_local_request():
@@ -687,12 +846,9 @@ class BuilderHandler(BaseHTTPRequestHandler):
         path = urlsplit(self.path).path
         try:
             payload = self._read_json()
-            if path == "/api/config":
-                self.server.repository.save_config(payload.get("config"))
-                self._send_json(200, {"ok": True})
-            elif path == "/api/home-gallery":
-                covers = self.server.repository.save_home_gallery(payload.get("covers"))
-                self._send_json(200, {"ok": True, "covers": covers})
+            if path == "/api/save":
+                state = self.server.repository.save_all(payload.get("config"), payload.get("projects", []))
+                self._send_json(200, state)
             elif path == "/api/projects":
                 project = self.server.repository.create_project(
                     payload.get("slug", ""),
@@ -706,7 +862,7 @@ class BuilderHandler(BaseHTTPRequestHandler):
                     {"ok": True, "preview_url": self.server.preview_url, "output": output},
                 )
             else:
-                self._send_error(NotFoundError("API endpoint not found."))
+                raise NotFoundError("API endpoint not found.")
         except BuilderError as error:
             self._send_error(error)
         except (OSError, ValueError, yaml.YAMLError) as error:
@@ -716,31 +872,49 @@ class BuilderHandler(BaseHTTPRequestHandler):
         if not self._check_local_request():
             return
         path = unquote(urlsplit(self.path).path)
-        image_match = re.fullmatch(r"/api/projects/([^/]+)/images/([^/]+)", path)
         try:
-            if image_match:
-                length = self._content_length(MAX_IMAGE_BYTES)
-                content = self.rfile.read(length)
-                if len(content) != length:
-                    raise ValueError("Incomplete image upload.")
-                filename = self.server.repository.save_image(*image_match.groups(), content)
-                self._send_json(201, {"ok": True, "file": filename})
-                return
-
-            project_match = re.fullmatch(r"/api/projects/([^/]+)", path)
-            if not project_match:
+            image_match = re.fullmatch(r"/api/projects/([^/]+)/images/([^/]+)", path)
+            portrait_match = re.fullmatch(r"/api/portrait/([^/]+)", path)
+            if not image_match and not portrait_match:
                 raise NotFoundError("API endpoint not found.")
-            payload = self._read_json()
-            covers = self.server.repository.save_project(
-                project_match.group(1),
-                payload.get("metadata"),
-                payload.get("content", ""),
-            )
-            self._send_json(200, {"ok": True, "covers": covers})
+            length = self._content_length(MAX_IMAGE_BYTES)
+            content = self.rfile.read(length)
+            if len(content) != length:
+                raise ValueError("Incomplete image upload.")
+            if image_match:
+                filename = self.server.repository.save_image(*image_match.groups(), content)
+                version = (self.server.repository.project_directory(image_match.group(1)) / filename).stat().st_mtime_ns
+                self._send_json(201, {"ok": True, "file": filename, "version": version})
+            else:
+                portrait = self.server.repository.save_portrait(portrait_match.group(1), content)
+                self._send_json(201, {"ok": True, "portrait": portrait})
         except BuilderError as error:
             self._send_error(error)
         except (OSError, ValueError, yaml.YAMLError) as error:
             self._send_error(BuilderError(str(error)))
+
+    def do_DELETE(self) -> None:
+        if not self._check_local_request():
+            return
+        path = unquote(urlsplit(self.path).path)
+        try:
+            project_match = re.fullmatch(r"/api/projects/([^/]+)", path)
+            if not project_match:
+                raise NotFoundError("API endpoint not found.")
+            self._send_json(200, self.server.repository.delete_project(project_match.group(1)))
+        except BuilderError as error:
+            self._send_error(error)
+        except (OSError, ValueError, yaml.YAMLError) as error:
+            self._send_error(BuilderError(str(error)))
+
+    def _send_bytes(self, content: bytes, content_type: str, cache: str = "no-store") -> None:
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(content)))
+        self.send_header("Cache-Control", cache)
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.end_headers()
+        self.wfile.write(content)
 
     def _check_local_request(self) -> bool:
         host = self.headers.get("Host", "").split(":", 1)[0].strip("[]").lower()
