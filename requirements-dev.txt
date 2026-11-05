@@ -1,6 +1,6 @@
-pytest==8.4.2
-ruff==0.14.3
-djlint==1.36.4
-yamllint==1.37.1
-pymarkdownlnt==0.9.33
-toml-sort==0.24.2
+pytest==9.2.0
+ruff==0.17.3
+djlint==1.49.2
+yamllint==1.38.0
+pymarkdownlnt==0.9.41
+toml-sort==0.25.0
