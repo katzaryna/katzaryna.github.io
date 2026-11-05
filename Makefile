@@ -39,7 +39,7 @@ lint-html:
 	$(PYTHON) -m djlint index.html _includes _layouts site-builder/index.html --lint
 
 lint-yaml:
-	$(PYTHON) -m yamllint .github/workflows _config.yml
+	$(PYTHON) -m yamllint .github _config.yml
 
 lint-markdown:
 	$(PYTHON) -m pymarkdown scan README.md projects
