@@ -48,34 +48,34 @@ home_gallery:
       crop: false
       crop_x: 50
       crop_y: 50
-      x: 0
+      x: 2.5825
       y: 0
-      width: 3.7075
-      height: 5.471
+      width: 2.5826
+      height: 3.7832
     - project: westin-holiday
       file: cover.webp
-      x: 3.7075
-      y: 0
-      width: 4.4112
-      height: 5.471
+      x: 5.2258
+      y: 3.7832
+      width: 3.2009
+      height: 3.9582
       crop: false
       crop_x: 50
       crop_y: 50
     - project: kneipp-bath-oil
       file: flower.webp
-      x: 8.1187
-      y: 0
-      width: 3.8813
-      height: 5.471
+      x: 0
+      y: 7.7414
+      width: 3
+      height: 4.2119
       crop: false
       crop_x: 50
       crop_y: 50
     - project: relax-stress
       file: cover.webp
       x: 0
-      y: 5.4712
-      width: 4.8138
-      height: 3.6498
+      y: 3.7832
+      width: 5.2258
+      height: 3.9582
       crop: false
       crop_x: 50
       crop_y: 50
@@ -84,45 +84,99 @@ home_gallery:
       crop: false
       crop_x: 50
       crop_y: 50
-      x: 4.8138
-      y: 5.4712
-      width: 2.6342
-      height: 3.6498
-    - project: museum-invitation-card
-      file: 02.webp
-      crop: false
-      crop_x: 50
-      crop_y: 50
-      x: 7.448
-      y: 5.4712
-      width: 4.552
-      height: 3.6498
+      x: 0
+      y: 11.9533
+      width: 3.2787
+      height: 4.5578
     - project: book-covers
       file: 03.jpg
       crop: false
       crop_x: 50
       crop_y: 50
       x: 0
-      y: 9.1468
-      width: 3.2815
-      height: 4.8325
+      y: 0
+      width: 2.5825
+      height: 3.7832
     - project: book-covers
       file: 04.jpg
       crop: false
       crop_x: 50
       crop_y: 50
-      x: 3.2815
-      y: 9.1468
-      width: 5.4371
-      height: 4.8325
+      x: 7.7476
+      y: 0
+      width: 4.2524
+      height: 3.7832
     - project: book-covers
       file: 01.jpg
       crop: false
       crop_x: 50
       crop_y: 63.44
-      x: 8.7185
-      y: 9.1468
-      width: 3.2815
-      height: 4.8325
+      x: 5.1651
+      y: 0
+      width: 2.5825
+      height: 3.7832
+    - project: kneipp-bath-oil
+      file: lavenda-large.webp
+      x: 6
+      y: 7.7414
+      width: 3
+      height: 4.2119
+      crop: false
+      crop_x: 50
+      crop_y: 50
+    - project: kneipp-bath-oil
+      file: lake-large.webp
+      x: 3
+      y: 7.7414
+      width: 3
+      height: 4.2119
+      crop: false
+      crop_x: 50
+      crop_y: 50
+    - project: kneipp-bath-oil
+      file: wood-large.webp
+      x: 9
+      y: 7.7414
+      width: 3
+      height: 4.2119
+      crop: false
+      crop_x: 50
+      crop_y: 50
+    - project: kneipp-bath-oil
+      file: 15.webp
+      x: 8.4267
+      y: 3.7832
+      width: 3.5733
+      height: 3.9582
+      crop: false
+      crop_x: 50
+      crop_y: 50
+    - project: museum-invitation-card
+      file: 03.webp
+      x: 3.2787
+      y: 11.9533
+      width: 2.2224
+      height: 4.5578
+      crop: false
+      crop_x: 50
+      crop_y: 50
+    - project: museum-invitation-card
+      file: 11.webp
+      x: 5.5011
+      y: 11.9533
+      width: 2.2225
+      height: 4.5578
+      crop: false
+      crop_x: 50
+      crop_y: 50
+    - project: museum-invitation-card
+      file: 24.webp
+      x: 7.7236
+      y: 11.9533
+      width: 4.2764
+      height: 4.5578
+      crop: false
+      crop_x: 50
+      crop_y: 50
 analytics:
   measurement_id: G-7S5P7ELFYF

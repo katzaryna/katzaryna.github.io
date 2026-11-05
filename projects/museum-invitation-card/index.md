@@ -14,7 +14,6 @@ images:
 - file: 02.webp
   alt: Museum Invitation Card | Illustrative design
   span_columns: 4
-  cover: true
 - file: 01.webp
   alt: Museum Invitation Card | Illustrative design
   cover: false
@@ -22,14 +21,17 @@ images:
 - file: 24.webp
   alt: Museum Invitation Card | Illustrative design
   span_columns: 2
+  cover: true
 - file: 08.gif
   alt: Museum Invitation Card | Illustrative design
   span_columns: 1
 - file: 03.webp
   alt: Museum Invitation Card | Illustrative design
   span_columns: 1
+  cover: true
 - file: 11.webp
   alt: Museum Invitation Card | Illustrative design
+  cover: true
 - file: 13.gif
   alt: Museum Invitation Card | Illustrative design
 - file: 21.gif

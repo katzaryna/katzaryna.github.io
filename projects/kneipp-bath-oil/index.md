@@ -25,22 +25,31 @@ images:
   alt: Kneipp Wild Peony bubble bath bottle and box with a woman bathing inside a large orange peony
   row: bottle
 - file: 14.webp
-  alt: "First mood sketches for Cedar: a figure at the foot of a huge tree and a misty forest scene"
+  alt: 'First mood sketches for Cedar: a figure at the foot of a huge tree and a misty forest scene'
   row: sketch
 - file: 04.webp
-  alt: "First mood sketches for Lavender: a woman drifting in a bathtub through a starry purple night"
+  alt: 'First mood sketches for Lavender: a woman drifting in a bathtub through a starry purple night'
   row: sketch
 - file: 07.webp
-  alt: "First mood sketches for Water Mint: a woman meditating among leaves and a swimmer in a green waterfall"
+  alt: 'First mood sketches for Water Mint: a woman meditating among leaves and a swimmer in a green waterfall'
   row: sketch
 - file: 11.webp
-  alt: "First mood sketches for Wild Peony: a woman inside a glowing peony and a figure under a falling flower"
+  alt: 'First mood sketches for Wild Peony: a woman inside a glowing peony and a figure under a falling flower'
   row: sketch
 - file: 15.webp
-  alt: "Final Kneipp bath oil collection: four bottles with their matching Cedar, Lavender, Water Mint and Wild Peony artworks"
+  alt: 'Final Kneipp bath oil collection: four bottles with their matching Cedar, Lavender, Water Mint and Wild Peony artworks'
   span_columns: 4
-  cover: false
+  cover: true
 - file: flower.webp
   alt: Woman relaxing in water inside a glowing orange peony, key artwork for Kneipp Wild Peony
+  cover: true
+- file: lavenda-large.webp
+  alt: 'First mood sketches for Lavender: a woman drifting in a bathtub through a starry purple night'
+  cover: true
+- file: lake-large.webp
+  alt: 'First mood sketches for Water Mint: a woman meditating among leaves and a swimmer in a green waterfall'
+  cover: true
+- file: wood-large.webp
+  alt: 'First mood sketches for Cedar: a figure at the foot of a huge tree and a misty forest scene'
   cover: true
 ---
