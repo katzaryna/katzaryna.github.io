@@ -39,7 +39,6 @@ images:
 - file: 15.webp
   alt: 'Final Kneipp bath oil collection: four bottles with their matching Cedar, Lavender, Water Mint and Wild Peony artworks'
   span_columns: 4
-  cover: true
 - file: flower.webp
   alt: Woman relaxing in water inside a glowing orange peony, key artwork for Kneipp Wild Peony
   cover: true

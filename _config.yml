@@ -54,17 +54,18 @@ home_gallery:
       height: 3.7832
     - project: westin-holiday
       file: cover.webp
-      x: 5.2258
+      x: 9.1801
       y: 3.7832
-      width: 3.2009
-      height: 3.9582
+      width: 2.8199
+      height: 3.4819
       crop: false
       crop_x: 50
       crop_y: 50
+      parked: false
     - project: kneipp-bath-oil
       file: flower.webp
       x: 0
-      y: 7.7414
+      y: 7.2651
       width: 3
       height: 4.2119
       crop: false
@@ -74,8 +75,8 @@ home_gallery:
       file: cover.webp
       x: 0
       y: 3.7832
-      width: 5.2258
-      height: 3.9582
+      width: 4.59
+      height: 3.4819
       crop: false
       crop_x: 50
       crop_y: 50
@@ -85,7 +86,7 @@ home_gallery:
       crop_x: 50
       crop_y: 50
       x: 0
-      y: 11.9533
+      y: 11.477
       width: 3.2787
       height: 4.5578
     - project: book-covers
@@ -118,7 +119,7 @@ home_gallery:
     - project: kneipp-bath-oil
       file: lavenda-large.webp
       x: 6
-      y: 7.7414
+      y: 7.2651
       width: 3
       height: 4.2119
       crop: false
@@ -127,7 +128,7 @@ home_gallery:
     - project: kneipp-bath-oil
       file: lake-large.webp
       x: 3
-      y: 7.7414
+      y: 7.2651
       width: 3
       height: 4.2119
       crop: false
@@ -136,25 +137,16 @@ home_gallery:
     - project: kneipp-bath-oil
       file: wood-large.webp
       x: 9
-      y: 7.7414
+      y: 7.2651
       width: 3
       height: 4.2119
-      crop: false
-      crop_x: 50
-      crop_y: 50
-    - project: kneipp-bath-oil
-      file: 15.webp
-      x: 8.4267
-      y: 3.7832
-      width: 3.5733
-      height: 3.9582
       crop: false
       crop_x: 50
       crop_y: 50
     - project: museum-invitation-card
       file: 03.webp
       x: 3.2787
-      y: 11.9533
+      y: 11.477
       width: 2.2224
       height: 4.5578
       crop: false
@@ -163,7 +155,7 @@ home_gallery:
     - project: museum-invitation-card
       file: 11.webp
       x: 5.5011
-      y: 11.9533
+      y: 11.477
       width: 2.2225
       height: 4.5578
       crop: false
@@ -172,9 +164,18 @@ home_gallery:
     - project: museum-invitation-card
       file: 24.webp
       x: 7.7236
-      y: 11.9533
+      y: 11.477
       width: 4.2764
       height: 4.5578
+      crop: false
+      crop_x: 50
+      crop_y: 50
+    - project: relax-stress
+      file: book-prison.webp
+      x: 4.59
+      y: 3.7832
+      width: 4.5901
+      height: 3.4819
       crop: false
       crop_x: 50
       crop_y: 50
