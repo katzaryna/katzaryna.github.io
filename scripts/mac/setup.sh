@@ -93,7 +93,7 @@ bundle install --quiet
 mkdir -p .builder-cache
 cat requirements-images.txt Gemfile.lock | shasum | cut -d' ' -f1 >.builder-cache/deps-hash
 
-step "7/7  Приложение «$APP_NAME» в Dock"
+step "7/7  Приложение «${APP_NAME}» в Dock"
 chmod +x scripts/mac/launch.sh
 app="$(.venv/bin/python scripts/mac/make_app.py --site "$SITE_DIR" --name "$APP_NAME")"
 
