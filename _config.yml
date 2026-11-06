@@ -44,6 +44,15 @@ home_gallery:
   single_page: true
   covers:
     - project: book-covers
+      file: 03.jpg
+      crop: false
+      crop_x: 50
+      crop_y: 50
+      x: 0
+      y: 0
+      width: 2.5825
+      height: 3.7832
+    - project: book-covers
       file: 02.jpg
       crop: false
       crop_x: 50
@@ -51,6 +60,15 @@ home_gallery:
       x: 2.5825
       y: 0
       width: 2.5826
+      height: 3.7832
+    - project: book-covers
+      file: 01.jpg
+      crop: false
+      crop_x: 50
+      crop_y: 63.44
+      x: 5.1651
+      y: 0
+      width: 2.5825
       height: 3.7832
     - project: westin-holiday
       file: cover.webp
@@ -90,15 +108,6 @@ home_gallery:
       width: 3.2787
       height: 4.5578
     - project: book-covers
-      file: 03.jpg
-      crop: false
-      crop_x: 50
-      crop_y: 50
-      x: 0
-      y: 0
-      width: 2.5825
-      height: 3.7832
-    - project: book-covers
       file: 04.jpg
       crop: false
       crop_x: 50
@@ -106,15 +115,6 @@ home_gallery:
       x: 7.7476
       y: 0
       width: 4.2524
-      height: 3.7832
-    - project: book-covers
-      file: 01.jpg
-      crop: false
-      crop_x: 50
-      crop_y: 63.44
-      x: 5.1651
-      y: 0
-      width: 2.5825
       height: 3.7832
     - project: kneipp-bath-oil
       file: lavenda-large.webp
