@@ -105,8 +105,8 @@ home_gallery:
       crop_y: 50
       x: 0
       y: 11.477
-      width: 3.2787
-      height: 4.5578
+      width: 5.122
+      height: 7.1601
     - project: book-covers
       file: 04.jpg
       crop: false
@@ -143,39 +143,30 @@ home_gallery:
       crop: false
       crop_x: 50
       crop_y: 50
-    - project: museum-invitation-card
-      file: 03.webp
-      x: 3.2787
-      y: 11.477
-      width: 2.2224
-      height: 4.5578
-      crop: false
-      crop_x: 50
-      crop_y: 50
-    - project: museum-invitation-card
-      file: 11.webp
-      x: 5.5011
-      y: 11.477
-      width: 2.2225
-      height: 4.5578
-      crop: false
-      crop_x: 50
-      crop_y: 50
-    - project: museum-invitation-card
-      file: 24.webp
-      x: 7.7236
-      y: 11.477
-      width: 4.2764
-      height: 4.5578
-      crop: false
-      crop_x: 50
-      crop_y: 50
     - project: relax-stress
       file: book-prison.webp
       x: 4.59
       y: 3.7832
       width: 4.5901
       height: 3.4819
+      crop: false
+      crop_x: 50
+      crop_y: 50
+    - project: museum-invitation-card
+      file: img-3035-copy-large.webp
+      x: 5.122
+      y: 11.477
+      width: 3.439
+      height: 7.1601
+      crop: false
+      crop_x: 50
+      crop_y: 50
+    - project: museum-invitation-card
+      file: 11.webp
+      x: 8.561
+      y: 11.477
+      width: 3.439
+      height: 7.1601
       crop: false
       crop_x: 50
       crop_y: 50
