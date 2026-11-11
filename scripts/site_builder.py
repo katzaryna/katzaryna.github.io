@@ -1148,6 +1148,8 @@ class BuilderHandler(BaseHTTPRequestHandler):
                     "history": self.server.publisher.history(),
                     "trash": self.server.repository.list_trash(),
                 })
+            elif path == "/api/trash":
+                self._send_json(200, {"trash": self.server.repository.list_trash()})
             elif path == "/api/fonts/catalog":
                 self._send_json(200, {"families": self.server.repository.font_catalog()})
             elif path == "/api/help-report":

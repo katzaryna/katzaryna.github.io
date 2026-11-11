@@ -145,11 +145,11 @@ def content_checks(root: Path) -> dict:
     settings = []
     site_description = str(config.get("description") or "").strip()
     if not site_description:
-        settings.append({"view": "advanced", "text": "Нет описания сайта для поиска («Дополнительно»)"})
+        settings.append({"view": "advanced", "text": "Нет описания сайта для поиска («Поиск и статистика»)"})
     elif len(site_description) > SNIPPET_LIMIT:
         settings.append({"view": "advanced", "text": f"Описание сайта длиннее {SNIPPET_LIMIT} символов ({len(site_description)})"})
     if not (config.get("search_console") or {}).get("verification"):
-        settings.append({"view": "advanced", "text": "Нет кода Google Search Console («Дополнительно»)"})
+        settings.append({"view": "advanced", "text": "Нет кода Google Search Console («Поиск и статистика»)"})
     if not str(artist.get("full_name") or "").strip():
         settings.append({"view": "settings", "text": "Не указано полное имя («Об авторе») — его видят поисковики"})
 

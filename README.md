@@ -248,7 +248,7 @@ profession, and `artist.bio` (line breaks kept, text selectable). Clients shows
 the `clients` list from `_config.yml` in order: each entry has a `logo` under
 `/assets/images/` and an optional `name` caption, which is also the logo's alt
 text. The tab is shown when there are clients and it is not switched off on
-the builder's **Клиенты** tab (`clients_tab: false` in `_config.yml`; only
+the builder's **Об авторе** tab (`clients_tab: false` in `_config.yml`; only
 "off" is stored, so the logos stay for later).
 
 ## Colours
@@ -356,7 +356,7 @@ short note and four home covers, all linking to the home page (`noindex`).
 - `sitemap.xml` lists the home page and every project page; `robots.txt`
   (built by Jekyll) points to it.
 - The browser title of the home page and its search description are the
-  builder's **Дополнительно** settings; project pages are titled
+  builder's **Поиск и статистика** settings; project pages are titled
   "project title — full name". Each project's **Короткое описание** is its
   search snippet and link-preview text (keep it under about 155 characters),
   and its page text is what search engines read most.
@@ -438,12 +438,15 @@ they fold into a «Меню» button with a drop-down list. The builder has thes
   `make test` warns about): **Добавить в проект** adds one back (it then needs
   alt text), **Удалить…** moves it to `.builder-trash/files/<slug>/`. Files
   still in the saved project or used as a home cover cannot be deleted.
-- **Клиенты** — whether the Clients tab is shown, and client logos with
-  optional captions, in order (up to 800px on the longest side).
-- **Об авторе** — name, full name, profession, biography, and contacts.
+  **Удалённые проекты** under the project list brings back a deleted project
+  from `.builder-trash/`.
+- **Об авторе** — what the site's About and Clients dialogs show: name, full
+  name, profession, biography, contacts, and the clients (whether the Clients
+  tab is shown, and client logos with optional captions, in order, up to 800px
+  on the longest side). Old `#clients` builder links open this tab.
 - **Оформление** — the header portrait and wordmark image (up to 1600px),
   colours, and fonts, sizes and alignment per text place.
-- **Дополнительно** — browser title, search description, the Google
+- **Поиск и статистика** — browser title, search description, the Google
   Analytics ID and the Google Search Console verification code (the whole
   `<meta name="google-site-verification">` tag may be pasted; only its
   `content` is kept in `search_console.verification` and rendered on every
@@ -463,7 +466,7 @@ they fold into a «Меню» button with a drop-down list. The builder has thes
 - **Публикация** — what is not on the live site yet, grouped like these tabs
   with old and new values (`scripts/change_summary.py`), and the
   **Опубликовать на сайт** button; the deployment state on GitHub; the history
-  with **Отменить** for each publication; deleted projects to bring back; and
+  with **Отменить** for each publication; the GitHub access key; and
   a help report to copy when something goes wrong.
 
 All edits stay in the browser until **Сохранить** (or ⌘S/Ctrl+S) writes

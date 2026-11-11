@@ -84,7 +84,7 @@ def test_status_describes_changes_in_plain_words(sites) -> None:
             "Загружено: 1 изображение — на сайте пока не видно, не добавлено в проект",
         ]},
         {"title": "Новый проект «Summer»", "details": []},
-        {"title": "Дополнительно", "details": ["Название во вкладке браузера: «Site» → «New title»"]},
+        {"title": "Поиск и статистика", "details": ["Название во вкладке браузера: «Site» → «New title»"]},
     ]
     assert status["change_count"] == 3  # the Makefile is not site content
 
@@ -121,7 +121,7 @@ def test_publish_combines_with_changes_from_another_computer(sites) -> None:
     publisher.publish()
 
     assert remote_log(other)[:2] == [
-        "Дополнительно: Название во вкладке браузера: «Site» → «Mine»",
+        "Поиск и статистика: Название во вкладке браузера: «Site» → «Mine»",
         "From the other computer",
     ]
 
