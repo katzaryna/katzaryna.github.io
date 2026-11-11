@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 from html.parser import HTMLParser
+import json
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
@@ -13,9 +14,12 @@ class SiteValidator(HTMLParser):
         self.html_path = html_path
         self.site_dir = site_dir
         self.errors = []
+        self._structured_data: list[str] | None = None
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attributes = dict(attrs)
+        if tag == "script" and attributes.get("type") == "application/ld+json":
+            self._structured_data = []
         decorative_image = (
             attributes.get("aria-hidden", "").lower() == "true"
             or attributes.get("role", "").lower() in {"none", "presentation"}
@@ -33,6 +37,18 @@ class SiteValidator(HTMLParser):
             url = candidate.strip().split(maxsplit=1)
             if url:
                 self._check_local_url(url[0])
+
+    def handle_data(self, data: str) -> None:
+        if self._structured_data is not None:
+            self._structured_data.append(data)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "script" and self._structured_data is not None:
+            try:
+                json.loads("".join(self._structured_data))
+            except ValueError as error:
+                self.errors.append(f"{self.html_path}: structured data is not valid JSON: {error}")
+            self._structured_data = None
 
     def _check_local_url(self, value: str) -> None:
         parsed = urlsplit(value)
@@ -70,7 +86,8 @@ def main() -> int:
         print("\n".join(errors))
         return 1
 
-    print(f"Validated {len(html_files)} HTML files: all images have alt text and local URLs resolve.")
+    print(f"Validated {len(html_files)} HTML files: all images have alt text, local URLs resolve "
+          "and structured data is valid JSON.")
     return 0
 
 

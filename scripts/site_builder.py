@@ -26,6 +26,7 @@ import yaml
 
 from scripts import fonts
 from scripts.image_utils import color_manage_image
+from scripts.project_files import referenced_files
 from scripts.site_publisher import GitCommandError, PublishError, Publisher
 
 
@@ -320,8 +321,32 @@ def locked(method):
     return wrapper
 
 
+SEARCH_CONSOLE_CODE = re.compile(r"[A-Za-z0-9_-]{20,100}")
+
+
+def normalize_search_console(config: dict) -> None:
+    """Keep only the Google Search Console verification code; the whole
+    <meta name="google-site-verification" content="..."> tag may be pasted."""
+    settings = config.get("search_console")
+    if settings is None:
+        return
+    if not isinstance(settings, dict):
+        raise ValueError("search_console must be a settings object.")
+    value = settings.get("verification")
+    if value is not None and not isinstance(value, str):
+        raise ValueError("The Google Search Console code must be text.")
+    if not value or not value.strip():
+        config.pop("search_console", None)
+        return
+    match = re.search(r"""content\s*=\s*["']([^"']*)["']""", value)
+    code = (match.group(1) if match else value).strip()
+    if not SEARCH_CONSOLE_CODE.fullmatch(code):
+        raise ValueError("The Google Search Console code should be the content of the google-site-verification tag.")
+    config["search_console"] = {"verification": code}
+
+
 def normalize_header_settings(config: dict) -> None:
-    """Check the header wordmark and the client list; drop empty optional values."""
+    """Check the header wordmark, the Clients tab switch and the client list; drop empty or default values."""
     artist = config.get("artist")
     if isinstance(artist, dict):
         wordmark = artist.get("wordmark_image")
@@ -329,6 +354,12 @@ def normalize_header_settings(config: dict) -> None:
             artist.pop("wordmark_image", None)
         elif not isinstance(wordmark, str) or not SITE_IMAGE_PATH.match(wordmark):
             raise ValueError("The header wordmark must be an image under /assets/images.")
+    # The Clients tab is on by default; only switching it off is stored.
+    clients_tab = config.get("clients_tab", True)
+    if not isinstance(clients_tab, bool):
+        raise ValueError("clients_tab must be true or false.")
+    if clients_tab:
+        config.pop("clients_tab", None)
     clients = config.get("clients")
     if clients is None:
         return
@@ -685,6 +716,7 @@ class SiteRepository:
         validate_home_gallery(config)
         validate_home_gallery_references(config, self.list_projects())
         normalize_header_settings(config)
+        normalize_search_console(config)
         self._normalize_colors(config)
         self._normalize_text_styles(config)
         atomic_write(self.config_path, dump_config(config))
@@ -810,6 +842,7 @@ class SiteRepository:
         ]
         validate_home_gallery_references(config, all_projects)
         normalize_header_settings(config)
+        normalize_search_console(config)
         self._normalize_colors(config)
         self._normalize_text_styles(config)
         files[self.config_path] = dump_config(config)
@@ -837,6 +870,26 @@ class SiteRepository:
             shutil.move(str(destination), str(project_directory))
             raise
         return self.state()
+
+    @locked
+    def delete_unlisted_image(self, slug: str, filename: str) -> dict:
+        """Move an image that the project does not list to the ignored trash.
+
+        Only files that neither the saved project nor a home cover uses can go,
+        so nothing on the site breaks. They stay recoverable in
+        .builder-trash/files/<slug>/ (and, once published, in git history).
+        """
+        image_path = self._image_path(slug, filename)
+        metadata, _ = parse_project(self.project_path(slug).read_text(encoding="utf-8"))
+        if image_path.name in referenced_files(metadata):
+            raise ConflictError("This image is still in the project. Save or undo your changes first.")
+        covers = self.read_config()["home_gallery"].get("covers") or []
+        if any(cover.get("project") == slug and cover.get("file") == image_path.name for cover in covers):
+            raise ConflictError("This image is still a home page cover.")
+        destination = self.root / TRASH_DIRECTORY / "files" / slug / f"{time.strftime('%Y%m%d-%H%M%S')}-{image_path.name}"
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(image_path), str(destination))
+        return {"deleted": image_path.name}
 
     def check_content(self, changed: list[str]) -> list[str]:
         """Problems that would stop the site from building, in plain Russian; empty when all is well.
@@ -1193,9 +1246,13 @@ class BuilderHandler(BaseHTTPRequestHandler):
         path = unquote(urlsplit(self.path).path)
         try:
             project_match = re.fullmatch(r"/api/projects/([^/]+)", path)
-            if not project_match:
+            image_match = re.fullmatch(r"/api/projects/([^/]+)/images/([^/]+)", path)
+            if project_match:
+                self._send_json(200, self.server.repository.delete_project(project_match.group(1)))
+            elif image_match:
+                self._send_json(200, self.server.repository.delete_unlisted_image(*image_match.groups()))
+            else:
                 raise NotFoundError("API endpoint not found.")
-            self._send_json(200, self.server.repository.delete_project(project_match.group(1)))
         except (BuilderError, PublishError) as error:
             self._send_error(error)
         except fonts.FontError as error:

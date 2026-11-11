@@ -39,6 +39,16 @@
     return;
   }
 
+  // Height of a figure's caption at its current width, so rows leave room for it.
+  function captionHeight(figure) {
+    const caption = figure.querySelector(":scope > figcaption");
+    if (!caption) return 0;
+    const style = getComputedStyle(caption);
+    return caption.getBoundingClientRect().height
+      + (Number.parseFloat(style.marginTop) || 0)
+      + (Number.parseFloat(style.marginBottom) || 0);
+  }
+
   function updateAutomaticRows() {
     const configuredColumns = Number.parseInt(
       gallery.style.getPropertyValue("--gallery-columns") || "3",
@@ -85,7 +95,7 @@
         return;
       }
 
-      const desiredHeight = imageWidth * height / width;
+      const desiredHeight = imageWidth * height / width + captionHeight(figure);
       const rows = Math.max(1, Math.ceil((desiredHeight + heightAdjustment + gapY) / (rowHeight + gapY)));
       figure.style.setProperty("--image-rows", rows);
     });
@@ -98,8 +108,12 @@
       );
       row.style.setProperty("--gallery-row-span", rowSpan);
       row.style.setProperty("--gallery-row-columns", columnCount);
-      const rowWidth = cellWidth * rowSpan + columnGap * Math.max(0, rowSpan - 1);
-      row.style.width = `${rowWidth}px`;
+      // The row's side margins (half a gap each, from styles.css) keep its
+      // outer pictures in line with single pictures, which sit inside their cells.
+      const rowStyle = getComputedStyle(row);
+      const sideMargins = (Number.parseFloat(rowStyle.marginLeft) || 0) + (Number.parseFloat(rowStyle.marginRight) || 0);
+      const rowWidth = cellWidth * rowSpan + columnGap * Math.max(0, rowSpan - 1) - sideMargins;
+      row.style.width = `${Math.max(0, rowWidth)}px`;
 
       let tallestImage = 0;
       figures.forEach((figure) => {
@@ -121,7 +135,7 @@
         const displayedHeight = Number.isFinite(maxHeight)
           ? Math.min(desiredHeight, maxHeight)
           : desiredHeight;
-        tallestImage = Math.max(tallestImage, displayedHeight);
+        tallestImage = Math.max(tallestImage, displayedHeight + captionHeight(figure));
       });
 
       if (tallestImage > 0 && canCalculateRows) {

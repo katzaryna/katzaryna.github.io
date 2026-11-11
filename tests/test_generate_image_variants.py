@@ -83,3 +83,37 @@ def test_generator_reuses_unchanged_outputs(tmp_path, monkeypatch, capsys) -> No
     Image.new("RGB", (600, 400), "blue").save(project / "art.png")
     generator.create_variants()
     assert "1 built, 0 unchanged" in capsys.readouterr().out
+
+
+def test_site_icons_are_round_and_versioned(tmp_path, monkeypatch) -> None:
+    import json
+
+    from scripts import generate_image_variants as generator
+
+    (tmp_path / "assets" / "images").mkdir(parents=True)
+    Image.new("RGB", (300, 200), (30, 90, 200)).save(tmp_path / "assets" / "images" / "me.png")
+    (tmp_path / "_config.yml").write_text("artist:\n  portrait: /assets/images/me.png\n", encoding="utf-8")
+    monkeypatch.setattr(generator, "ROOT", tmp_path)
+    monkeypatch.setattr(generator, "OUTPUT", tmp_path / "assets" / "optimized")
+    monkeypatch.setattr(generator, "MANIFEST", tmp_path / "_data" / "variants.json")
+    (tmp_path / "_data").mkdir()
+
+    icons = generator.create_site_icons()
+
+    assert json.loads((tmp_path / "_data" / "generated_icons.json").read_text()) == icons
+    for name, size in (("icon_32", 32), ("icon_192", 192), ("apple_touch", 180)):
+        path, version = icons[name].split("?v=")
+        assert version
+        with Image.open(tmp_path / path.lstrip("/")) as icon:
+            assert icon.size == (size, size)
+            corner, centre = icon.convert("RGBA").getpixel((0, 0)), icon.convert("RGBA").getpixel((size // 2, size // 2))
+            assert centre == (30, 90, 200, 255)
+            # Tabs get transparent corners; the iPhone icon a white tile.
+            if name == "apple_touch":
+                assert corner == (255, 255, 255, 255)
+            else:
+                assert corner[3] == 0
+
+    (tmp_path / "_config.yml").write_text("artist: {}\n", encoding="utf-8")
+    assert generator.create_site_icons() == {}
+    assert not (tmp_path / "_data" / "generated_icons.json").exists()

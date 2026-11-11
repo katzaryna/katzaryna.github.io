@@ -1,0 +1,39 @@
+{%- comment -%}
+  schema.org structured data for search engines (JSON-LD; data, not a script,
+  so the Content Security Policy does not block it). The artist is a Person;
+  the home page is her profile, a project page a creative work by her.
+  Parameters: project, title, description.
+{%- endcomment -%}
+{%- assign home_url = "/" | absolute_url -%}
+{%- assign artist_id = home_url | append: "#artist" -%}
+{%- assign website_id = home_url | append: "#website" -%}
+{%- capture same_as -%}
+  {%- if site.artist.instagram_url -%}{{ site.artist.instagram_url | jsonify }}{%- endif -%}
+  {%- if site.artist.instagram_url and site.artist.linkedin_url -%},{%- endif -%}
+  {%- if site.artist.linkedin_url -%}{{ site.artist.linkedin_url | jsonify }}{%- endif -%}
+{%- endcapture -%}
+{%- capture page_entity -%}
+  {%- if include.project -%}
+    {%- assign project_directory = page.path | remove: "/index.md" -%}
+    {%- capture project_images -%}
+      {%- for image in page.images limit: 8 -%}
+        {%- assign image_key = project_directory | append: "/" | append: image.file -%}
+        {%- assign image_variant = site.data.generated_image_variants[image_key] -%}
+        {%- if image_variant.motion.poster -%}{%- assign image_src = image_variant.motion.poster -%}
+        {%- elsif image_variant.sources -%}{%- assign image_src = image_variant.sources | last | map: "src" | first -%}
+        {%- else -%}{%- assign image_src = "/" | append: image_key -%}{%- endif -%}
+        {%- unless forloop.first -%},{%- endunless -%}{{ image_src | absolute_url | jsonify }}
+      {%- endfor -%}
+    {%- endcapture -%}
+    {"@type": "CreativeWork", "@id": {{ page.url | absolute_url | append: "#work" | jsonify }}, "url": {{ page.url | absolute_url | jsonify }}, "name": {{ include.title | jsonify }}, "description": {{ include.description | jsonify }}, "creator": {"@id": {{ artist_id | jsonify }}}, "isPartOf": {"@id": {{ website_id | jsonify }}}, "image": [{{ project_images }}]}
+  {%- else -%}
+    {"@type": "ProfilePage", "url": {{ home_url | jsonify }}, "name": {{ include.title | jsonify }}, "description": {{ include.description | jsonify }}, "mainEntity": {"@id": {{ artist_id | jsonify }}}, "isPartOf": {"@id": {{ website_id | jsonify }}}}
+  {%- endif -%}
+{%- endcapture %}
+<script type="application/ld+json">
+{"@context": "https://schema.org", "@graph": [
+  {"@type": "Person", "@id": {{ artist_id | jsonify }}, "name": {{ site.artist.full_name | default: site.artist.name | jsonify }}, "alternateName": {{ site.artist.name | jsonify }}, "jobTitle": {{ site.artist.description | jsonify }}, "description": {{ site.artist.bio | strip | jsonify }}, "image": {{ site.artist.portrait | absolute_url | jsonify }}, "url": {{ home_url | jsonify }}, "sameAs": [{{ same_as }}]},
+  {"@type": "WebSite", "@id": {{ website_id | jsonify }}, "url": {{ home_url | jsonify }}, "name": {{ site.title | jsonify }}, "inLanguage": "en", "author": {"@id": {{ artist_id | jsonify }}}},
+  {{ page_entity }}
+]}
+</script>

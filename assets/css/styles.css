@@ -1,7 +1,6 @@
 :root {
   --color-text: #252525;
   --color-muted: #66665f;
-  --color-panel: #858585;
   --color-surface: #fff;
 
   /* Colours the builder can change (_data/colors.yml; overrides in assets/theme.css). */
@@ -15,7 +14,6 @@
   --portrait-size: 94.77px;
   --nav-size: 38.4px;
   --nav-gap: 8px;
-  --gallery-edge-fade: 1.2%;
   color-scheme: light;
   font-family: Arial, Helvetica, sans-serif;
   color: var(--color-text);
@@ -79,7 +77,7 @@ p, li, .project-description { text-wrap: pretty; }
   column-gap: 0;
 }
 .portrait-link { position: relative; z-index: 1; grid-column: 2; display: block; }
-.portrait { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; filter: grayscale(1); }
+.portrait { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; }
 
 /*
   The portrait is always the centre of the header and of the page: its column
@@ -124,25 +122,17 @@ p, li, .project-description { text-wrap: pretty; }
   height: var(--nav-size);
   place-items: center;
   border: 0;
-  background: var(--color-panel);
-  color: #fff;
-  text-decoration: none;
-  cursor: pointer;
-}
-.email-contact, .linkedin-link, .instagram-link {
   border-radius: 10px;
   background: var(--color-surface);
+  color: #000;
+  text-decoration: none;
   box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
+  cursor: pointer;
 }
-.email-contact { color: #000; }
-.linkedin-link, .instagram-link { color: #000; }
+.nav-item:hover { box-shadow: 0 3px 10px rgb(0 0 0 / 16%); }
 .email-contact { order: 0; }
 .instagram-link { order: 1; }
 .linkedin-link { order: 2; }
-.email-contact:hover, .linkedin-link:hover, .instagram-link:hover {
-  background: var(--color-surface);
-  box-shadow: 0 3px 10px rgb(0 0 0 / 16%);
-}
 .portrait-link:focus-visible, .wordmark:focus-visible, .nav-item:focus-visible, .gallery-link:focus-visible, .project-header a:focus-visible {
   outline: 2px solid #222;
   outline-offset: 3px;
@@ -263,22 +253,35 @@ html:has(.info-dialog[open]) { overflow: hidden; }
 .instagram-link svg { width: 20.4px; }
 .linkedin-link svg { width: 20.4px; fill: currentColor; }
 
-.gallery {
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  grid-auto-rows: var(--home-row-height, clamp(38px, 6vw, 85px));
-  grid-auto-flow: row;
-  gap: var(--gallery-gap, 5px);
-  padding-bottom: 42px;
-}
+/*
+  Each cover and grid image sits half a gap inside its cell. The galleries
+  reach out by that half gap (never further than the page margin), so the
+  outer picture edges line up with the header line, the About/Clients tabs
+  and the footer, all on the page edge.
+*/
 .gallery.home-gallery {
   position: relative;
   display: block;
   height: auto;
   aspect-ratio: 12 / var(--home-gallery-rows, 12);
-  padding-bottom: 0;
+  margin-inline: max(var(--gallery-gap, 5px) / -2, var(--page-gutter) / -2);
 }
-html.gallery-intro-supported .gallery.is-intro-fit { padding-bottom: 0; }
+
+/*
+  Compact start (gallery-intro.js): the canvas is scaled down from its top
+  centre until the first scroll. It stays hidden until the script has measured
+  it, and shows anyway after two seconds should the script not run.
+*/
+@media (min-width: 761px) {
+  html.gallery-intro-supported .home-gallery.is-intro-fit:not(.is-intro-ready) {
+    opacity: 0;
+    animation: gallery-intro-reveal 0s 2s forwards;
+  }
+  .home-gallery.is-intro-ready { transform: scale(var(--intro-scale, 1)); transform-origin: 50% 0; }
+  .home-gallery.is-intro-releasing { transition: transform .65s cubic-bezier(.2, .75, .25, 1); }
+}
+
+@keyframes gallery-intro-reveal { to { opacity: 1; } }
 .gallery figure { min-width: 0; min-height: 0; margin: 0; }
 .home-gallery .home-cover {
   position: absolute;
@@ -366,6 +369,7 @@ html.gallery-intro-supported .gallery.is-intro-fit { padding-bottom: 0; }
   grid-auto-rows: var(--gallery-row-height, 8px);
   grid-auto-flow: row;
   gap: 0;
+  margin-inline: max(var(--gallery-gap-x, var(--gallery-gap, 5px)) / -2, var(--page-gutter) / -2);
 }
 .project-works.is-grid:has(> figure:only-child),
 .project-works.is-grid:has(> figure:nth-child(2):last-child) {
@@ -388,6 +392,7 @@ html.gallery-intro-supported .gallery.is-intro-fit { padding-bottom: 0; }
   grid-template-columns: repeat(var(--gallery-row-columns, 1), minmax(0, 1fr));
   align-items: center;
   justify-self: center;
+  margin-inline: calc(var(--gallery-gap-x, var(--gallery-gap, 5px)) / 2);
   column-gap: var(--gallery-gap, 5px);
   padding-bottom: var(--gallery-gap-y, var(--gallery-gap, 5px));
 }
@@ -574,19 +579,16 @@ html.gallery-intro-supported .gallery.is-intro-fit { padding-bottom: 0; }
   :root { --portrait-size: 51.76px; }
   .wordmark { font-size: calc(1.15 * clamp(34px, 9vw, 52px)); }
   .social-nav { top: 12px; gap: 6px; }
-  :root { --nav-size: 28.8px; --nav-gap: 6px; }
-  .email-contact svg { width: 16.2px; }
-  .linkedin-link svg, .instagram-link svg { width: 16.2px; }
-  .gallery {
-    grid-template-columns: repeat(8, minmax(0, 1fr));
-    grid-auto-rows: clamp(36px, 8vw, 64px);
-  }
+  :root { --nav-size: 36px; --nav-gap: 6px; }
+  .email-contact svg { width: 20.4px; }
+  .linkedin-link svg, .instagram-link svg { width: 19.2px; }
   .gallery.home-gallery {
     display: flex;
     flex-direction: column;
     gap: var(--gallery-gap, 5px);
     height: auto;
     aspect-ratio: auto;
+    margin-inline: 0; /* Covers fill the page width here, with no inset. */
   }
   .home-gallery .home-cover {
     position: static;
@@ -597,13 +599,9 @@ html.gallery-intro-supported .gallery.is-intro-fit { padding-bottom: 0; }
   .home-gallery .gallery-link { height: auto; }
   .home-gallery .gallery-link > img { height: auto; object-fit: initial; }
   .works { columns: 2; }
-  .works figure {
-    --image-gap-x: var(--gallery-gap-x, var(--gallery-gap, 5px));
-    --image-gap-y: var(--gallery-gap-y, var(--gallery-gap, 5px));
-  }
-  .works figure { margin-bottom: var(--image-gap-y); }
   .project-works.is-grid { grid-template-columns: repeat(var(--gallery-columns-effective, 2), minmax(0, 1fr)); }
   .project-works.is-grid .project-image-row { display: contents; }
+  .project-works.is-grid .project-image-row figure { padding: 0 calc(var(--image-gap-x) / 2) var(--image-gap-y); }
   .project-works img, .project-works video { max-height: calc(100svh - 220px); }
   .project-page { padding-block: 24px 58px; }
 }
@@ -623,7 +621,9 @@ html.gallery-intro-supported .gallery.is-intro-fit { padding-bottom: 0; }
   .wordmark { margin-right: 12px; }
   .site-header .artist-description { display: none; }
   .header-tabs { gap: 20px; }
-  .header-tab { font-size: 16px; }
+
+  /* Larger than the builder's size, which shrinks to 70% on small screens: easy to tap. */
+  .header-tabs .header-tab { padding-block: 6px; font-size: 18px; }
   .client-list { gap: 32px 20px; }
   .cover-viewer[open] { grid-template-columns: minmax(0, 1fr); grid-template-rows: max-content max-content; align-content: start; overflow-y: auto; }
   .cover-viewer-image { min-height: auto; padding: 70px 16px 8px; container-type: inline-size; }
@@ -635,18 +635,9 @@ html.gallery-intro-supported .gallery.is-intro-fit { padding-bottom: 0; }
   .client-logo { height: 60px; }
 }
 
+/* Phones and tablets cannot hover, so the cover titles stay hidden there. */
 @media (hover: none) {
-  .gallery-title {
-    display: grid;
-    min-height: 0;
-    padding: 6px;
-    background: var(--hover-overlay);
-    color: var(--hover-text);
-    font-size: 12px;
-    text-align: center;
-    opacity: 1;
-    visibility: visible;
-  }
+  .gallery-title { display: none; }
 }
 
 @media (max-width: 440px) {
@@ -655,20 +646,11 @@ html.gallery-intro-supported .gallery.is-intro-fit { padding-bottom: 0; }
   .page { width: calc(100% - var(--page-gutter)); }
   .wordmark { font-size: calc(1.15 * clamp(29px, 8vw, 38px)); }
   .social-nav { top: 10px; gap: 5px; }
-  :root { --nav-size: 25.2px; --nav-gap: 5px; }
-  .email-contact svg { width: 13.8px; }
-  .linkedin-link svg, .instagram-link svg { width: 13.8px; }
+  :root { --nav-size: 34px; --nav-gap: 5px; }
+  .email-contact svg { width: 19.2px; }
+  .linkedin-link svg, .instagram-link svg { width: 18px; }
   .email-contact .email-address { font-size: 10px; }
-  .gallery {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    grid-auto-rows: clamp(80px, 30vw, 150px);
-  }
   .works { columns: 1; }
-  .works figure {
-    --image-gap-x: var(--gallery-gap-x, var(--gallery-gap, 5px));
-    --image-gap-y: var(--gallery-gap-y, var(--gallery-gap, 5px));
-  }
-  .works figure { margin-bottom: var(--image-gap-y); }
   .project-works.is-grid { grid-template-columns: repeat(var(--gallery-columns-effective, 1), minmax(0, 1fr)); }
   .project-works.is-grid { grid-auto-rows: auto; }
   .project-works.is-grid figure { grid-column: 1; grid-row: auto; }

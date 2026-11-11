@@ -48,9 +48,9 @@ projects can be interleaved without numeric order fields in project metadata.
 The project layout renders all entries in `images` in their listed order.
 `permalink` controls the page URL, not the location of its artwork files.
 
-The `home_gallery.compact` setting controls whether the covers initially fit
-into the viewport; when disabled, the home page opens directly as a regular
-responsive grid. The `home_gallery.single_page` setting controls cover clicks.
+The `home_gallery.compact` setting (the builder's «Компактный старт») controls
+whether the covers initially fit into the viewport; when disabled, the home
+page opens directly at full size. The `home_gallery.single_page` setting controls cover clicks.
 When enabled, a cover opens a white full-screen viewer
 (`assets/js/home-lightbox.js`): the original image large on the left and, on
 the right, the project title, the image's `caption` (its illustration title)
@@ -105,11 +105,22 @@ order of `home_gallery.covers`, and its first cover loads first and is used
 for link previews. The published canvas scales
 responsively while preserving the arrangement. Project galleries retain their
 own masonry or fixed-grid layout. The `home_gallery.gap` value in `_config.yml`
-controls spacing in both galleries.
+controls spacing in both galleries. Pictures sit half a gap inside their cells, so both
+galleries reach out by half a gap (at most the page margin): the outer picture
+edges line up with the header line, the About/Clients tabs and the footer.
+Grouped rows subtract their side margins from the width
+`assets/js/project-gallery.js` gives them.
 
-When `home_gallery.compact` is enabled, the home grid initially fits into the
-remaining viewport height and expands to its regular responsive size on the
-first scroll. If JavaScript is unavailable, the gallery uses its regular grid.
+When `home_gallery.compact` is enabled, `assets/js/gallery-intro.js` scales
+the whole cover canvas down from its top centre, keeping the arrangement, so
+every cover fits on the first screen below the header; the first scroll grows
+it back to full size (instantly with reduced motion). The scale is a transform,
+so the rest of the page does not move. `gallery-intro-flag.js` in `<head>`
+keeps the canvas hidden until it is measured, with a two-second CSS fallback.
+Phones (single column) and visits that start scrolled down skip it; without
+JavaScript the canvas is shown at full size.
+Cover titles appear on a strip when the pointer is over a cover; phones and
+tablets cannot hover, so there the titles are hidden.
 Project-page artwork opens in a full-screen lightbox; animated GIFs use
 generated video previews when available.
 
@@ -150,8 +161,9 @@ Requirements and behavior:
 - Images in a project directory that are not listed under `images` are kept
   in the repository but are not published: the generator skips them, the
   build removes them from `_site`, and `make test` lists them as warnings.
-- When a project's URL changes, keep the old link working with a file in
-  `redirects/` (`layout: redirect`, the old `permalink`, and `redirect_to`).
+- When a project's URL changes and the old link was shared, keep it working
+  with a file in `redirects/` (`layout: redirect`, the old `permalink`, and
+  `redirect_to`). There are none at the moment.
 - `permalink` changes the project page URL only; keep artwork next to
   `index.md` and use the original file name in `images[].file`.
 - Project text after the YAML front matter is optional and appears below the
@@ -213,9 +225,14 @@ move under the brand; below 760px the profession is hidden, clear of the fixed
 contact icons. The portrait is always the centre of the header and the page:
 its column never shrinks, the wordmark and profession overflow away from it
 when space runs out, and it is drawn above them. The portrait and the wordmark link to
-the home page. The header portrait is shown in black and white
-(`filter: grayscale(1)`); the file itself keeps its colours, which the favicon
-and link previews use.
+the home page. The portrait is shown in its own colours and is the fallback
+link preview. The browser-tab and home-screen icons are made from it by the
+image generator: round 32 and 192 px PNGs with transparent corners, and a
+180 px `apple-touch-icon` with the circle on white (iOS fills transparent
+corners with black), in `assets/optimized/icons/`, listed with a version for
+cache busting in the ignored `_data/generated_icons.json`. On phones the About/Clients tabs (18px,
+above the builder's size, which shrinks on small screens) and the contact icons
+are enlarged for tapping.
 
 **About** and **Clients** open full-screen white dialogs (`assets/js/bio.js`)
 with a close button at the top right; Escape also closes them, and `#about` or
@@ -223,7 +240,9 @@ with a close button at the top right; Escape also closes them, and `#about` or
 profession, and `artist.bio` (line breaks kept, text selectable). Clients shows
 the `clients` list from `_config.yml` in order: each entry has a `logo` under
 `/assets/images/` and an optional `name` caption, which is also the logo's alt
-text. Without clients the tab is not shown.
+text. The tab is shown when there are clients and it is not switched off on
+the builder's **Клиенты** tab (`clients_tab: false` in `_config.yml`; only
+"off" is stored, so the logos stay for later).
 
 ## Colours
 
@@ -309,6 +328,25 @@ After adding, replacing, or removing artwork, run the image generator (or
 stale derivatives. Do not remove or rename an artwork file still referenced
 by a project's `images` list.
 
+## Search engines
+
+- Every page has a canonical URL, Open Graph/Twitter preview tags, and
+  schema.org JSON-LD (`_includes/structured-data.html`): the artist as a
+  `Person` (full name, Katzaryna as alternate name, profession, bio, portrait,
+  Instagram and LinkedIn), the site as a `WebSite`, the home page as her
+  `ProfilePage` and each project as a `CreativeWork` with its images.
+  `scripts/validate_site.py` fails the build if the JSON does not parse.
+- `sitemap.xml` lists the home page and every project page; `robots.txt`
+  (built by Jekyll) points to it.
+- The browser title of the home page and its search description are the
+  builder's **Дополнительно** settings; project pages are titled
+  "project title — full name". Each project's **Короткое описание** is its
+  search snippet and link-preview text (keep it under about 155 characters),
+  and its page text is what search engines read most.
+- Outside the code: verify the site in Google Search Console and submit
+  `https://katzaryna.github.io/sitemap.xml`; link to the site from Instagram,
+  LinkedIn and Behance.
+
 ## No AI training
 
 The site asks AI companies not to train on the artwork, in the forms they
@@ -375,14 +413,23 @@ Then open `http://127.0.0.1:8765` in a browser. The builder has these tabs:
 - **Проекты** — create, edit, and delete projects; drop files onto a project
   to upload them; drag tiles to reorder; ★ puts an image on the home page;
   select a tile to edit its alt text, illustration title (`caption`),
-  illustration description, grid width, and row.
-- **Клиенты** — client logos with optional captions, in order (up to 800px on
-  the longest side).
+  illustration description, grid width, and row. **Заменить файл…** swaps
+  the file behind an image and keeps all of that, the ★ mark, and the cover's
+  place, size and crop on the home page. Under the images, **Не на сайте** lists
+  files in the project folder that the project does not list (the same ones
+  `make test` warns about): **Добавить в проект** adds one back (it then needs
+  alt text), **Удалить…** moves it to `.builder-trash/files/<slug>/`. Files
+  still in the saved project or used as a home cover cannot be deleted.
+- **Клиенты** — whether the Clients tab is shown, and client logos with
+  optional captions, in order (up to 800px on the longest side).
 - **Об авторе** — name, full name, profession, biography, and contacts.
 - **Оформление** — the header portrait and wordmark image (up to 1600px),
   colours, and fonts, sizes and alignment per text place.
-- **Дополнительно** — browser title, search description, and the analytics
-  ID: technical settings that rarely change.
+- **Дополнительно** — browser title, search description, the Google
+  Analytics ID and the Google Search Console verification code (the whole
+  `<meta name="google-site-verification">` tag may be pasted; only its
+  `content` is kept in `search_console.verification` and rendered on every
+  page). A short note there explains both, with links.
 - **Публикация** — what is not on the live site yet, grouped like these tabs
   with old and new values (`scripts/change_summary.py`), and the
   **Опубликовать на сайт** button; the deployment state on GitHub; the history
@@ -400,7 +447,9 @@ longest side, with file names transliterated to lowercase Latin and made
 unique. Embedded color profiles such as Display P3 are preserved; untagged
 images are treated as sRGB. Animated GIFs remain animated. Removing an image
 from a project only removes its metadata entry; the file stays in the project
-folder. Deleting a project moves its folder to the ignored `.builder-trash/`
+folder, as does the old file after **Заменить файл…**. The publication summary
+reports such a swap as a replacement (a new file in the old one's place with
+the same alt text). Deleting a project moves its folder to the ignored `.builder-trash/`
 directory and removes its home covers.
 
 **Предпросмотр сайта** saves if needed, rebuilds the site, and opens it from a

@@ -1,6 +1,7 @@
 {% comment %}
-  Shared social-sharing metadata and favicon.
-  Parameters: title, description, image_key (projects/<slug>/<file>), image_alt.
+  Shared search, social-sharing and icon metadata.
+  Parameters: title, description, image_key (projects/<slug>/<file>), image_alt,
+  project (true on project pages, for the structured data).
 {% endcomment %}
 {% assign meta_variant = site.data.generated_image_variants[include.image_key] %}
 {% if meta_variant.motion.poster %}
@@ -19,8 +20,21 @@
 {%- endcomment %}
 <meta name="tdm-reservation" content="1">
 <meta name="robots" content="noai, noimageai">
+<link rel="canonical" href="{{ page.url | absolute_url }}">
+{% if site.search_console.verification %}<meta name="google-site-verification" content="{{ site.search_console.verification | escape }}">{% endif %}
+{%- comment -%}
+  Round icons made from the portrait by generate_image_variants.py; the
+  portrait itself until they are generated.
+{%- endcomment %}
+{% assign site_icons = site.data.generated_icons %}
+{% if site_icons %}
+<link rel="icon" type="image/png" sizes="32x32" href="{{ site_icons.icon_32 | relative_url }}">
+<link rel="icon" type="image/png" sizes="192x192" href="{{ site_icons.icon_192 | relative_url }}">
+<link rel="apple-touch-icon" href="{{ site_icons.apple_touch | relative_url }}">
+{% else %}
 <link rel="icon" type="image/png" href="{{ site.artist.portrait | relative_url }}">
 <link rel="apple-touch-icon" href="{{ site.artist.portrait | relative_url }}">
+{% endif %}
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="{{ site.title | escape }}">
 <meta property="og:title" content="{{ include.title | escape }}">
@@ -32,3 +46,4 @@
 <meta name="twitter:title" content="{{ include.title | escape }}">
 <meta name="twitter:description" content="{{ include.description | escape }}">
 <meta name="twitter:image" content="{{ meta_image | absolute_url }}">
+{% include structured-data.html project=include.project title=include.title description=include.description %}

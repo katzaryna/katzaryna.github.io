@@ -1,7 +1,13 @@
+{%- comment -%}
+  The Clients tab shows when there are clients and it is not switched off in
+  the builder (clients_tab: false).
+{%- endcomment -%}
+{%- assign show_clients = false -%}
+{%- if site.clients and site.clients.size > 0 and site.clients_tab != false -%}{%- assign show_clients = true -%}{%- endif %}
 <header class="site-header page{% if include.project %} project-header{% endif %}">
   <nav class="header-tabs" aria-label="About the artist">
     <button class="header-tab" type="button" aria-haspopup="dialog" aria-controls="about-dialog" data-open-dialog="about-dialog">About</button>
-    {% if site.clients and site.clients.size > 0 %}<button class="header-tab" type="button" aria-haspopup="dialog" aria-controls="clients-dialog" data-open-dialog="clients-dialog">Clients</button>{% endif %}
+    {% if show_clients %}<button class="header-tab" type="button" aria-haspopup="dialog" aria-controls="clients-dialog" data-open-dialog="clients-dialog">Clients</button>{% endif %}
   </nav>
   <div class="header-brand">
     <a class="wordmark{% if site.artist.wordmark_image %} has-image{% endif %}" href="{{ '/' | relative_url }}">
@@ -31,7 +37,7 @@
   </article>
 </dialog>
 
-{% if site.clients and site.clients.size > 0 %}
+{% if show_clients %}
 <dialog class="info-dialog" id="clients-dialog" aria-labelledby="clients-dialog-title">
   <button class="info-dialog-close" type="button" aria-label="Close" data-close-dialog>
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg>
