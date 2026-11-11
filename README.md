@@ -72,6 +72,13 @@ Both artwork viewers (this one and the project-page lightbox) share
   loads (never wider than the file itself), and the already-loaded thumbnail
   shows underneath until the original arrives. In the cover viewer the image
   fits its column with container query units (`cqw`/`cqh`).
+- **Links to an artwork:** every artwork has an address made from its
+  illustration title (or file name), such as `/#moonlit-lavender` on the home
+  page or `/projects/kneipp-bath-oil/#moonlit-lavender`. It is in the URL while
+  the artwork is open and opens it straight away when followed; repeated titles
+  get `-2`, `-3`. A copy-link button beside the close button copies the
+  address, as it does in the About and Clients dialogs (`#about`, `#clients`;
+  the copying lives in `bio.js`). Changing a title changes its address.
 - **Zoom:** a click or tap on the image zooms it 2x at that point and loads a
   sharper source. The mouse then explores the picture, a finger drags it;
   another click or tap returns to 1x. Because a click on the image zooms, the
@@ -333,6 +340,11 @@ After adding, replacing, or removing artwork, run the image generator (or
 stale derivatives. Do not remove or rename an artwork file still referenced
 by a project's `images` list.
 
+## Page not found
+
+`404.html` is what GitHub Pages shows for a missing address: the header, a
+short note and four home covers, all linking to the home page (`noindex`).
+
 ## Search engines
 
 - Every page has a canonical URL, Open Graph/Twitter preview tags, and
@@ -410,7 +422,8 @@ Start the local visual site builder from the repository root with:
 make builder
 ```
 
-Then open `http://127.0.0.1:8765` in a browser. The builder has these tabs:
+Then open `http://127.0.0.1:8765` in a browser. When the window is too narrow for all tabs,
+they fold into a «Меню» button with a drop-down list. The builder has these tabs:
 
 - **Главная** — the home-page canvas (drag, swap, resize, crop, undo) and the
   home settings: what a cover click does, the gap between covers, and the
@@ -435,6 +448,18 @@ Then open `http://127.0.0.1:8765` in a browser. The builder has these tabs:
   `<meta name="google-site-verification">` tag may be pasted; only its
   `content` is kept in `search_console.verification` and rendered on every
   page). A short note there explains both, with links.
+- **Состояние** — whether everything is in order (`scripts/site_health.py`):
+  content checks on this computer (files in project folders that are not on
+  the site, missing or too long search texts, artworks without a title or
+  description, repeated artwork addresses, originals over 5 MB, missing site
+  settings), each with «Открыть» to the place to fix it; the last
+  publication's GitHub run and the access key; and, on «Проверить сейчас»,
+  the live site: Google PageSpeed scores for phone and computer and the key
+  addresses (home page with the Search Console tag, sitemap, robots.txt,
+  TDMRep, the 404 page). The tab shows a badge with the number of warnings.
+  Without a key PageSpeed shares Google's anonymous daily quota, which is
+  often used up; a free personal key can be saved there and is kept only in
+  `.builder-cache/pagespeed-key.txt` on that computer.
 - **Публикация** — what is not on the live site yet, grouped like these tabs
   with old and new values (`scripts/change_summary.py`), and the
   **Опубликовать на сайт** button; the deployment state on GitHub; the history

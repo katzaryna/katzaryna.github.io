@@ -24,7 +24,7 @@ from PIL import Image, ImageCms, ImageOps
 import tomli
 import yaml
 
-from scripts import fonts
+from scripts import fonts, site_health
 from scripts.image_utils import color_manage_image
 from scripts.project_files import referenced_files
 from scripts.site_publisher import GitCommandError, PublishError, Publisher
@@ -1101,6 +1101,8 @@ class BuilderServer(ThreadingHTTPServer):
         self.repository = repository
         self.preview_url = preview_url
         self.publisher = Publisher(repository.root, lock=repository._lock, checker=repository.check_content)
+        # One live site check at a time: Google PageSpeed limits how often it may be asked.
+        self.health_lock = threading.Lock()
         super().__init__(address, BuilderHandler)
 
 
@@ -1150,6 +1152,13 @@ class BuilderHandler(BaseHTTPRequestHandler):
                 self._send_json(200, {"families": self.server.repository.font_catalog()})
             elif path == "/api/help-report":
                 self._send_json(200, {"report": self.server.publisher.help_report()})
+            elif path == "/api/health":
+                root = self.server.repository.root
+                self._send_json(200, {
+                    "content": site_health.content_checks(root),
+                    "live": site_health.last_live_checks(root),
+                    "has_pagespeed_key": bool(site_health.read_pagespeed_key(root)),
+                })
             elif path in STATIC_FILES:
                 filename, content_type = STATIC_FILES[path]
                 self._send_bytes((BUILDER_DIR / filename).read_bytes(), content_type)
@@ -1197,6 +1206,14 @@ class BuilderHandler(BaseHTTPRequestHandler):
                 self._send_json(200, self.server.publisher.discard())
             elif path == "/api/trash/restore":
                 self._send_json(200, self.server.repository.restore_project(str(payload.get("name", ""))))
+            elif path == "/api/health/key":
+                root = self.server.repository.root
+                stored = site_health.save_pagespeed_key(root, str(payload.get("key", "")))
+                self._send_json(200, {"has_pagespeed_key": stored})
+            elif path == "/api/health/live":
+                # About a minute: Google PageSpeed for phone and computer, and the site's key addresses.
+                with self.server.health_lock:
+                    self._send_json(200, site_health.live_checks(self.server.repository.root))
             elif path == "/api/restart":
                 self._send_json(200, {"ok": True})
                 threading.Thread(target=restart_process, daemon=True).start()

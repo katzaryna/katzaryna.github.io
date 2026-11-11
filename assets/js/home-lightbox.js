@@ -2,7 +2,9 @@
 // left and, on the right, the project title, the illustration title and its
 // description (heading, subheading, text). White like About and Clients, with
 // the same close button at the top right; Escape or a click beside the image
-// also closes it. A click on the image zooms it (artwork-viewer.js).
+// also closes it. A click on the image zooms it (artwork-viewer.js). While a
+// cover is open its address (#its-title) is in the URL, with a copy-link
+// button beside the close button; opening that address opens the cover.
 (() => {
   const gallery = document.querySelector("#gallery");
   if (!gallery) return;
@@ -32,9 +34,13 @@
   let activeLink;
 
   const viewer = window.artworkViewer;
+  dialog.querySelector(".cover-viewer-close").after(...viewer.shareControls());
+  const links = [...gallery.querySelectorAll(".home-lightbox-link")];
+  viewer.assignAddresses(links);
 
   function show(link) {
     activeLink = link;
+    viewer.showAddress(link);
     const thumbnail = link.querySelector("img");
     const image = document.createElement("img");
     if (link.dataset.lightboxSrcset) {
@@ -57,7 +63,7 @@
     dialog.classList.toggle("is-morphed", viewer.canMorph());
     viewer.morph(thumbnail, () => {
       imagePane.replaceChildren(image);
-      dialog.showModal();
+      if (!dialog.open) dialog.showModal();
       text.scrollTop = 0;
       text.focus({ preventScroll: true });
       return image;
@@ -88,5 +94,18 @@
     event.preventDefault();
     hide();
   });
-  dialog.addEventListener("close", () => activeLink?.focus());
+  dialog.addEventListener("close", () => {
+    viewer.clearAddress(activeLink);
+    activeLink?.focus();
+  });
+
+  // A shared link (#its-title) opens that cover, centred on the page behind it.
+  function showFromAddress() {
+    const link = viewer.linkForAddress(links);
+    if (!link || (dialog.open && link === activeLink)) return;
+    if (!dialog.open) link.scrollIntoView({ block: "center" });
+    show(link);
+  }
+  showFromAddress();
+  window.addEventListener("hashchange", showFromAddress);
 })();

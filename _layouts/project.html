@@ -39,6 +39,9 @@
         {% assign responsive_image = site.data.generated_image_variants[image_key] %}
         {% assign image_alt = image.alt | default: image.caption | default: page.title | escape %}
         {% assign original_image_url = "/" | append: project_directory | append: "/" | append: image.file | relative_url %}
+        {%- comment -%} Address of the artwork in the viewer (#id): from its title, else its file name. {%- endcomment -%}
+        {% assign image_stem = image.file | split: "." | first %}
+        {% assign artwork_id = image.caption | default: image_stem | slugify %}
         {% assign image_count = page.images | size %}
         {%- comment -%}
           The width the browser should pick a source for: one column for one or
@@ -68,7 +71,7 @@
           {% if responsive_image.motion %}
             {% assign lightbox_video = responsive_image.motion.lightbox_src | default: responsive_image.motion.src %}
             {% assign lightbox_mp4 = responsive_image.motion.lightbox_mp4 | default: responsive_image.motion.mp4 %}
-            <a class="lightbox-link motion-link{% if responsive_image.placeholder %} has-placeholder{% endif %}" href="{{ original_image_url }}" data-lightbox-video="{{ lightbox_video | relative_url }}" data-lightbox-mp4="{{ lightbox_mp4 | relative_url }}" aria-label="{{ image_alt }}"{% if responsive_image.placeholder %} style="background-image: url({{ responsive_image.placeholder }})"{% endif %}>
+            <a data-artwork-id="{{ artwork_id }}" class="lightbox-link motion-link{% if responsive_image.placeholder %} has-placeholder{% endif %}" href="{{ original_image_url }}" data-lightbox-video="{{ lightbox_video | relative_url }}" data-lightbox-mp4="{{ lightbox_mp4 | relative_url }}" aria-label="{{ image_alt }}"{% if responsive_image.placeholder %} style="background-image: url({{ responsive_image.placeholder }})"{% endif %}>
             <video class="artwork-motion" width="{{ responsive_image.width }}" height="{{ responsive_image.height }}" aria-label="{{ image_alt }}" poster="{{ responsive_image.motion.poster | relative_url }}" muted loop playsinline preload="none">
               <source src="{{ responsive_image.motion.src | relative_url }}" type="video/webm">
               <source src="{{ responsive_image.motion.mp4 | relative_url }}" type="video/mp4">
@@ -76,11 +79,11 @@
             </video>
           </a>
           {% elsif responsive_image %}
-          <a class="lightbox-link{% if responsive_image.placeholder %} has-placeholder{% endif %}" href="{{ original_image_url }}" data-lightbox-srcset="{% include lightbox-srcset.html variant=responsive_image original=original_image_url %}"{% if responsive_image.placeholder %} style="background-image: url({{ responsive_image.placeholder }})"{% endif %}>
+          <a data-artwork-id="{{ artwork_id }}" class="lightbox-link{% if responsive_image.placeholder %} has-placeholder{% endif %}" href="{{ original_image_url }}" data-lightbox-srcset="{% include lightbox-srcset.html variant=responsive_image original=original_image_url %}"{% if responsive_image.placeholder %} style="background-image: url({{ responsive_image.placeholder }})"{% endif %}>
             {% include artwork-picture.html variant=responsive_image sizes=image_sizes alt=image_alt loading=image_loading priority=forloop.first %}
           </a>
           {% else %}
-          <a class="lightbox-link" href="{{ original_image_url }}">
+          <a data-artwork-id="{{ artwork_id }}" class="lightbox-link" href="{{ original_image_url }}">
             <img src="{{ original_image_url }}" alt="{{ image_alt }}" loading="{{ image_loading }}"{% if forloop.first %} fetchpriority="high"{% endif %}>
           </a>
           {% endif %}

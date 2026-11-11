@@ -10,6 +10,7 @@
     clients: document.querySelector("#clients-view"),
     publish: document.querySelector("#publish-view"),
     text: document.querySelector("#text-view"),
+    health: document.querySelector("#health-view"),
   };
   const homeView = views.home;
   const settingsForm = document.querySelector("#settings-form");
@@ -402,6 +403,7 @@
       if (tab.dataset.view === currentView) tab.setAttribute("aria-current", "page");
       else tab.removeAttribute("aria-current");
     });
+    updateTabMenu();
     if (currentView === "projects") {
       if (slug !== selectedSlug) selectedImageIndex = -1;
       selectedSlug = slug && projectBySlug(slug) ? slug : (selectedSlug || work?.projects[0]?.slug || "");
@@ -410,6 +412,10 @@
     }
     if (currentView === "publish") renderPublishView();
     if (currentView === "text") renderTextView();
+    if (currentView === "health") {
+      renderHealthView();
+      loadHealth();
+    }
     if (currentView === "clients") renderClientsView();
     if (currentView === "home") {
       renderHomeGalleryEditor();
@@ -3134,6 +3140,7 @@
     }
     renderPublishPill();
     if (currentView === "publish") renderPublishView();
+    if (currentView === "health") renderHealthView();
     schedulePublishPoll();
   }
 
@@ -3437,6 +3444,257 @@
   });
 
   // ---------------------------------------------------------------------------
+  // Site health («Состояние сайта»): content checks from this computer, the
+  // last publication on GitHub, and the live site (scripts/site_health.py).
+  // ---------------------------------------------------------------------------
+  const healthContent = document.querySelector("#health-content");
+  const healthBadge = document.querySelector("#health-badge");
+  let health = null;
+  let liveChecking = false;
+  let liveError = "";
+
+  async function loadHealth() {
+    try {
+      health = await request("/api/health");
+    } catch (error) {
+      health = { error: error.message };
+    }
+    const warnings = health?.content?.warnings ?? 0;
+    healthBadge.hidden = !warnings;
+    healthBadge.textContent = String(warnings);
+    updateTabMenu();
+    if (currentView === "health") renderHealthView();
+  }
+
+  async function runLiveCheck() {
+    liveChecking = true;
+    liveError = "";
+    renderHealthView();
+    try {
+      const live = await postJson("/api/health/live", {});
+      health = { ...(health ?? {}), live };
+    } catch (error) {
+      liveError = error.message;
+    }
+    liveChecking = false;
+    renderHealthView();
+  }
+
+  const HEALTH_MARKS = { ok: "✓", warning: "!", info: "i", danger: "✕" };
+
+  function healthRow(level, title, text, extra = "") {
+    return `<li class="health-row" data-level="${level}">
+      <span class="health-mark" aria-hidden="true">${HEALTH_MARKS[level] ?? "•"}</span>
+      <div><strong>${escapeHtml(title)}</strong>${text ? `<p>${escapeHtml(text)}</p>` : ""}${extra}</div>
+    </li>`;
+  }
+
+  function renderContentCard() {
+    const content = health?.content;
+    let body;
+    if (health?.error) body = `<p class="field-error">${escapeHtml(health.error)}</p>`;
+    else if (!content) body = `<p class="field-help">Проверяю…</p>`;
+    else {
+      body = `<ul class="health-list">${content.checks.map(check => healthRow(check.level, check.title, check.summary,
+        check.items.length ? `<ul class="health-items">${check.items.map(item => `
+          <li><span>${escapeHtml(item.text)}</span>${item.slug || item.view
+            ? `<button class="text-button" type="button" data-health-open="${escapeHtml(JSON.stringify({ slug: item.slug ?? "", view: item.view ?? "", anchor: item.anchor ?? "" }))}">Открыть</button>`
+            : ""}</li>`).join("")}</ul>` : "")).join("")}</ul>`;
+    }
+    return `
+      <section class="card">
+        <div class="card-heading"><div><h2>Содержимое</h2><p>Проверяется то, что сохранено на этом компьютере. Несохранённые правки сначала сохраните.</p></div>
+          <button class="button button-ghost button-small" type="button" data-health-action="reload">Проверить ещё раз</button></div>
+        ${body}
+      </section>`;
+  }
+
+  function renderPublicationCard() {
+    const status = publishStatus;
+    const deployment = status?.deployment ?? { state: "unknown" };
+    const when = deployment.started ? ` (${formatDate(deployment.started)})` : "";
+    const deployments = {
+      live: ["ok", "Сайт обновлён", `Последняя публикация проверена и выложена${when}.`],
+      deploying: ["info", "Идёт сборка", "GitHub проверяет и выкладывает последнюю публикацию — обычно пара минут."],
+      pending: ["info", "Публикация отправлена", "GitHub вот-вот начнёт сборку."],
+      failed: ["danger", "Последняя сборка не прошла", `Сайт показывает предыдущую версию${when}. Подробности — на GitHub; отчёт для помощи — на вкладке «Публикация».`],
+      unknown: ["info", "Нет данных о сборке", "Нет связи с GitHub с этого компьютера (нужны интернет и GitHub CLI)."],
+    };
+    const [level, title, text] = deployments[deployment.state] ?? deployments.unknown;
+    const token = status?.token ?? { state: "unknown" };
+    const tokens = {
+      ok: ["ok", token.days_left !== undefined ? `Ключ доступа действует ещё ${plural(token.days_left, "день", "дня", "дней")}` : "Ключ доступа работает"],
+      expiring: ["warning", `Ключ доступа скоро истечёт: осталось ${plural(token.days_left ?? 0, "день", "дня", "дней")}`],
+      invalid: ["danger", "Ключ доступа не подходит или истёк"],
+      missing: ["danger", "Компьютер не подключён к GitHub"],
+      unknown: ["info", "Ключ доступа проверить не удалось"],
+    };
+    const [tokenLevel, tokenTitle] = tokens[token.state] ?? tokens.unknown;
+    const link = deployment.url ? `<a class="button button-ghost button-small" href="${escapeHtml(deployment.url)}" target="_blank" rel="noopener">Подробности на GitHub ↗</a>` : "";
+    return `
+      <section class="card">
+        <div class="card-heading"><div><h2>Публикация</h2><p>Каждая публикация проходит на GitHub автоматическую проверку: тесты, проверку оформления и сборку сайта.</p></div>
+          <button class="button button-ghost button-small" type="button" data-health-action="publish-status">Обновить</button></div>
+        <ul class="health-list">
+          ${healthRow(level, title, text, link ? `<div class="health-actions">${link}</div>` : "")}
+          ${healthRow(tokenLevel, tokenTitle, tokenLevel === "ok" ? "" : "Новый ключ вставляется на вкладке «Публикация».")}
+        </ul>
+      </section>`;
+  }
+
+  function scoreChip(value) {
+    if (value === null || value === undefined) return `<span class="score-chip">—</span>`;
+    const tone = value >= 90 ? "ok" : value >= 50 ? "warning" : "danger";
+    return `<span class="score-chip" data-tone="${tone}">${value}</span>`;
+  }
+
+  function renderLiveCard() {
+    const live = health?.live;
+    const siteUrl = live?.site_url ?? publishStatus?.site_url ?? "";
+    let body = "";
+    if (live) {
+      const speedRows = [["mobile", "Телефон"], ["desktop", "Компьютер"]].map(([key, label]) => {
+        const speed = live.speed?.[key] ?? {};
+        if (speed.error) return `<tr><th scope="row">${label}</th><td colspan="5" class="field-error">${escapeHtml(speed.error)}</td></tr>`;
+        return `<tr><th scope="row">${label}</th><td>${scoreChip(speed.performance)}</td><td>${scoreChip(speed.accessibility)}</td><td>${scoreChip(speed.best_practices)}</td><td>${scoreChip(speed.seo)}</td><td>${escapeHtml([speed.lcp, speed.cls].filter(Boolean).join(" · "))}</td></tr>`;
+      }).join("");
+      body = `
+        <table class="speed-table">
+          <thead><tr><th></th><th>Скорость</th><th>Доступность</th><th>Практики</th><th>SEO</th><th>Первая картинка · сдвиги</th></tr></thead>
+          <tbody>${speedRows}</tbody>
+        </table>
+        <p class="field-help">Оценки Google от 0 до 100: зелёные — от 90. SEO 92 — это строка Content-Signal в robots.txt, запрет обучения ИИ; на поиск она не влияет. <a href="${escapeHtml(live.report_url)}" target="_blank" rel="noopener">Подробный отчёт Google ↗</a></p>
+        <ul class="health-list">${(live.addresses ?? []).map(item => healthRow(item.ok ? "ok" : "danger", item.title, item.detail,
+          `<div class="health-actions"><a class="text-button" href="${escapeHtml(live.site_url + item.path)}" target="_blank" rel="noopener">Открыть ↗</a></div>`)).join("")}</ul>
+        <p class="field-help">Проверено ${escapeHtml(formatDate(live.checked_at))}.</p>`;
+    } else if (!liveChecking) {
+      body = `<p class="field-help">Ещё не проверялся с этого компьютера.</p>`;
+    }
+    return `
+      <section class="card">
+        <div class="card-heading"><div><h2>Живой сайт</h2><p>Скорость и SEO по оценке Google PageSpeed для телефона и компьютера, и главные адреса опубликованного сайта.</p></div>
+          <button class="button button-secondary button-small" type="button" data-health-action="live" ${liveChecking ? "disabled" : ""}>${liveChecking ? "Проверяю… около минуты" : "Проверить сейчас"}</button></div>
+        ${liveError ? `<p class="publish-error">${escapeHtml(liveError)}</p>` : ""}
+        ${body}
+        ${renderPageSpeedKey(live)}
+      </section>
+      <section class="card">
+        <div class="card-heading"><div><h2>Подробнее у Google и Bing</h2><p>Здесь нужен вход в аккаунт, поэтому эти данные смотрятся на их сайтах.</p></div></div>
+        <ul class="health-links">
+          <li><a href="https://search.google.com/search-console?resource_id=${encodeURIComponent(siteUrl)}" target="_blank" rel="noopener">Google Search Console ↗</a> — по каким запросам находят сайт, какие страницы в поиске, ошибки.</li>
+          <li><a href="https://analytics.google.com/" target="_blank" rel="noopener">Google Analytics ↗</a> — сколько посетителей, откуда они и что смотрят.</li>
+          <li><a href="https://www.bing.com/webmasters" target="_blank" rel="noopener">Bing Webmaster Tools ↗</a> — то же для Bing, DuckDuckGo и поиска ChatGPT.</li>
+        </ul>
+      </section>`;
+  }
+
+  function renderPageSpeedKey(live) {
+    const hasKey = Boolean(health?.has_pagespeed_key);
+    const quotaHit = Object.values(live?.speed ?? {}).some(speed => speed?.quota);
+    return `
+      <details class="pagespeed-key" ${quotaHit && !hasKey ? "open" : ""}>
+        <summary>Ключ Google PageSpeed — ${hasKey ? "добавлен" : "необязательно"}</summary>
+        <p class="field-help">Без ключа проверка идёт через общий бесплатный лимит Google, и он часто заканчивается. Свой ключ бесплатный: <a href="https://developers.google.com/speed/docs/insights/v5/get-started#APIKey" target="_blank" rel="noopener">получить ключ ↗</a> (кнопка «Get a Key», нужен Google-аккаунт). Ключ хранится только на этом компьютере и на сайт не попадает.</p>
+        <div class="token-form">
+          <label class="field"><span>Ключ</span><input id="pagespeed-key" type="password" autocomplete="off" spellcheck="false" placeholder="${hasKey ? "Сохранён — вставьте новый, чтобы заменить" : "AIza…"}"></label>
+          <div class="publish-actions">
+            <button class="button button-secondary button-small" type="button" data-health-action="save-key">Сохранить ключ</button>
+            ${hasKey ? `<button class="button button-ghost button-small" type="button" data-health-action="remove-key">Удалить ключ</button>` : ""}
+          </div>
+        </div>
+      </details>`;
+  }
+
+  async function savePageSpeedKey(key) {
+    try {
+      const result = await postJson("/api/health/key", { key });
+      health = { ...(health ?? {}), has_pagespeed_key: result.has_pagespeed_key };
+      toast(result.has_pagespeed_key ? "Ключ сохранён. Нажмите «Проверить сейчас»." : "Ключ удалён.");
+      renderHealthView();
+    } catch (error) {
+      toast(error.message, true);
+    }
+  }
+
+  function renderHealthView() {
+    if (!healthContent) return;
+    healthContent.innerHTML = renderContentCard() + renderPublicationCard() + renderLiveCard();
+  }
+
+  healthContent?.addEventListener("click", event => {
+    const action = event.target.closest("[data-health-action]")?.dataset.healthAction;
+    if (action === "reload") loadHealth();
+    if (action === "publish-status") refreshPublishStatus({ fetch: true });
+    if (action === "live") runLiveCheck();
+    if (action === "save-key") savePageSpeedKey(healthContent.querySelector("#pagespeed-key")?.value ?? "");
+    if (action === "remove-key") savePageSpeedKey("");
+    const target = event.target.closest("[data-health-open]");
+    if (!target) return;
+    const { slug, view, anchor } = JSON.parse(target.dataset.healthOpen);
+    if (slug) {
+      selectedImageIndex = -1;
+      navigate("projects", slug);
+      if (anchor === "unlisted") requestAnimationFrame(() => projectEditor.querySelector(".unlisted-card")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    } else if (view) {
+      navigate(view);
+    }
+  });
+
+  // ---------------------------------------------------------------------------
+  // Tabs that do not fit fold into the «Меню» button
+  // ---------------------------------------------------------------------------
+  const topbar = document.querySelector(".topbar");
+  const tabsNav = topbar.querySelector(".tabs");
+  const tabMenuButton = document.querySelector("#tab-menu-button");
+  const tabMenuList = document.querySelector("#tab-menu-list");
+
+  function fitTabs() {
+    // Measure with the tabs shown; nothing is painted in between.
+    topbar.classList.remove("tabs-collapsed");
+    const collapse = topbar.scrollWidth > topbar.clientWidth + 1;
+    topbar.classList.toggle("tabs-collapsed", collapse);
+    if (!collapse) closeTabMenu();
+  }
+
+  function updateTabMenu() {
+    const current = tabsNav.querySelector(".tab[aria-current]");
+    tabMenuButton.querySelector(".tab-menu-current").textContent = current?.firstChild?.textContent.trim() ?? "";
+    tabMenuButton.querySelector(".tab-menu-dot").hidden = healthBadge?.hidden ?? true;
+    if (!tabMenuList.hidden) tabMenuList.innerHTML = tabsNav.innerHTML.replace(/ id="health-badge"/, "");
+  }
+
+  function openTabMenu() {
+    tabMenuList.innerHTML = tabsNav.innerHTML.replace(/ id="health-badge"/, "");
+    tabMenuList.hidden = false;
+    tabMenuButton.setAttribute("aria-expanded", "true");
+    tabMenuList.querySelector(".tab[aria-current]")?.focus();
+  }
+
+  function closeTabMenu() {
+    if (tabMenuList.hidden) return;
+    tabMenuList.hidden = true;
+    tabMenuButton.setAttribute("aria-expanded", "false");
+  }
+
+  tabMenuButton.addEventListener("click", () => (tabMenuList.hidden ? openTabMenu() : closeTabMenu()));
+  tabMenuList.addEventListener("click", event => {
+    if (event.target.closest(".tab")) closeTabMenu();
+  });
+  document.addEventListener("click", event => {
+    if (!event.target.closest(".tab-menu")) closeTabMenu();
+  });
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape" && !tabMenuList.hidden) {
+      closeTabMenu();
+      tabMenuButton.focus();
+    }
+  });
+  // The bar's contents change width (the status pill, the badge), so watch them all.
+  const tabsObserver = new ResizeObserver(() => fitTabs());
+  [topbar, publishPill, tabsNav].forEach(element => tabsObserver.observe(element));
+  fitTabs();
+
+  // ---------------------------------------------------------------------------
   // Global wiring
   // ---------------------------------------------------------------------------
   window.addEventListener("hashchange", routeFromHash);
@@ -3465,6 +3723,7 @@
       refreshDirty();
       window.setInterval(checkServerFreshness, 5000);
       refreshPublishStatus({ fetch: true });
+      loadHealth();
     })
     .catch(error => {
       toast(error.message, true);
