@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
+import base64
 import hashlib
+from io import BytesIO
 import json
 from pathlib import Path
 import subprocess
 import tomli
 
-from PIL import Image, ImageOps
+from PIL import Image, ImageCms, ImageOps
 import imageio_ffmpeg
 
-from scripts.image_utils import color_manage_image
+from scripts.image_utils import SRGB_PROFILE, SRGB_PROFILE_BYTES, color_manage_image
 from scripts.project_files import unreferenced_images
 
 
@@ -27,12 +29,35 @@ LIGHTBOX_MAX_WIDTH = int(CONFIG["lightbox_max_width"])
 LIGHTBOX_WEBM_CRF = int(CONFIG["lightbox_webm_crf"])
 LIGHTBOX_MP4_CRF = int(CONFIG["lightbox_mp4_crf"])
 STATIC_FORMATS = {".jpg", ".jpeg", ".png", ".webp"}
+PLACEHOLDER_SIZE = 16
+PLACEHOLDER_QUALITY = 60
 
 
 def responsive_widths(source_width: int, target_widths: tuple[int, ...] = TARGET_WIDTHS) -> list[int]:
     """Return derivative widths: every target below the source plus the largest useful width."""
     largest = min(source_width, max(target_widths))
     return sorted({width for width in target_widths if width < largest} | {largest})
+
+
+def placeholder_data_uri(image: Image.Image) -> str | None:
+    """A tiny blurred preview shown while the artwork loads, as an inline data URI.
+
+    Opaque images only: the preview sits behind the image, so it would show
+    through transparent areas.
+    """
+    if "A" in image.getbands() or "transparency" in image.info:
+        return None
+    preview = image.copy()
+    preview.thumbnail((PLACEHOLDER_SIZE, PLACEHOLDER_SIZE), Image.Resampling.LANCZOS)
+    profile = image.info.get("icc_profile")
+    if profile and profile != SRGB_PROFILE_BYTES:
+        # Untagged previews are read as sRGB, so convert wide-gamut colours.
+        preview = ImageCms.profileToProfile(
+            preview.convert("RGB"), ImageCms.ImageCmsProfile(BytesIO(profile)), SRGB_PROFILE, outputMode="RGB",
+        )
+    output = BytesIO()
+    preview.convert("RGB").save(output, "WEBP", quality=PLACEHOLDER_QUALITY, method=6)
+    return "data:image/webp;base64," + base64.b64encode(output.getvalue()).decode("ascii")
 
 
 def create_animation_videos(
@@ -156,9 +181,11 @@ def build_source(source: Path, key: str, output_directory: Path, ffmpeg: str, va
             expected_files.update(
                 (motion_video, motion_mp4, lightbox_video, lightbox_mp4, motion_poster)
             )
+            placeholder = placeholder_data_uri(first_frame)
             variants[key] = {
                 "width": opened.width,
                 "height": opened.height,
+                **({"placeholder": placeholder} if placeholder else {}),
                 "motion": {
                     "src": "/" + motion_video.relative_to(ROOT).as_posix(),
                     "mp4": "/" + motion_mp4.relative_to(ROOT).as_posix(),
@@ -206,12 +233,14 @@ def build_source(source: Path, key: str, output_directory: Path, ffmpeg: str, va
                 }
             )
 
+        placeholder = placeholder_data_uri(image)
         variants[key] = {
             "src": source_variants[0]["src"],
             "width": width,
             "height": height,
             "landscape": width > height,
             "sources": source_variants,
+            **({"placeholder": placeholder} if placeholder else {}),
         }
 
 

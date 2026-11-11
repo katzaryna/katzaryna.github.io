@@ -2,10 +2,18 @@ const gallery = document.querySelector(".project-works");
 
 if (gallery) {
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const viewer = window.artworkViewer;
   const dialog = document.createElement("dialog");
   dialog.className = "lightbox";
   dialog.setAttribute("aria-label", "Enlarged artwork");
   dialog.tabIndex = -1;
+
+  // A click on the image zooms it, so closing needs its own button.
+  const closeButton = document.createElement("button");
+  closeButton.className = "info-dialog-close lightbox-close";
+  closeButton.type = "button";
+  closeButton.setAttribute("aria-label", "Close");
+  closeButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg>';
 
   document.body.append(dialog);
 
@@ -62,21 +70,47 @@ if (gallery) {
   }
   reducedMotion.addEventListener("change", syncPreviewPlayback);
 
-  function openImage(link) {
+  // The gallery element the viewer flies out of and back into.
+  function thumbnailOf(link) {
+    return link?.querySelector(":scope > img, :scope > video");
+  }
+
+  function show(content, thumbnail) {
+    dialog.classList.toggle("is-morphed", viewer.canMorph());
+    viewer.morph(thumbnail, () => {
+      dialog.replaceChildren(closeButton, content);
+      if (!dialog.open) dialog.showModal();
+      dialog.focus();
+      return content;
+    });
+  }
+
+  // animate: false when an animation that failed to play is swapped for its
+  // still image inside the open viewer.
+  function openImage(link, animate = true) {
+    const thumbnail = link.querySelector(":scope > img");
     const image = document.createElement("img");
     if (link.dataset.lightboxSrcset) {
       image.srcset = link.dataset.lightboxSrcset;
       image.sizes = "100vw";
     }
     image.src = link.href;
-    image.alt = link.querySelector("img")?.alt ?? link.getAttribute("aria-label") ?? "";
-    dialog.replaceChildren(image);
-    if (!dialog.open) dialog.showModal();
-    dialog.focus();
+    image.alt = thumbnail?.alt ?? link.getAttribute("aria-label") ?? "";
+    viewer.prepareImage(image, thumbnail);
+    viewer.attachZoom(image);
+    if (animate) {
+      show(image, thumbnail);
+    } else {
+      dialog.replaceChildren(closeButton, image);
+      if (!dialog.open) dialog.showModal();
+      dialog.focus();
+    }
   }
 
   function openVideo(link) {
+    const preview = thumbnailOf(link);
     activeVideo = document.createElement("video");
+    viewer.sizeFrom(activeVideo, preview?.width, preview?.height);
     activeVideo.autoplay = true;
     activeVideo.loop = true;
     activeVideo.muted = true;
@@ -92,20 +126,23 @@ if (gallery) {
     mp4Source.src = link.dataset.lightboxMp4;
     mp4Source.type = "video/mp4";
     activeVideo.append(mp4Source);
-    activeVideo.addEventListener("error", () => openImage(link), { once: true });
-    dialog.replaceChildren(activeVideo);
-    dialog.showModal();
-    dialog.focus();
-    activeVideo.play().catch(error => {
+    activeVideo.addEventListener("error", () => openImage(link, false), { once: true });
+    const video = activeVideo;
+    show(video, preview);
+    video.play().catch(error => {
       if (error.name !== "NotAllowedError" && error.name !== "AbortError") {
         console.error("Could not play animated artwork.", error);
-        openImage(link);
+        openImage(link, false);
       }
     });
   }
 
   function closeLightbox() {
-    if (dialog.open) dialog.close();
+    if (!dialog.open) return;
+    viewer.morph(dialog.querySelector("img, video"), () => {
+      dialog.close();
+      return thumbnailOf(activeLink);
+    });
   }
 
   gallery.addEventListener("click", event => {
@@ -119,8 +156,9 @@ if (gallery) {
     else openImage(link);
   });
 
+  closeButton.addEventListener("click", closeLightbox);
   dialog.addEventListener("click", event => {
-    if (event.target === dialog || event.target.matches("img, video")) closeLightbox();
+    if (event.target === dialog || event.target.matches("video")) closeLightbox();
   });
   document.addEventListener("keydown", event => {
     if (event.key === "Escape" && dialog.open) {

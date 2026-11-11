@@ -72,6 +72,8 @@ jobs:
           JEKYLL_ENV: production
       - name: Remove unreferenced project images
         run: python -m scripts.prune_unused_assets --site-dir _site
+      - name: Embed rights metadata in published images
+        run: python -m scripts.embed_image_metadata --site-dir _site
       - name: Validate generated site
         run: python scripts/validate_site.py --site-dir _site
       - name: Upload artifact

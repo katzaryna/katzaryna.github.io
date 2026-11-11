@@ -64,4 +64,5 @@ build: test
 	$(PYTHON) -m scripts.generate_image_variants
 	$(JEKYLL) build
 	$(PYTHON) -m scripts.prune_unused_assets --site-dir _site
+	$(PYTHON) -m scripts.embed_image_metadata --site-dir _site
 	$(PYTHON) scripts/validate_site.py --site-dir _site

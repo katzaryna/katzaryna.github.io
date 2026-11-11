@@ -2,7 +2,7 @@
 // left and, on the right, the project title, the illustration title and its
 // description (heading, subheading, text). White like About and Clients, with
 // the same close button at the top right; Escape or a click beside the image
-// also closes it.
+// also closes it. A click on the image zooms it (artwork-viewer.js).
 (() => {
   const gallery = document.querySelector("#gallery");
   if (!gallery) return;
@@ -31,16 +31,20 @@
   const description = dialog.querySelector(".cover-viewer-description");
   let activeLink;
 
+  const viewer = window.artworkViewer;
+
   function show(link) {
     activeLink = link;
+    const thumbnail = link.querySelector("img");
     const image = document.createElement("img");
     if (link.dataset.lightboxSrcset) {
       image.srcset = link.dataset.lightboxSrcset;
       image.sizes = "(max-width: 760px) 100vw, 70vw";
     }
     image.src = link.href;
-    image.alt = link.querySelector("img")?.alt ?? "";
-    imagePane.replaceChildren(image);
+    image.alt = thumbnail?.alt ?? "";
+    viewer.prepareImage(image, thumbnail);
+    viewer.attachZoom(image);
 
     projectTitle.textContent = link.dataset.projectTitle ?? "";
     imageTitle.textContent = link.dataset.imageTitle ?? "";
@@ -49,9 +53,23 @@
     description.hidden = !description.textContent;
     rule.hidden = description.hidden;
 
-    dialog.showModal();
-    text.scrollTop = 0;
-    text.focus({ preventScroll: true });
+    // The flying picture replaces the viewer's own fade-in.
+    dialog.classList.toggle("is-morphed", viewer.canMorph());
+    viewer.morph(thumbnail, () => {
+      imagePane.replaceChildren(image);
+      dialog.showModal();
+      text.scrollTop = 0;
+      text.focus({ preventScroll: true });
+      return image;
+    });
+  }
+
+  function hide() {
+    if (!dialog.open) return;
+    viewer.morph(imagePane.querySelector("img"), () => {
+      dialog.close();
+      return activeLink?.querySelector("img");
+    });
   }
 
   gallery.addEventListener("click", event => {
@@ -61,9 +79,14 @@
     show(link);
   });
 
-  dialog.querySelector(".cover-viewer-close").addEventListener("click", () => dialog.close());
+  dialog.querySelector(".cover-viewer-close").addEventListener("click", hide);
   imagePane.addEventListener("click", event => {
-    if (event.target === imagePane) dialog.close();
+    if (event.target === imagePane) hide();
+  });
+  dialog.addEventListener("cancel", event => {
+    if (!event.cancelable) return;
+    event.preventDefault();
+    hide();
   });
   dialog.addEventListener("close", () => activeLink?.focus());
 })();
