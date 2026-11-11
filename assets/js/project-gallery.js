@@ -149,4 +149,6 @@
 
   updateAutomaticRows();
   window.addEventListener("resize", updateAutomaticRows);
+  // Captions change height once their web font arrives.
+  document.fonts?.ready.then(updateAutomaticRows);
 })();

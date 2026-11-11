@@ -1,0 +1,11 @@
+{%- comment -%}
+  An artwork thumbnail: AVIF where the browser supports it, WebP otherwise.
+  Parameters: variant (manifest entry), sizes, alt (already escaped), loading,
+  priority (true for the image most likely to be the largest on screen).
+  The picture element has display: contents, so the image is laid out as before.
+{%- endcomment -%}
+{%- assign picture_first = include.variant.sources | first -%}
+<picture>
+  {%- if picture_first.avif %}<source type="image/avif" srcset="{% for source in include.variant.sources %}{{ source.avif | relative_url }} {{ source.width }}w{% unless forloop.last %}, {% endunless %}{% endfor %}" sizes="{{ include.sizes }}">{% endif -%}
+  <img src="{{ include.variant.src | relative_url }}" srcset="{% for source in include.variant.sources %}{{ source.src | relative_url }} {{ source.width }}w{% unless forloop.last %}, {% endunless %}{% endfor %}" sizes="{{ include.sizes }}" width="{{ include.variant.width }}" height="{{ include.variant.height }}" alt="{{ include.alt }}" loading="{{ include.loading | default: 'lazy' }}"{% if include.priority %} fetchpriority="high"{% endif %}>
+</picture>

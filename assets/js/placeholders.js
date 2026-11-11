@@ -13,8 +13,9 @@
   }
 
   document.querySelectorAll(".has-placeholder").forEach(link => {
-    const image = link.querySelector(":scope > img");
-    if (!image) return; // Animated artwork: the video poster covers the preview.
+    // Animated artwork: the video poster covers the preview.
+    const image = link.querySelector(":scope > video") ? null : link.querySelector("img");
+    if (!image) return;
 
     if (image.complete && image.naturalWidth) {
       dropPreview(link);

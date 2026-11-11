@@ -10,7 +10,7 @@
     {% assign meta_first_image = page.images | first %}
     {% if meta_first_image %}{% assign meta_image_key = page.path | remove: "/index.md" | append: "/" | append: meta_first_image.file %}{% endif %}
     {% include head-meta.html title=page.title description=page.description image_key=meta_image_key image_alt=meta_first_image.alt project=true %}
-    {% include stylesheets.html %}
+    {% include stylesheets.html preload="header_tabs,project_title,project_description" %}
   </head>
   <body>
     {% include site-header.html project=true %}
@@ -40,11 +40,26 @@
         {% assign image_alt = image.alt | default: image.caption | default: page.title | escape %}
         {% assign original_image_url = "/" | append: project_directory | append: "/" | append: image.file | relative_url %}
         {% assign image_count = page.images | size %}
+        {%- comment -%}
+          The width the browser should pick a source for: one column for one or
+          two images; in the fixed grid the image's share of the columns (two
+          columns at most on tablets); otherwise the three masonry columns.
+        {%- endcomment -%}
         {% if image_count < 3 %}
           {% assign image_sizes = "(max-width: 440px) calc(100vw - 40px), (max-width: 612px) calc(100vw - 42px), (max-width: 760px) 570px, (max-width: 1616px) calc(100vw - 46px), 1570px" %}
+        {% elsif project_grid_enabled %}
+          {% assign grid_columns = page.gallery_columns | default: 3 %}
+          {% assign image_span = image.span_columns | default: 1 | at_most: grid_columns %}
+          {% assign grid_share = image_span | times: 1.0 | divided_by: grid_columns %}
+          {% assign tablet_share = image_span | at_most: 2 | times: 50 %}
+          {% assign desktop_share = grid_share | times: 100 | round: 2 %}
+          {% assign widest = grid_share | times: 1570 | ceil %}
+          {% capture image_sizes %}(max-width: 440px) calc(100vw - 40px), (max-width: 760px) calc({{ tablet_share }}vw - 21px), (max-width: 1616px) calc({{ desktop_share }}vw - 23px), {{ widest }}px{% endcapture %}
         {% else %}
           {% assign image_sizes = "(max-width: 440px) calc(100vw - 40px), (max-width: 612px) calc((100vw - 54px) / 2), (max-width: 760px) 279px, (max-width: 1616px) calc((100vw - 78px) / 3), 513px" %}
         {% endif %}
+        {%- comment -%} The first row is on screen at once: no lazy loading there. {%- endcomment -%}
+        {% if forloop.index <= 3 %}{% assign image_loading = "eager" %}{% else %}{% assign image_loading = "lazy" %}{% endif %}
         <figure
           {% if image.span_columns or image.span.rows or image.gap.horizontal or image.gap.vertical %}style="{% if image.span_columns %}--image-columns: {{ image.span_columns }};{% endif %}{% if image.span.rows %} --image-rows: {{ image.span.rows }};{% endif %}{% if image.gap.horizontal %} --image-gap-x: {{ image.gap.horizontal | escape }};{% endif %}{% if image.gap.vertical %} --image-gap-y: {{ image.gap.vertical | escape }};{% endif %}"{% endif %}
           data-image-columns="{{ image.span_columns | default: 1 }}"{% if image.span.rows %} data-image-rows="{{ image.span.rows }}"{% endif %}{% if image.row %} data-image-row="{{ image.row | escape }}"{% endif %}
@@ -62,25 +77,26 @@
           </a>
           {% elsif responsive_image %}
           <a class="lightbox-link{% if responsive_image.placeholder %} has-placeholder{% endif %}" href="{{ original_image_url }}" data-lightbox-srcset="{% include lightbox-srcset.html variant=responsive_image original=original_image_url %}"{% if responsive_image.placeholder %} style="background-image: url({{ responsive_image.placeholder }})"{% endif %}>
-            <img src="{{ responsive_image.src | relative_url }}" srcset="{% for source in responsive_image.sources %}{{ source.src | relative_url }} {{ source.width }}w{% unless forloop.last %}, {% endunless %}{% endfor %}" sizes="{{ image_sizes }}" width="{{ responsive_image.width }}" height="{{ responsive_image.height }}" alt="{{ image_alt }}" loading="{% if forloop.first %}eager{% else %}lazy{% endif %}"{% if forloop.first %} fetchpriority="high"{% endif %}>
+            {% include artwork-picture.html variant=responsive_image sizes=image_sizes alt=image_alt loading=image_loading priority=forloop.first %}
           </a>
           {% else %}
           <a class="lightbox-link" href="{{ original_image_url }}">
-            <img src="{{ original_image_url }}" alt="{{ image_alt }}" loading="{% if forloop.first %}eager{% else %}lazy{% endif %}"{% if forloop.first %} fetchpriority="high"{% endif %}>
+            <img src="{{ original_image_url }}" alt="{{ image_alt }}" loading="{{ image_loading }}"{% if forloop.first %} fetchpriority="high"{% endif %}>
           </a>
           {% endif %}
           {% if image.caption %}<figcaption>{{ image.caption | escape }}</figcaption>{% endif %}
         </figure>
         {% endfor %}
       </section>
+      {%- comment -%} Right after the gallery, so grid rows are sized before the first paint. {%- endcomment %}
+      {% if project_grid_enabled %}<script src="{{ '/assets/js/project-gallery.js' | relative_url }}"></script>{% endif %}
     </main>
     {% include site-footer.html %}
     {% include consent.html %}
-    <script src="{{ '/assets/js/analytics.js' | relative_url }}" data-measurement-id="{{ site.analytics.measurement_id | escape }}"></script>
-    <script src="{{ '/assets/js/bio.js' | relative_url }}"></script>
-    {% if project_grid_enabled %}<script src="{{ '/assets/js/project-gallery.js' | relative_url }}"></script>{% endif %}
-    <script src="{{ '/assets/js/placeholders.js' | relative_url }}"></script>
-    <script src="{{ '/assets/js/artwork-viewer.js' | relative_url }}"></script>
-    <script src="{{ '/assets/js/lightbox.js' | relative_url }}"></script>
+    <script src="{{ '/assets/js/analytics.js' | relative_url }}" defer data-measurement-id="{{ site.analytics.measurement_id | escape }}"></script>
+    <script src="{{ '/assets/js/bio.js' | relative_url }}" defer></script>
+    <script src="{{ '/assets/js/placeholders.js' | relative_url }}" defer></script>
+    <script src="{{ '/assets/js/artwork-viewer.js' | relative_url }}" defer></script>
+    <script src="{{ '/assets/js/lightbox.js' | relative_url }}" defer></script>
   </body>
 </html>

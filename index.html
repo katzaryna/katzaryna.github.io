@@ -36,9 +36,10 @@
             {% assign cover_loading = "lazy" %}
             {% assign cover_fetchpriority = "" %}
             {% if forloop.first %}
-              {% assign cover_loading = "eager" %}
               {% assign cover_fetchpriority = " fetchpriority='high'" %}
             {% endif %}
+            {%- comment -%} Covers in the top band are on the first screen of a wide window: no lazy loading. {%- endcomment -%}
+            {% if forloop.first or home_cover.y < 3 %}{% assign cover_loading = "eager" %}{% endif %}
             {% assign cover_left = home_cover.x | times: 100.0 | divided_by: 12 %}
             {% assign cover_top = home_cover.y | times: 100.0 | divided_by: home_layout_rows %}
             {% assign cover_width_percent = home_cover.width | times: 100.0 | divided_by: 12 %}
@@ -47,7 +48,7 @@
             {% assign responsive_cover = site.data.generated_image_variants[cover_key] %}
             {% assign original_cover_url = "/" | append: cover_key | relative_url %}
             {% assign cover_alt = cover.alt | default: project.title %}
-            {% assign cover_sizes = "(max-width: 760px) 100vw, " | append: cover_width_percent | append: "vw" %}
+            {% assign cover_sizes = "(max-width: 440px) calc(100vw - 40px), (max-width: 760px) calc(100vw - 42px), " | append: cover_width_percent | append: "vw" %}
           <figure class="home-cover{% if home_cover.crop %} is-cropped{% endif %}" style="--home-cover-left: {{ cover_left }}%; --home-cover-top: {{ cover_top }}%; --home-cover-width: {{ cover_width_percent }}%; --home-cover-height: {{ cover_height_percent }}%">
             <a
               class="gallery-link{% if site.home_gallery.single_page %} home-lightbox-link{% endif %}{% if responsive_cover.placeholder %} has-placeholder{% endif %}"
@@ -57,7 +58,8 @@
               {% if site.home_gallery.single_page %}data-project-title="{{ project.title | escape }}" data-image-title="{{ cover.caption | escape }}" data-image-description="{{ cover.description | escape }}" aria-label="Enlarge {{ project.title | escape }} cover"{% else %}aria-label="View {{ project.title | escape }} project"{% endif %}
             >
               {% if responsive_cover %}
-              <img src="{{ responsive_cover.src | relative_url }}" srcset="{% for source in responsive_cover.sources %}{{ source.src | relative_url }} {{ source.width }}w{% unless forloop.last %}, {% endunless %}{% endfor %}" sizes="{{ cover_sizes }}" width="{{ responsive_cover.width }}" height="{{ responsive_cover.height }}" alt="{{ cover_alt | escape }}" loading="{{ cover_loading }}"{{ cover_fetchpriority }}>
+              {% assign cover_alt_escaped = cover_alt | escape %}
+              {% include artwork-picture.html variant=responsive_cover sizes=cover_sizes alt=cover_alt_escaped loading=cover_loading priority=forloop.first %}
               {% else %}
               <img src="{{ original_cover_url }}" alt="{{ cover_alt | escape }}" loading="{{ cover_loading }}"{{ cover_fetchpriority }}>
               {% endif %}
@@ -73,12 +75,12 @@
 
     {% include consent.html %}
     {% if site.home_gallery.compact %}<script src="{{ '/assets/js/gallery-intro.js' | relative_url }}"></script>{% endif %}
-    <script src="{{ '/assets/js/placeholders.js' | relative_url }}"></script>
+    <script src="{{ '/assets/js/placeholders.js' | relative_url }}" defer></script>
     {% if site.home_gallery.single_page %}
-      <script src="{{ '/assets/js/artwork-viewer.js' | relative_url }}"></script>
-      <script src="{{ '/assets/js/home-lightbox.js' | relative_url }}"></script>
+      <script src="{{ '/assets/js/artwork-viewer.js' | relative_url }}" defer></script>
+      <script src="{{ '/assets/js/home-lightbox.js' | relative_url }}" defer></script>
     {% endif %}
-    <script src="{{ '/assets/js/analytics.js' | relative_url }}" data-measurement-id="{{ site.analytics.measurement_id | escape }}"></script>
-    <script src="{{ '/assets/js/bio.js' | relative_url }}"></script>
+    <script src="{{ '/assets/js/analytics.js' | relative_url }}" defer data-measurement-id="{{ site.analytics.measurement_id | escape }}"></script>
+    <script src="{{ '/assets/js/bio.js' | relative_url }}" defer></script>
   </body>
 </html>
