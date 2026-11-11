@@ -11,6 +11,7 @@ from PIL import Image, ImageChops, ImageCms, ImageDraw, ImageOps
 import yaml
 import imageio_ffmpeg
 
+from scripts.embed_image_metadata import site_metadata, xmp_packet
 from scripts.image_utils import SRGB_PROFILE, SRGB_PROFILE_BYTES, color_manage_image
 from scripts.project_files import unreferenced_images
 
@@ -25,6 +26,7 @@ CACHE = OUTPUT / ".build-cache.json"
 CONFIG = tomli.loads((ROOT / "config" / "image_optimization.toml").read_text())
 TARGET_WIDTHS = tuple(CONFIG["target_widths"])
 WEBP_QUALITY = int(CONFIG["webp_quality"])
+AVIF_QUALITY = int(CONFIG["avif_quality"])
 PREVIEW_MAX_WIDTH = int(CONFIG["preview_max_width"])
 PREVIEW_WEBM_CRF = int(CONFIG["preview_webm_crf"])
 PREVIEW_MP4_CRF = int(CONFIG["preview_mp4_crf"])
@@ -82,10 +84,15 @@ def round_icon(portrait: Image.Image, size: int, background: str | None = None) 
     return image
 
 
-def create_site_icons() -> dict:
-    """Round favicons from the header portrait (artist.portrait), with a version for cache busting."""
+PORTRAIT_SIZE = 192  # Twice the largest header portrait, for sharp Retina screens.
+
+
+def create_site_images() -> dict:
+    """Images made from the header settings, listed in _data/generated_site_images.json:
+    round favicons and a light WebP of the portrait (artist.portrait), with a version
+    for cache busting, and the wordmark image's size so the header does not shift."""
     icons_directory = OUTPUT / "icons"
-    icon_manifest = MANIFEST.with_name("generated_icons.json")
+    icon_manifest = MANIFEST.with_name("generated_site_images.json")
     site_config = ROOT / "_config.yml"
     config = yaml.safe_load(site_config.read_text(encoding="utf-8")) if site_config.is_file() else None
     portrait_path = ((config or {}).get("artist") or {}).get("portrait") or ""
@@ -102,6 +109,17 @@ def create_site_icons() -> dict:
         output = icons_directory / f"{name.replace('_', '-')}.png"
         round_icon(portrait, size, background).save(output, "PNG", optimize=True)
         icons[name] = "/" + output.relative_to(ROOT).as_posix() + f"?v={version}"
+
+    header_portrait = ImageOps.fit(portrait.convert("RGBA"), (PORTRAIT_SIZE, PORTRAIT_SIZE), Image.Resampling.LANCZOS)
+    portrait_output = icons_directory / "portrait.webp"
+    header_portrait.save(portrait_output, "WEBP", quality=WEBP_QUALITY, method=6)
+    icons["portrait"] = "/" + portrait_output.relative_to(ROOT).as_posix() + f"?v={version}"
+
+    wordmark_path = ((config or {}).get("artist") or {}).get("wordmark_image") or ""
+    wordmark = (ROOT / wordmark_path.lstrip("/")).resolve()
+    if wordmark_path and wordmark.is_relative_to(ROOT.resolve()) and wordmark.is_file():
+        with Image.open(wordmark) as opened:
+            icons["wordmark_width"], icons["wordmark_height"] = ImageOps.exif_transpose(opened).size
     icon_manifest.write_text(json.dumps(icons, indent=2) + "\n")
     return icons
 
@@ -160,11 +178,21 @@ def create_animation_videos(
     return webm_output, mp4_output
 
 
+def rights_xmp() -> bytes | None:
+    """The artist's rights metadata, written straight into AVIF files
+    (embed_image_metadata.py adds it to JPEG, PNG and WebP after the build)."""
+    try:
+        return xmp_packet(*site_metadata(ROOT / "_config.yml"))
+    except (OSError, ValueError):
+        return None
+
+
 def settings_fingerprint() -> str:
-    """Anything that changes the output: settings and the code that renders it."""
+    """Anything that changes the output: settings, the code that renders it and the rights metadata."""
     digest = hashlib.sha256()
     for path in (ROOT / "config" / "image_optimization.toml", Path(__file__), Path(__file__).with_name("image_utils.py")):
         digest.update(path.read_bytes())
+    digest.update(rights_xmp() or b"")
     return digest.hexdigest()
 
 
@@ -182,7 +210,8 @@ def read_cache() -> dict:
     return cache if isinstance(cache, dict) else {}
 
 
-def build_source(source: Path, key: str, output_directory: Path, ffmpeg: str, variants: dict, expected_files: set) -> None:
+def build_source(source: Path, key: str, output_directory: Path, ffmpeg: str, variants: dict, expected_files: set,
+                 xmp: bytes | None = None) -> None:
     with Image.open(source) as opened:
         if getattr(opened, "n_frames", 1) > 1:
             motion_video = output_directory / "animation.webm"
@@ -271,10 +300,22 @@ def build_source(source: Path, key: str, output_directory: Path, ffmpeg: str, va
                 method=6,
                 icc_profile=image.info["icc_profile"],
             )
-            expected_files.add(output)
+            # AVIF: about a third of the WebP size at the same visual quality;
+            # browsers without it get the WebP.
+            avif_output = output.with_suffix(".avif")
+            resized.save(
+                avif_output,
+                "AVIF",
+                quality=AVIF_QUALITY,
+                speed=6,
+                icc_profile=image.info["icc_profile"],
+                **({"xmp": xmp} if xmp else {}),
+            )
+            expected_files.update((output, avif_output))
             source_variants.append(
                 {
                     "src": "/" + output.relative_to(ROOT).as_posix(),
+                    "avif": "/" + avif_output.relative_to(ROOT).as_posix(),
                     "width": target_width,
                 }
             )
@@ -294,6 +335,7 @@ def create_variants() -> None:
     expected_files = set()
     ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
     settings = settings_fingerprint()
+    xmp = rights_xmp()
     cache = read_cache()
     new_cache = {}
     reused = built = 0
@@ -321,7 +363,7 @@ def create_variants() -> None:
             reused += 1
             continue
         before = set(expected_files)
-        build_source(source, key, output_directory, ffmpeg, variants, expected_files)
+        build_source(source, key, output_directory, ffmpeg, variants, expected_files, xmp)
         new_cache[key] = {
             "digest": digest,
             "entry": variants.get(key),
@@ -330,7 +372,7 @@ def create_variants() -> None:
         built += 1
 
     for stale_file in OUTPUT.rglob("*") if OUTPUT.exists() else ():
-        if not stale_file.is_file() or stale_file.suffix not in {".webp", ".webm", ".mp4"}:
+        if not stale_file.is_file() or stale_file.suffix not in {".webp", ".avif", ".webm", ".mp4"}:
             continue
         if stale_file not in expected_files:
             stale_file.unlink()
@@ -342,7 +384,7 @@ def create_variants() -> None:
 
     MANIFEST.parent.mkdir(parents=True, exist_ok=True)
     MANIFEST.write_text(json.dumps(variants, ensure_ascii=False, indent=2) + "\n")
-    create_site_icons()
+    create_site_images()
     CACHE.write_text(json.dumps(new_cache, indent=1) + "\n")
     print(f"Responsive variants for {len(variants)} project images: {built} built, {reused} unchanged.")
 

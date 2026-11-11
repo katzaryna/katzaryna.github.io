@@ -1,16 +1,23 @@
 ---
-# Sitemap for search engines: the home page and every project page.
+# Sitemap for search engines: the home page and every project page, with the
+# project's artworks (full-size originals) for image search.
 layout: null
 ---
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>{{ "/" | absolute_url | xml_escape }}</loc>
   </url>
   {%- assign project_pages = site.pages | where: "layout", "project" | sort: "path" %}
   {%- for project in project_pages %}
+  {%- assign project_directory = project.path | remove: "/index.md" %}
   <url>
     <loc>{{ project.url | absolute_url | xml_escape }}</loc>
+    {%- for image in project.images %}
+    <image:image>
+      <image:loc>{{ "/" | append: project_directory | append: "/" | append: image.file | absolute_url | xml_escape }}</image:loc>
+    </image:image>
+    {%- endfor %}
   </url>
   {%- endfor %}
 </urlset>

@@ -297,12 +297,17 @@ python -m scripts.fonts check
 ## Images and animation
 
 Use original JPEG, PNG, or WebP files for static images. The build makes
-responsive WebP derivatives at widths in `config/image_optimization.toml`
-(currently 480, 960, and 1440 pixels). Each target narrower than the source is
-generated, plus one derivative at the source's own width when it falls between
-targets, so a 854-pixel source gets 480- and 854-pixel versions. Templates use the generated responsive
-sources where present and fall back to the original file. Original artwork is
-also used by the full-screen viewer.
+responsive derivatives at widths in `config/image_optimization.toml`
+(currently 480, 720, 1080, and 1440 pixels), each as AVIF (quality 60, with
+the rights metadata embedded) and WebP (quality 85) for browsers without AVIF;
+`_includes/artwork-picture.html` offers both in a `<picture>`. Each target
+narrower than the source is generated, plus one derivative at the source's own
+width when it falls between targets, so an 854-pixel source gets 480-, 720-
+and 854-pixel versions. Templates use the generated responsive sources where
+present and fall back to the original file. Original artwork is also used by
+the full-screen viewer. Grid project pages tell the browser each image's share
+of the columns (`sizes`), and the first three images of a project and the top
+band of home covers load without lazy loading.
 
 Animated GIFs are converted to WebM and H.264/MP4 previews, plus a WebP poster.
 Lightweight animation previews play in the gallery; the full-screen viewer

@@ -76,6 +76,9 @@ def test_generator_reuses_unchanged_outputs(tmp_path, monkeypatch, capsys) -> No
 
     entry = json.loads((root / "_data" / "variants.json").read_text())["projects/demo/art.png"]
     assert decode_placeholder(entry["placeholder"]).size == (16, 11)
+    assert entry["sources"][0]["avif"] == "/assets/optimized/demo/art/480.avif"
+    with Image.open(root / "assets" / "optimized" / "demo" / "art" / "480.avif") as avif:
+        assert (avif.format, avif.size) == ("AVIF", (480, 320))
 
     generator.create_variants()
     assert "0 built, 1 unchanged" in capsys.readouterr().out
@@ -85,22 +88,25 @@ def test_generator_reuses_unchanged_outputs(tmp_path, monkeypatch, capsys) -> No
     assert "1 built, 0 unchanged" in capsys.readouterr().out
 
 
-def test_site_icons_are_round_and_versioned(tmp_path, monkeypatch) -> None:
+def test_site_images_are_round_versioned_and_sized(tmp_path, monkeypatch) -> None:
     import json
 
     from scripts import generate_image_variants as generator
 
     (tmp_path / "assets" / "images").mkdir(parents=True)
     Image.new("RGB", (300, 200), (30, 90, 200)).save(tmp_path / "assets" / "images" / "me.png")
-    (tmp_path / "_config.yml").write_text("artist:\n  portrait: /assets/images/me.png\n", encoding="utf-8")
+    Image.new("RGBA", (400, 80), (0, 0, 0, 0)).save(tmp_path / "assets" / "images" / "name.png")
+    (tmp_path / "_config.yml").write_text(
+        "artist:\n  portrait: /assets/images/me.png\n  wordmark_image: /assets/images/name.png\n", encoding="utf-8",
+    )
     monkeypatch.setattr(generator, "ROOT", tmp_path)
     monkeypatch.setattr(generator, "OUTPUT", tmp_path / "assets" / "optimized")
     monkeypatch.setattr(generator, "MANIFEST", tmp_path / "_data" / "variants.json")
     (tmp_path / "_data").mkdir()
 
-    icons = generator.create_site_icons()
+    icons = generator.create_site_images()
 
-    assert json.loads((tmp_path / "_data" / "generated_icons.json").read_text()) == icons
+    assert json.loads((tmp_path / "_data" / "generated_site_images.json").read_text()) == icons
     for name, size in (("icon_32", 32), ("icon_192", 192), ("apple_touch", 180)):
         path, version = icons[name].split("?v=")
         assert version
@@ -113,7 +119,28 @@ def test_site_icons_are_round_and_versioned(tmp_path, monkeypatch) -> None:
                 assert corner == (255, 255, 255, 255)
             else:
                 assert corner[3] == 0
+    with Image.open(tmp_path / icons["portrait"].split("?")[0].lstrip("/")) as portrait:
+        assert (portrait.format, portrait.size) == ("WEBP", (192, 192))
+    assert (icons["wordmark_width"], icons["wordmark_height"]) == (400, 80)
 
     (tmp_path / "_config.yml").write_text("artist: {}\n", encoding="utf-8")
-    assert generator.create_site_icons() == {}
-    assert not (tmp_path / "_data" / "generated_icons.json").exists()
+    assert generator.create_site_images() == {}
+    assert not (tmp_path / "_data" / "generated_site_images.json").exists()
+
+
+def test_avif_variants_carry_the_rights_metadata(tmp_path, monkeypatch) -> None:
+    from scripts import generate_image_variants as generator
+
+    (tmp_path / "_config.yml").write_text(
+        "url: https://example.org\nartist:\n  full_name: Ann Artist\n", encoding="utf-8",
+    )
+    monkeypatch.setattr(generator, "ROOT", tmp_path)
+    source = tmp_path / "art.png"
+    Image.new("RGB", (600, 400), "red").save(source)
+    variants, files = {}, set()
+
+    generator.build_source(source, "art.png", tmp_path / "out", "", variants, files, generator.rights_xmp())
+
+    with Image.open(tmp_path / "out" / "480.avif") as avif:
+        xmp = avif.info.get("xmp") or b""
+    assert b"Ann Artist" in xmp and b"DMI-PROHIBITED-EXCEPTSEARCHENGINEINDEXING" in xmp

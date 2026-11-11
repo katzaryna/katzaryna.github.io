@@ -72,7 +72,8 @@ if (gallery) {
 
   // The gallery element the viewer flies out of and back into.
   function thumbnailOf(link) {
-    return link?.querySelector(":scope > img, :scope > video");
+    // An animation's <video> holds a fallback <img>, so look for the video first.
+    return link?.querySelector(":scope > video") ?? link?.querySelector("img");
   }
 
   function show(content, thumbnail) {
@@ -88,7 +89,7 @@ if (gallery) {
   // animate: false when an animation that failed to play is swapped for its
   // still image inside the open viewer.
   function openImage(link, animate = true) {
-    const thumbnail = link.querySelector(":scope > img");
+    const thumbnail = link.querySelector("img");
     const image = document.createElement("img");
     if (link.dataset.lightboxSrcset) {
       image.srcset = link.dataset.lightboxSrcset;

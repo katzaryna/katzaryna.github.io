@@ -1,5 +1,6 @@
-target_widths = [480, 960, 1440]
-webp_quality = 95
+target_widths = [480, 720, 1080, 1440]
+webp_quality = 85
+avif_quality = 60
 upload_max_dimension = 2560
 upload_webp_quality = 95
 preview_max_width = 1440

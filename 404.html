@@ -1,0 +1,55 @@
+---
+permalink: /404.html
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    {% include security-meta.html %}
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex">
+    <meta name="theme-color" content="#ffffff">
+    <title>Page not found — {{ site.artist.full_name | default: site.artist.name | escape }}</title>
+    {% assign site_icons = site.data.generated_site_images %}
+    {% if site_icons %}
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ site_icons.icon_32 | relative_url }}">
+    <link rel="apple-touch-icon" href="{{ site_icons.apple_touch | relative_url }}">
+    {% else %}
+    <link rel="icon" type="image/png" href="{{ site.artist.portrait | relative_url }}">
+    {% endif %}
+    {% include stylesheets.html %}
+  </head>
+  <body>
+    {% include site-header.html project=true %}
+    {% include social-links.html %}
+    <main class="page not-found">
+      <h1 class="project-title">This page could not be found</h1>
+      <p class="project-description">The link may be old or mistyped. All the work is on the <a href="{{ '/' | relative_url }}">home page</a> — here are a few pieces to start with.</p>
+      {% assign shown_covers = site.home_gallery.covers | where_exp: "cover", "cover.parked != true" %}
+      <ul class="not-found-works">
+        {% for home_cover in shown_covers limit: 4 %}
+          {% assign project_path = "projects/" | append: home_cover.project | append: "/index.md" %}
+          {% assign project = site.pages | where: "path", project_path | first %}
+          {% assign cover = project.images | where: "file", home_cover.file | first %}
+          {% assign cover_key = "projects/" | append: home_cover.project | append: "/" | append: home_cover.file %}
+          {% assign cover_variant = site.data.generated_image_variants[cover_key] %}
+          {% if project and cover %}
+          <li>
+            <a href="{{ project.url | relative_url }}">
+              {% assign cover_alt = cover.alt | default: project.title | escape %}
+              {% if cover_variant.sources %}
+                {% include artwork-picture.html variant=cover_variant sizes="(max-width: 760px) 50vw, 25vw" alt=cover_alt %}
+              {% else %}
+                <img src="{{ '/' | append: cover_key | relative_url }}" alt="{{ cover_alt }}" loading="lazy">
+              {% endif %}
+              <span>{{ project.title | escape }}</span>
+            </a>
+          </li>
+          {% endif %}
+        {% endfor %}
+      </ul>
+    </main>
+    {% include site-footer.html %}
+    <script src="{{ '/assets/js/bio.js' | relative_url }}" defer></script>
+  </body>
+</html>

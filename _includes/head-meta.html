@@ -4,10 +4,14 @@
   project (true on project pages, for the structured data).
 {% endcomment %}
 {% assign meta_variant = site.data.generated_image_variants[include.image_key] %}
+{% assign meta_width = nil %}
 {% if meta_variant.motion.poster %}
   {% assign meta_image = meta_variant.motion.poster %}
+  {% assign meta_width = meta_variant.width | at_most: 960 %}
 {% elsif meta_variant.sources %}
-  {% assign meta_image = meta_variant.sources | last | map: "src" | first %}
+  {% assign meta_source = meta_variant.sources | last %}
+  {% assign meta_image = meta_source.src %}
+  {% assign meta_width = meta_source.width %}
 {% elsif include.image_key %}
   {% assign meta_image = "/" | append: include.image_key %}
 {% else %}
@@ -41,6 +45,8 @@
 <meta property="og:description" content="{{ include.description | escape }}">
 <meta property="og:url" content="{{ page.url | absolute_url }}">
 <meta property="og:image" content="{{ meta_image | absolute_url }}">
+{% if meta_width %}{% assign meta_height = meta_width | times: meta_variant.height | divided_by: meta_variant.width %}<meta property="og:image:width" content="{{ meta_width }}">
+<meta property="og:image:height" content="{{ meta_height }}">{% endif %}
 {% if include.image_alt %}<meta property="og:image:alt" content="{{ include.image_alt | escape }}">{% endif %}
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{{ include.title | escape }}">

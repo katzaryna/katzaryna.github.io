@@ -3,22 +3,33 @@
   the builder (clients_tab: false).
 {%- endcomment -%}
 {%- assign show_clients = false -%}
-{%- if site.clients and site.clients.size > 0 and site.clients_tab != false -%}{%- assign show_clients = true -%}{%- endif %}
+{%- if site.clients and site.clients.size > 0 and site.clients_tab != false -%}{%- assign show_clients = true -%}{%- endif -%}
+{%- comment -%}
+  Light header images made by the image generator (a WebP portrait, the
+  wordmark's size); the original files until they exist. On the home page the
+  wordmark is the page heading, with the full name and profession for screen
+  readers and search engines; project pages have their own heading.
+{%- endcomment -%}
+{%- assign header_images = site.data.generated_site_images -%}
+{%- assign header_portrait = header_images.portrait | default: site.artist.portrait -%}
+{%- assign full_name = site.artist.full_name | default: site.artist.name %}
 <header class="site-header page{% if include.project %} project-header{% endif %}">
   <nav class="header-tabs" aria-label="About the artist">
     <button class="header-tab" type="button" aria-haspopup="dialog" aria-controls="about-dialog" data-open-dialog="about-dialog">About</button>
     {% if show_clients %}<button class="header-tab" type="button" aria-haspopup="dialog" aria-controls="clients-dialog" data-open-dialog="clients-dialog">Clients</button>{% endif %}
   </nav>
   <div class="header-brand">
+    {% unless include.project %}<h1 class="wordmark-heading">{% endunless %}
     <a class="wordmark{% if site.artist.wordmark_image %} has-image{% endif %}" href="{{ '/' | relative_url }}">
       {%- if site.artist.wordmark_image -%}
-        <img class="wordmark-image" src="{{ site.artist.wordmark_image | relative_url }}" alt="{{ site.artist.name | escape }}">
+        <img class="wordmark-image" src="{{ site.artist.wordmark_image | relative_url }}" alt="{{ site.artist.name | escape }}"{% if header_images.wordmark_width %} width="{{ header_images.wordmark_width }}" height="{{ header_images.wordmark_height }}"{% endif %}>
       {%- else -%}
         {{ site.artist.name | escape }}
       {%- endif -%}
     </a>
+    {% unless include.project %}<span class="visually-hidden"> — {{ full_name | escape }}{% if site.artist.description %}, {{ site.artist.description | escape }}{% endif %}</span></h1>{% endunless %}
     <a class="portrait-link" href="{{ '/' | relative_url }}" aria-label="Go to home page">
-      <img class="portrait" src="{{ site.artist.portrait | relative_url }}" alt="{{ site.artist.portrait_alt | escape }}">
+      <img class="portrait" src="{{ header_portrait | relative_url }}" alt="{{ site.artist.portrait_alt | escape }}" width="192" height="192">
     </a>
     {% if site.artist.description %}<p class="artist-description">{{ site.artist.description | escape }}</p>{% endif %}
   </div>

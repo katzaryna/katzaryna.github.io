@@ -1,15 +1,28 @@
 {%- comment -%}
   Site styles, then fonts and builder text styles, which must come after to win.
-  The wordmark's font is preloaded while the wordmark is text, not an image.
+  Fonts of the text seen on arrival are preloaded, so it is not drawn in a
+  fallback font first and then shifts: the header tabs (and the wordmark while
+  it is text) everywhere, plus the places named in `preload` (text place ids),
+  such as a project's title and text. Only what the page shows, to keep the
+  first image from waiting.
 {%- endcomment -%}
-{%- unless site.artist.wordmark_image -%}
-  {%- assign wordmark_place = site.data.text_places | where: "id", "header_wordmark" | first -%}
-  {%- assign wordmark_family = site.text_styles.header_wordmark.font | default: wordmark_place.font -%}
-  {%- assign wordmark_font = site.data.fonts | where: "family", wordmark_family | first -%}
-  {%- assign wordmark_face = wordmark_font.faces | where_exp: "face", "face.file contains '-latin.'" | first -%}
-  {%- if wordmark_face %}
-    <link rel="preload" href="{{ '/assets/fonts/' | append: wordmark_font.slug | append: '/' | append: wordmark_face.file | relative_url }}" as="font" type="font/woff2" crossorigin>
+{%- assign preload_places = include.preload | default: "header_tabs" | split: "," -%}
+{%- unless site.artist.wordmark_image -%}{%- assign preload_places = preload_places | push: "header_wordmark" -%}{%- endunless -%}
+{%- assign preload_families = "" | split: "" -%}
+{%- for place_id in preload_places -%}
+  {%- assign place = site.data.text_places | where: "id", place_id | first -%}
+  {%- if place -%}
+    {%- assign family = site.text_styles[place_id].font | default: place.font -%}
+    {%- assign preload_families = preload_families | push: family -%}
   {%- endif -%}
-{%- endunless %}
+{%- endfor -%}
+{%- assign preload_families = preload_families | uniq -%}
+{%- for family in preload_families -%}
+  {%- assign preload_font = site.data.fonts | where: "family", family | first -%}
+  {%- assign preload_face = preload_font.faces | where_exp: "face", "face.file contains '-latin.'" | first -%}
+  {%- if preload_face %}
+    <link rel="preload" href="{{ '/assets/fonts/' | append: preload_font.slug | append: '/' | append: preload_face.file | relative_url }}" as="font" type="font/woff2" crossorigin>
+  {%- endif -%}
+{%- endfor %}
     <link rel="stylesheet" href="{{ '/assets/css/styles.css' | relative_url }}">
     <link rel="stylesheet" href="{{ '/assets/theme.css' | relative_url }}">

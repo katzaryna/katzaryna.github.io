@@ -36,7 +36,7 @@ lint-css:
 	$(NPM) exec -- stylelint "assets/css/**/*.css" site-builder/styles.css
 
 lint-html:
-	$(PYTHON) -m djlint index.html _includes _layouts site-builder/index.html --lint
+	$(PYTHON) -m djlint index.html 404.html _includes _layouts site-builder/index.html --lint
 
 lint-yaml:
 	$(PYTHON) -m yamllint .github _config.yml
