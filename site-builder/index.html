@@ -17,10 +17,9 @@
       <nav class="tabs" aria-label="Разделы">
         <a class="tab" href="#home" data-view="home">Главная</a>
         <a class="tab" href="#projects" data-view="projects">Проекты</a>
-        <a class="tab" href="#clients" data-view="clients">Клиенты</a>
         <a class="tab" href="#settings" data-view="settings">Об авторе</a>
         <a class="tab" href="#text" data-view="text">Оформление</a>
-        <a class="tab" href="#advanced" data-view="advanced">Дополнительно</a>
+        <a class="tab" href="#advanced" data-view="advanced">Поиск и статистика</a>
         <a class="tab" href="#health" data-view="health">Состояние <span id="health-badge" class="tab-badge" title="Есть что поправить" hidden></span></a>
         <a class="tab" href="#publish" data-view="publish">Публикация</a>
       </nav>
@@ -74,6 +73,7 @@
             <button id="new-project" class="button button-primary button-small" type="button">+ Новый</button>
           </div>
           <div id="project-list" class="project-list" role="list"></div>
+          <div id="project-trash" class="project-trash"></div>
         </aside>
         <section id="project-editor" class="project-editor"></section>
         <aside id="image-inspector" class="panel image-inspector" aria-label="Параметры изображения"></aside>
@@ -81,19 +81,15 @@
 
       <section id="settings-view" class="view settings-view" aria-labelledby="settings-heading" hidden>
         <h1 id="settings-heading">Об авторе</h1>
+        <p class="view-intro">То, что открывается в шапке сайта во вкладках About и Clients, и контакты.</p>
         <form id="settings-form" class="settings-form" novalidate></form>
+        <div id="clients-content"></div>
       </section>
 
       <section id="advanced-view" class="view settings-view" aria-labelledby="advanced-heading" hidden>
-        <h1 id="advanced-heading">Дополнительно</h1>
-        <p class="view-intro">Технические настройки сайта. Обычно их не нужно менять.</p>
+        <h1 id="advanced-heading">Поиск и статистика</h1>
+        <p class="view-intro">Как сайт выглядит в поиске и в превью ссылок, и подключение Google Analytics и Search Console. Тексты для поиска у каждого проекта — в «Проектах».</p>
         <form id="advanced-form" class="settings-form" novalidate></form>
-      </section>
-
-      <section id="clients-view" class="view settings-view" aria-labelledby="clients-heading" hidden>
-        <h1 id="clients-heading">Клиенты</h1>
-        <p class="view-intro">Логотипы клиентов для вкладки «Clients» в шапке сайта. Пока список пуст, вкладки на сайте нет.</p>
-        <div id="clients-content"></div>
       </section>
 
       <section id="text-view" class="view settings-view text-view" aria-labelledby="text-heading" hidden>

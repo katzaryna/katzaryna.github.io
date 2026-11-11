@@ -329,7 +329,7 @@ def summarize(before_config: dict, after_config: dict, projects: dict[str, dict]
     add("Оформление", header_changes(before_config, after_config)
         + color_changes(before_config, after_config, colors)
         + text_style_changes(before_config, after_config, places))
-    add("Дополнительно", field_changes(before_config, after_config, ADVANCED_FIELDS))
+    add("Поиск и статистика", field_changes(before_config, after_config, ADVANCED_FIELDS))
     if other_files and not groups:
         add("Технические файлы", [plural(other_files, "файл", "файла", "файлов")])
     return groups

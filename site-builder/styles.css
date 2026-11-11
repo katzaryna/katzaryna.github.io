@@ -111,6 +111,9 @@ main { padding: 20px; }
 .panel { min-width: 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
 .card { padding: 22px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
 .card + .card { margin-top: 16px; }
+
+/* Clients follow the «Об авторе» form's cards. */
+#settings-form + #clients-content > .card:first-child { margin-top: 16px; }
 .card-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
 .card-heading h2 { font-size: 16px; font-weight: 650; }
 .card-heading p { margin-top: 3px; color: var(--muted); font-size: 13px; }
@@ -509,3 +512,15 @@ a.button { color: var(--ink); text-decoration: none; }
 .pagespeed-key summary { color: var(--muted); font-size: 13px; cursor: pointer; }
 .pagespeed-key .field-help { margin: 8px 0; }
 .pagespeed-key a { color: var(--accent); }
+
+/* Deleted projects under the project list. */
+.project-trash { padding: 0 8px 12px; }
+.trash-list { border-top: 1px solid var(--line); padding-top: 10px; }
+.trash-list summary { padding: 4px 6px; color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer; }
+.trash-list .field-help { margin: 4px 6px 8px; }
+.trash-list ol { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.trash-list li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px; border-radius: 7px; background: var(--canvas); }
+.trash-list li div { display: grid; min-width: 0; }
+.trash-list strong { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.trash-list small { color: var(--muted); font-size: 11px; }
+.clients-switch { margin-bottom: 16px; }

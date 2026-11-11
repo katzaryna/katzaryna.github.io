@@ -7,7 +7,6 @@
     projects: document.querySelector("#projects-view"),
     settings: document.querySelector("#settings-view"),
     advanced: document.querySelector("#advanced-view"),
-    clients: document.querySelector("#clients-view"),
     publish: document.querySelector("#publish-view"),
     text: document.querySelector("#text-view"),
     health: document.querySelector("#health-view"),
@@ -222,7 +221,7 @@
     if (pending.clients) parts.push("клиенты");
     if (pending.appearance) parts.push("оформление");
     if (pending.config && settingsTabChanged("settings")) parts.push("об авторе");
-    if (pending.config && settingsTabChanged("advanced")) parts.push("дополнительно");
+    if (pending.config && settingsTabChanged("advanced")) parts.push("поиск и статистика");
     saveBar.hidden = parts.length === 0;
     saveBarSummary.textContent = parts.length ? `Не сохранено: ${parts.join(", ")}` : "";
     projectList.querySelectorAll("[data-project-slug]").forEach(item => {
@@ -255,7 +254,7 @@
     if (!advancedForm.checkValidity()) {
       navigate("advanced");
       advancedForm.reportValidity();
-      throw new Error("Проверьте выделенные поля во вкладке «Дополнительно».");
+      throw new Error("Проверьте выделенные поля во вкладке «Поиск и статистика».");
     }
     if (!settingsForm.checkValidity()) {
       navigate("settings");
@@ -397,6 +396,8 @@
   }
 
   function showView(view, slug = "", imageIndex = -1) {
+    // Clients used to be its own tab; old #clients links land on «Об авторе».
+    if (view === "clients") view = "settings";
     currentView = views[view] ? view : "home";
     Object.entries(views).forEach(([name, element]) => { element.hidden = name !== currentView; });
     document.querySelectorAll(".tab").forEach(tab => {
@@ -416,7 +417,7 @@
       renderHealthView();
       loadHealth();
     }
-    if (currentView === "clients") renderClientsView();
+    if (currentView === "settings") renderClientsView();
     if (currentView === "home") {
       renderHomeGalleryEditor();
       if (homeGalleryNeedsFit && homeGalleryViewport.clientWidth) {
@@ -598,10 +599,8 @@
     const tabShown = work.config.clients_tab !== false;
     return `
       <section class="card">
-        <label class="switch"><input type="checkbox" data-clients-tab ${tabShown ? "checked" : ""}><span><strong>Вкладка Clients на сайте</strong><small>${tabShown ? "Показывается в шапке, если есть хотя бы один логотип." : "Скрыта. Логотипы сохраняются — включите, чтобы показать снова."}</small></span></label>
-      </section>
-      <section class="card">
-        <div class="card-heading"><div><h2>Логотипы</h2><p>В этом порядке они стоят на сайте. Подпись под логотипом необязательна.</p></div></div>
+        <div class="card-heading"><div><h2>Клиенты</h2><p>Логотипы для вкладки Clients в шапке сайта, в этом порядке. Подпись под логотипом необязательна.</p></div></div>
+        <label class="switch clients-switch"><input type="checkbox" data-clients-tab ${tabShown ? "checked" : ""}><span><strong>Вкладка Clients на сайте</strong><small>${tabShown ? "Показывается в шапке, если есть хотя бы один логотип." : "Скрыта. Логотипы сохраняются — включите, чтобы показать снова."}</small></span></label>
         ${clients.length ? `<ol class="client-rows">${rows}</ol>` : ""}
         <button class="button button-secondary" type="button" data-action="add-clients">+ Добавить логотипы…</button>
         <input type="file" accept="${ACCEPTED_IMAGES}" multiple data-upload-input="clients" hidden>
@@ -934,6 +933,7 @@
   function renderProjects() {
     if (!work) return;
     renderProjectList();
+    renderProjectTrash();
     renderProjectEditor();
     renderInspector();
   }
@@ -1083,6 +1083,7 @@
     if (!accepted) return;
     try {
       const state = await request(`/api/projects/${encodeURIComponent(project.slug)}`, { method: "DELETE" });
+      trashItems = null;
       selectedSlug = "";
       adoptState(state);
       navigate("projects");
@@ -3217,7 +3218,6 @@
         ${!pending && !dirty ? `<div class="publish-actions">${siteLink}${deploymentLink}<button class="button button-ghost" type="button" data-publish-action="refresh">Проверить ещё раз</button></div>` : ""}
       </section>
       ${renderHistoryCard()}
-      ${renderTrashCard()}
       ${renderTokenCard()}
       <section class="card">
         <div class="card-heading"><div><h2>Что-то пошло не так?</h2><p>Скопируйте отчёт и отправьте его тому, кто помогает с сайтом. В нём нет паролей.</p></div></div>
@@ -3256,19 +3256,41 @@
       </section>`;
   }
 
-  function renderTrashCard() {
-    const items = publishHistory?.trash ?? [];
-    if (!items.length) return "";
-    return `
-      <section class="card">
-        <div class="card-heading"><div><h2>Удалённые проекты</h2><p>Их можно вернуть. Обложки для главной после этого нужно отметить ★ заново.</p></div></div>
-        <ol class="history-list">${items.map(item => `
-          <li class="history-item">
-            <div><strong>${escapeHtml(item.title)}</strong><small>удалён ${escapeHtml(formatDate(item.deleted))}</small></div>
-            <button class="button button-secondary button-small" type="button" data-publish-action="restore" data-name="${escapeHtml(item.name)}">Вернуть</button>
-          </li>`).join("")}</ol>
-      </section>`;
+  // Deleted projects, under the project list: they can be brought back.
+  const projectTrash = document.querySelector("#project-trash");
+  let trashItems = null;
+
+  async function loadTrash() {
+    try {
+      trashItems = (await request("/api/trash")).trash;
+    } catch {
+      trashItems = [];
+    }
+    renderProjectTrash();
   }
+
+  function renderProjectTrash() {
+    if (!projectTrash) return;
+    if (trashItems === null) {
+      loadTrash();
+      return;
+    }
+    projectTrash.innerHTML = trashItems.length ? `
+      <details class="trash-list">
+        <summary>Удалённые проекты <span class="badge">${trashItems.length}</span></summary>
+        <p class="field-help">Можно вернуть. Обложки для главной потом нужно отметить ★ заново.</p>
+        <ol>${trashItems.map(item => `
+          <li>
+            <div><strong>${escapeHtml(item.title)}</strong><small>удалён ${escapeHtml(formatDate(item.deleted))}</small></div>
+            <button class="button button-secondary button-small" type="button" data-trash-restore="${escapeHtml(item.name)}">Вернуть</button>
+          </li>`).join("")}</ol>
+      </details>` : "";
+  }
+
+  projectTrash?.addEventListener("click", event => {
+    const name = event.target.closest("[data-trash-restore]")?.dataset.trashRestore;
+    if (name) restoreProject(name);
+  });
 
   function renderTokenCard() {
     const token = publishStatus?.token ?? { state: "unknown" };
@@ -3391,6 +3413,7 @@
     if (isDirty() && !(await saveAll())) return;
     try {
       adoptState(await postJson("/api/trash/restore", { name }));
+      trashItems = null;
       renderAll();
       publishHistory = null;
       toast("Проект возвращён. Не забудьте опубликовать.");
@@ -3431,7 +3454,6 @@
     if (action === "publish") publishNow();
     if (action === "discard") discardUnpublished();
     if (action === "undo") undoPublication(button.dataset.sha);
-    if (action === "restore") restoreProject(button.dataset.name);
     if (action === "help") copyHelpReport();
     if (action === "token") saveToken();
     if (action === "refresh") {

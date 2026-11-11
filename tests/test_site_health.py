@@ -50,7 +50,7 @@ def test_problems_are_found_and_point_to_the_project(tmp_path: Path) -> None:
     assert "без описания — 2" in checks["captions"]["items"][0]["text"]
     assert "#morning" in checks["addresses"]["items"][0]["text"]
     assert "a.png — 5,0 МБ" in checks["heavy"]["items"][0]["text"]
-    assert checks["settings"]["items"] == [{"view": "advanced", "text": "Нет кода Google Search Console («Дополнительно»)"}]
+    assert checks["settings"]["items"] == [{"view": "advanced", "text": "Нет кода Google Search Console («Поиск и статистика»)"}]
     assert checks["texts"]["summary"] == "Не хватает текстов в 1 проекте — по ним ищут и их показывают в превью ссылок."
 
 
