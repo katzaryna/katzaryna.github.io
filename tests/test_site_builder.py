@@ -559,3 +559,60 @@ def test_local_http_server_serves_site_state(
         preview_server.shutdown()
         preview_server.server_close()
         preview_thread.join(timeout=2)
+
+
+def test_site_images_are_stored_by_kind_and_sized_for_their_use(tmp_path: Path) -> None:
+    repository = create_site(tmp_path)
+    large = BytesIO()
+    Image.new("RGBA", (3000, 1000), (0, 0, 0, 0)).save(large, "PNG")
+
+    wordmark = repository.save_site_image("wordmark", "Katzaryna.png", large.getvalue())
+    logo = repository.save_site_image("client", "Kneipp Logo.png", large.getvalue())
+
+    assert wordmark == "/assets/images/wordmark-katzaryna.webp"
+    assert logo == "/assets/images/client-kneipp-logo.webp"
+    with Image.open(tmp_path / wordmark.lstrip("/")) as image:
+        assert image.size == (1600, 533) and image.mode == "RGBA"
+    with Image.open(tmp_path / logo.lstrip("/")) as image:
+        assert image.size == (800, 267)
+    with pytest.raises(NotFoundError):
+        repository.save_site_image("favicon", "x.png", large.getvalue())
+
+
+def test_header_settings_are_validated_and_tidied(tmp_path: Path) -> None:
+    repository = create_site(tmp_path)
+    config = repository.read_config()
+    config["artist"] = {"name": "K", "wordmark_image": ""}
+    config["clients"] = [
+        {"logo": "/assets/images/client-a.webp", "name": "  Kneipp "},
+        {"logo": "/assets/images/client-b.webp", "name": "   "},
+    ]
+    repository.save_config(config)
+
+    saved = repository.read_config()
+    assert "wordmark_image" not in saved["artist"]
+    assert saved["clients"] == [
+        {"logo": "/assets/images/client-a.webp", "name": "Kneipp"},
+        {"logo": "/assets/images/client-b.webp"},
+    ]
+
+    config["clients"] = []
+    repository.save_config(config)
+    assert "clients" not in repository.read_config()
+
+    for bad in ({"clients": [{"logo": "https://example.com/x.png"}]}, {"artist": {"wordmark_image": "../x.webp"}}):
+        with pytest.raises(ValueError):
+            repository.save_config({**repository.read_config(), **bad})
+
+
+def test_content_check_reports_missing_header_images(tmp_path: Path) -> None:
+    repository = create_site(tmp_path)
+    config = repository.read_config()
+    config["artist"] = {"wordmark_image": "/assets/images/wordmark-gone.webp"}
+    config["clients"] = [{"logo": "/assets/images/client-gone.webp", "name": "Kneipp"}]
+    repository.save_config(config)
+
+    problems = repository.check_content([])
+
+    assert any("Надпись в шапке" in problem for problem in problems)
+    assert any("Логотип клиента Kneipp" in problem for problem in problems)

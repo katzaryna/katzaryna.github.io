@@ -10,9 +10,7 @@
     {% assign meta_first_image = page.images | first %}
     {% if meta_first_image %}{% assign meta_image_key = page.path | remove: "/index.md" | append: "/" | append: meta_first_image.file %}{% endif %}
     {% include head-meta.html title=page.title description=page.description image_key=meta_image_key image_alt=meta_first_image.alt %}
-    <link rel="preload" href="{{ '/assets/fonts/whisper-latin.woff2' | relative_url }}" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="{{ '/assets/css/fonts.css' | relative_url }}">
-    <link rel="stylesheet" href="{{ '/assets/css/styles.css' | relative_url }}">
+    {% include stylesheets.html %}
   </head>
   <body>
     {% include site-header.html project=true %}

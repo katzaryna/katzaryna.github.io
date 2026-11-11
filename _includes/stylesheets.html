@@ -1,0 +1,15 @@
+{%- comment -%}
+  Site styles, then fonts and builder text styles, which must come after to win.
+  The wordmark's font is preloaded while the wordmark is text, not an image.
+{%- endcomment -%}
+{%- unless site.artist.wordmark_image -%}
+  {%- assign wordmark_place = site.data.text_places | where: "id", "header_wordmark" | first -%}
+  {%- assign wordmark_family = site.text_styles.header_wordmark.font | default: wordmark_place.font -%}
+  {%- assign wordmark_font = site.data.fonts | where: "family", wordmark_family | first -%}
+  {%- assign wordmark_face = wordmark_font.faces | where_exp: "face", "face.file contains '-latin.'" | first -%}
+  {%- if wordmark_face %}
+    <link rel="preload" href="{{ '/assets/fonts/' | append: wordmark_font.slug | append: '/' | append: wordmark_face.file | relative_url }}" as="font" type="font/woff2" crossorigin>
+  {%- endif -%}
+{%- endunless %}
+    <link rel="stylesheet" href="{{ '/assets/css/styles.css' | relative_url }}">
+    <link rel="stylesheet" href="{{ '/assets/theme.css' | relative_url }}">

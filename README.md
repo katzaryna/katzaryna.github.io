@@ -48,9 +48,13 @@ The project layout renders all entries in `images` in their listed order.
 The `home_gallery.compact` setting controls whether the covers initially fit
 into the viewport; when disabled, the home page opens directly as a regular
 responsive grid. The `home_gallery.single_page` setting controls cover clicks.
-When enabled, a cover opens its original image and its `caption` (or the
-project title if no caption is set) in a lightbox, while project pages remain
-available at their direct URLs. When disabled, covers link to their project
+When enabled, a cover opens a white full-screen viewer
+(`assets/js/home-lightbox.js`): the original image large on the left and, on
+the right, the project title, the image's `caption` (its illustration title)
+and its `description` as heading, subheading and text. The close button is at
+the top right, as in About and Clients; Escape or a click beside the image
+also closes it. On phones the
+text follows the image. Project pages remain available at their direct URLs. When disabled, covers link to their project
 pages as usual. Both settings are in `_config.yml`.
 
 The home gallery uses a free-placement canvas. The white artboard with a grid
@@ -102,7 +106,8 @@ permalink: /projects/my-project/
 images:
   - file: 01.png
     alt: Description of the first image
-    caption: Optional caption
+    caption: Optional caption (illustration title)
+    description: Optional longer text for the home cover viewer
     cover: true
   - file: 02.jpg
     alt: Description of the second image
@@ -177,20 +182,71 @@ widths, and they are centered vertically against the tallest image. At tablet
 and phone sizes they return to the regular gallery flow. Images in one group
 must be consecutive in the `images` list.
 
-The same shared header appears on the home page and project pages, with a
-matching bottom divider. On wide screens, the artist's full name and
-profession flank the centered site name with a 30px gap, and use matching
-Sedan SC typography and color. The centered site name uses Whisper, project
-titles use Tenor Sans, and image hover captions use Inter. At
-intermediate widths, the two labels move below the site name as
-`Katsiaryna Zarouskaya | Commercial Illustrator`; on narrow screens they
-disappear, leaving the centered name unobstructed. The avatar is 15% smaller
-than its original desktop, tablet, and phone sizes. The three-dot button's
-circle scales to 15% of the avatar height while its dots retain their
-previous size, and stays anchored to the avatar's lower-right corner.
-Clicking the avatar returns to the home page. The black-and-white three-dot
-button opens and closes the About me bio panel from the avatar's
-upper-right corner.
+The same shared header (`_includes/site-header.html`) appears on the home page
+and project pages, above a thin divider. The portrait sits in the exact center;
+the wordmark is right-aligned to its left and the profession (Sedan SC) to its
+right. The wordmark is the image in `artist.wordmark_image` (uploaded in the
+builder, kept transparent) or, without one, `artist.name` set in Whisper. The
+**About** and **Clients** tabs sit at the bottom left. Below 1100px the tabs
+move under the brand; below 760px the profession is hidden and the brand moves
+left, clear of the fixed contact icons. The portrait and the wordmark link to
+the home page. The header portrait is shown in black and white
+(`filter: grayscale(1)`); the file itself keeps its colours, which the favicon
+and link previews use.
+
+**About** and **Clients** open full-screen white dialogs (`assets/js/bio.js`)
+with a close button at the top right; Escape also closes them, and `#about` or
+`#clients` in the URL opens them directly. About shows the full name,
+profession, and `artist.bio` (line breaks kept, text selectable). Clients shows
+the `clients` list from `_config.yml` in order: each entry has a `logo` under
+`/assets/images/` and an optional `name` caption, which is also the logo's alt
+text. Without clients the tab is not shown.
+
+## Colours
+
+`_data/colors.yml` lists the colours the builder's **Оформление** tab can
+change: page background, main and secondary text, lines, the hover strip on
+home covers and its text, the cover viewer background, and the shade behind the
+full-screen viewer on project pages. Each sets a CSS variable declared with its
+default at the top of `assets/css/styles.css` (a test keeps the two in step).
+Choices are saved as `colors.<id>` in `_config.yml` (`color` as `#rrggbb`,
+`opacity` 0-100 for see-through ones) and become `:root` overrides in
+`assets/theme.css`; see-through colours use `color-mix(in srgb, colour N%,
+transparent)`.
+
+## Fonts and text styles
+
+Every text on the site that can be styled is a *text place* in
+`_data/text_places.yml`: its CSS selector and its default font, size and
+alignment (alignment only where it applies). A text shown in several places,
+such as the profession in the header and in the About dialog, has a place for
+each. The builder's **Текст** tab sets a Google font, a size (px on a wide
+screen; it shrinks fluidly to 70% on small screens) and an alignment per place;
+choices are saved as `text_styles.<place id>` in `_config.yml`, and only the
+values that differ from the defaults. Place ids must not be renamed: saved
+choices refer to them. The builder tab is **Оформление** (colours first, then
+text). Settings are named `font_size`, not `size`, because
+Liquid reads `hash.size` as the number of keys.
+
+Fonts are self-hosted, never loaded from Google by visitors. `scripts/fonts.py`
+downloads a family's regular face (latin and latin-ext WOFF2) into
+`assets/fonts/<slug>/` and lists it in `_data/fonts.yml`.
+`assets/theme.css` is built by Jekyll from those two data files and
+`text_styles`: the `@font-face` rules and the chosen styles, loaded after
+`styles.css` so they win. While the wordmark is text, its font is preloaded
+(`_includes/stylesheets.html`).
+
+A font is used when a place has it as default or as its choice. Saving in the
+builder downloads any used font that is missing (including a default removed
+earlier) and deletes fonts and files that nothing uses; the pre-publish check
+does the same. `make test` (and so CI) runs `python -m scripts.fonts check`,
+which fails on an unused, missing or unlisted font. By hand:
+
+```sh
+python -m scripts.fonts install "Lora"   # download and list a font
+python -m scripts.fonts prune            # delete unused fonts
+python -m scripts.fonts check
+```
 
 ## Images and animation
 
@@ -223,8 +279,9 @@ by a project's `images` list.
 
 Edit `_config.yml` to update the site title/description, artist name and full
 name, profession, bio, portrait and alt text, email, social profile URLs,
-copyright year, home-gallery compact and single-page modes and gap, and
-analytics measurement ID.
+home-gallery compact and single-page modes and gap, and analytics measurement
+ID. The footer's © year is the year the site was last built
+(`site.time`), so it moves on with the first publication of a new year.
 
 Google Analytics loads only after the visitor accepts analytics consent. The
 choice is saved in browser local storage. Setting
@@ -250,17 +307,24 @@ Start the local visual site builder from the repository root with:
 make builder
 ```
 
-Then open `http://127.0.0.1:8765` in a browser. The builder has four tabs:
+Then open `http://127.0.0.1:8765` in a browser. The builder has these tabs:
 
 - **Главная** — the home-page canvas (drag, swap, resize, crop, undo) and the
   home settings: what a cover click does, the gap between covers, and the
   compact start.
 - **Проекты** — create, edit, and delete projects; drop files onto a project
   to upload them; drag tiles to reorder; ★ puts an image on the home page;
-  select a tile to edit its alt text, caption, grid width, and row.
-- **Настройки** — artist details and portrait, contacts, browser title and
-  search description, copyright year, and the analytics ID.
-- **Публикация** — what is not on the live site yet, in plain words, and the
+  select a tile to edit its alt text, illustration title (`caption`),
+  illustration description, grid width, and row.
+- **Клиенты** — client logos with optional captions, in order (up to 800px on
+  the longest side).
+- **Об авторе** — name, full name, profession, biography, and contacts.
+- **Оформление** — the header portrait and wordmark image (up to 1600px),
+  colours, and fonts, sizes and alignment per text place.
+- **Дополнительно** — browser title, search description, and the analytics
+  ID: technical settings that rarely change.
+- **Публикация** — what is not on the live site yet, grouped like these tabs
+  with old and new values (`scripts/change_summary.py`), and the
   **Опубликовать на сайт** button; the deployment state on GitHub; the history
   with **Отменить** for each publication; deleted projects to bring back; and
   a help report to copy when something goes wrong.

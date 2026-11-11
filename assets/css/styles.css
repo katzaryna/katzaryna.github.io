@@ -3,6 +3,13 @@
   --color-muted: #66665f;
   --color-panel: #858585;
   --color-surface: #fff;
+
+  /* Colours the builder can change (_data/colors.yml; overrides in assets/theme.css). */
+  --color-line: #deddd7;
+  --hover-overlay: color-mix(in srgb, #000 50%, transparent);
+  --hover-text: #fff;
+  --lightbox-shade: color-mix(in srgb, #000 70%, transparent);
+  --viewer-background: #fff;
   --page-max-width: 1570px;
   --page-gutter: 46px;
   --portrait-size: 94.77px;
@@ -23,71 +30,64 @@ a { color: inherit; }
 h2, p { margin-top: 0; }
 
 .site-header {
+  --wordmark-height: calc(var(--portrait-size) * .92);
   position: relative;
   display: grid;
-  grid-template-columns: var(--portrait-size) minmax(0, 1fr);
-  align-items: start;
-  gap: 20px;
-  padding-block: 8.75px 13.12px;
-  border-bottom: 1px solid #deddd7;
+  grid-template-columns: minmax(0, 1fr) var(--portrait-size) minmax(0, 1fr);
+  grid-template-areas: "brand brand brand";
+  align-items: end;
+  padding-block: 10px 12px;
+  border-bottom: 1px solid var(--color-line);
 }
-.portrait-column { position: relative; min-width: 0; }
-.portrait-toggle { display: block; width: 100%; padding: 0; border: 0; background: none; }
-.portrait { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; }
-.header-content { min-width: 0; }
-.wordmark {
+.header-tabs {
+  position: relative;
+  z-index: 1;
+  grid-area: brand;
+  justify-self: start;
   display: flex;
+  gap: 26px;
+}
+.header-tab {
+  padding: 2px 0 4px;
+  border: 0;
+  background: none;
+  color: var(--color-text);
+  font: 400 19px/1.2 "Tenor Sans", serif;
+  cursor: pointer;
+  text-decoration: underline transparent 1px;
+  text-underline-offset: 7px;
+  transition: text-decoration-color .15s ease;
+}
+.header-tab:hover, .header-tab[aria-expanded="true"] { text-decoration-color: currentColor; }
+.header-tab:focus-visible { outline: 2px solid #222; outline-offset: 4px; }
+.header-brand {
+  grid-area: brand;
+  display: grid;
+  grid-template-columns: subgrid;
   align-items: center;
-  justify-content: center;
-  min-height: 100px;
-  padding: 6px 20px 14px;
-  background: transparent;
+  column-gap: 0;
+}
+.portrait-link { grid-column: 2; display: block; }
+.portrait { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; filter: grayscale(1); }
+.wordmark {
+  grid-column: 1;
+  justify-self: end;
+  margin-right: 30px;
   color: var(--color-text);
   font: 400 calc(1.15 * clamp(44px, 7vw, 76px))/1 Whisper, cursive;
   letter-spacing: -.045em;
   text-decoration: none;
+  white-space: nowrap;
 }
-.site-header .header-content {
-  position: absolute;
-  inset: 12px auto 18px;
-  left: 50%;
-  width: 100vw;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) max-content minmax(0, 1fr);
-  align-items: center;
-  transform: translateX(-50%);
-  pointer-events: none;
-}
-.artist-full-name,
-.artist-description {
-  margin: 0;
-  font: 400 18px/1.35 "Sedan SC", serif;
-  color: var(--color-text);
-}
-.artist-full-name {
-  grid-column: 1;
-  justify-self: end;
-  margin-right: 40px;
-  text-align: right;
-}
+.wordmark.has-image { line-height: 0; }
+.wordmark-image { display: block; width: auto; max-width: 100%; height: var(--wordmark-height); }
 .site-header .artist-description {
   grid-column: 3;
   justify-self: start;
-  margin-left: 40px;
-  text-align: left;
-}
-.artist-label-separator { display: none; }
-.site-header .wordmark {
-  position: static;
-  grid-column: 2;
-  justify-self: center;
-  width: max-content;
-  max-width: 100%;
-  min-height: 0;
-  padding: 0;
-  pointer-events: auto;
-  text-align: center;
-  white-space: nowrap;
+  margin: 0 0 0 30px;
+  color: var(--color-text);
+  font: 400 20px/1.3 "Sedan SC", serif;
+  letter-spacing: .02em;
 }
 .social-nav {
   position: fixed;
@@ -125,26 +125,7 @@ h2, p { margin-top: 0; }
   background: var(--color-surface);
   box-shadow: 0 3px 10px rgb(0 0 0 / 16%);
 }
-.bio-link {
-  position: absolute;
-  z-index: 3;
-  right: -10px;
-  bottom: -6px;
-  padding: 3px 9px;
-  border: 0;
-  border-radius: 999px;
-  background: var(--color-surface);
-  box-shadow: 0 2px 8px rgb(0 0 0 / 18%);
-  color: var(--color-text);
-  font: 400 13px/1.2 "Sedan SC", serif;
-  letter-spacing: .05em;
-  cursor: pointer;
-  transition: box-shadow .15s ease;
-}
-.bio-link:hover { box-shadow: 0 3px 12px rgb(0 0 0 / 24%); }
-.bio-link[aria-expanded="true"] { background: var(--color-text); color: var(--color-surface); }
-.bio-link:focus-visible { outline: 2px solid #222; outline-offset: 3px; }
-.portrait-toggle:focus-visible, .nav-item:focus-visible, .gallery-link:focus-visible, .project-header a:focus-visible {
+.portrait-link:focus-visible, .wordmark:focus-visible, .nav-item:focus-visible, .gallery-link:focus-visible, .project-header a:focus-visible {
   outline: 2px solid #222;
   outline-offset: 3px;
 }
@@ -198,33 +179,69 @@ h2, p { margin-top: 0; }
 .copy-email svg { width: 100%; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .copy-email-status { position: absolute; top: 100%; right: 0; color: #252525; font-size: 11px; }
 .email-contact[open] { z-index: 4; }
-.artist-bio-text {
-  position: absolute;
-  z-index: 20;
-  top: 0;
-  left: calc(100% + 14px);
-  width: min(380px, calc(100vw - 110px));
-  max-height: calc(100dvh - 40px);
-  height: 0;
-  overflow: hidden;
-  border-radius: 14px;
+html:has(.info-dialog[open]) { overflow: hidden; }
+.info-dialog {
+  width: 100vw;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
   background: var(--color-surface);
-  box-shadow: 0 12px 40px rgb(0 0 0 / 18%);
   color: var(--color-text);
-  font: 14px/1.6 Inter, system-ui, sans-serif;
-  text-align: left;
-  opacity: 0;
-  visibility: hidden;
   overscroll-behavior: contain;
-  transition: height .3s ease, opacity .3s ease, visibility 0s linear .3s;
 }
-.artist-bio-text.is-open, .artist-bio-text.is-closing { padding: 20px 22px; visibility: visible; transition-delay: 0s; }
-.artist-bio-text.is-open { overflow-y: auto; opacity: 1; }
-.artist-bio-text.is-closing { opacity: 0; }
-.artist-bio-text p { margin: 0; }
-.artist-bio-name { font: 400 20px/1.3 "Sedan SC", serif; }
-.artist-bio-role { margin-top: 2px !important; color: var(--color-muted); font: 400 14px/1.4 "Tenor Sans", sans-serif; }
-.artist-bio-body { margin-top: 12px !important; }
+.info-dialog[open] { display: grid; overflow-y: auto; animation: info-dialog-in .25s ease-out; }
+.info-dialog::backdrop { background: var(--color-surface); }
+.info-dialog-close {
+  position: fixed;
+  z-index: 1;
+  top: 18px;
+  right: max(18px, calc((100vw - var(--page-max-width)) / 2));
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background .15s ease;
+}
+.info-dialog-close:hover { background: #f1f0ec; }
+.info-dialog-close:focus-visible { outline: 2px solid #222; outline-offset: 2px; }
+.info-dialog-close svg { width: 24px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; }
+.info-dialog-body {
+  place-self: center;
+  width: min(640px, calc(100% - 48px));
+  padding-block: 96px;
+  text-align: center;
+  user-select: text;
+}
+.info-dialog-body:focus { outline: none; }
+.info-dialog-body.is-wide { width: min(900px, calc(100% - 48px)); }
+.info-dialog-title { margin: 0; font: 400 clamp(28px, 4vw, 38px)/1.2 "Sedan SC", serif; letter-spacing: .02em; }
+.info-dialog-role { margin: 10px 0 0; color: var(--color-muted); font: 400 16px/1.4 "Tenor Sans", serif; letter-spacing: .08em; }
+.info-dialog-rule { display: block; width: 56px; height: 1px; margin: 30px auto 32px; background: var(--color-line); }
+.info-dialog-text { margin: 0; font: 400 17px/1.8 Inter, system-ui, sans-serif; text-align: left; overflow-wrap: break-word; }
+.client-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 44px 32px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.client { display: grid; width: 180px; justify-items: center; gap: 12px; }
+.client-logo { display: block; width: 100%; max-width: 180px; height: 76px; object-fit: contain; }
+.client-name { color: var(--color-muted); font: 400 14px/1.4 Inter, system-ui, sans-serif; }
+
+@keyframes info-dialog-in { from { opacity: 0; } }
 .instagram-link svg { width: 20.4px; }
 .linkedin-link svg { width: 20.4px; fill: currentColor; }
 
@@ -274,8 +291,8 @@ html.gallery-intro-supported .gallery.is-intro-fit { padding-bottom: 0; }
   display: grid;
   place-items: center;
   padding: 6px;
-  background: rgb(0 0 0 / 50%);
-  color: #fff;
+  background: var(--hover-overlay);
+  color: var(--hover-text);
   font-size: 16px;
   line-height: 1.4;
   text-align: center;
@@ -396,7 +413,7 @@ html.gallery-intro-supported .gallery.is-intro-fit { padding-bottom: 0; }
   margin: 0;
   padding: 27px;
   border: 0;
-  background: rgb(0 0 0 / 70%);
+  background: var(--lightbox-shade);
   color: var(--color-surface);
 }
 .lightbox[open] {
@@ -412,25 +429,40 @@ html.gallery-intro-supported .gallery.is-intro-fit { padding-bottom: 0; }
   max-height: calc(100dvh - 54px);
   object-fit: contain;
 }
-.home-lightbox[open] { grid-template-rows: minmax(0, 1fr); place-items: stretch; }
-.home-lightbox figure {
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
-  justify-items: center;
-  gap: 12px;
-  width: 100%;
-  height: 100%;
-  min-height: 0;
+.cover-viewer {
+  width: 100vw;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
   margin: 0;
+  padding: 0;
+  border: 0;
+  background: var(--viewer-background);
+  color: var(--color-text);
+  overscroll-behavior: contain;
 }
-.home-lightbox img { min-width: 0; min-height: 0; max-width: 100%; max-height: 100%; }
-.home-lightbox figcaption { max-width: min(65ch, calc(100vw - 54px)); color: #fff; font-size: 15px; line-height: 1.5; text-align: center; }
+.cover-viewer[open] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(300px, 32vw, 520px);
+  animation: info-dialog-in .25s ease-out;
+}
+.cover-viewer::backdrop { background: var(--viewer-background); }
+.cover-viewer .cover-viewer-close { background: var(--viewer-background); }
+.cover-viewer-image { display: grid; min-width: 0; min-height: 0; place-items: center; padding: 76px 24px 40px 48px; }
+.cover-viewer-image img { display: block; max-width: 100%; max-height: calc(100dvh - 116px); object-fit: contain; }
+.cover-viewer-text { align-self: center; max-height: 100dvh; padding: 76px 64px 64px 32px; overflow-y: auto; user-select: text; }
+.cover-viewer-text:focus { outline: none; }
+.cover-viewer-project { margin: 0; font: 400 30px/1.2 "Sedan SC", serif; letter-spacing: .02em; }
+.cover-viewer-image-title { margin: 12px 0 0; color: var(--color-muted); font: 400 18px/1.4 "Tenor Sans", serif; }
+.cover-viewer-rule { display: block; width: 48px; height: 1px; margin: 26px 0; background: var(--color-line); }
+.cover-viewer-description { margin: 0; font: 400 16px/1.75 Inter, system-ui, sans-serif; white-space: pre-line; overflow-wrap: break-word; }
+.cover-viewer [hidden] { display: none; }
 .site-footer {
   display: flex;
   justify-content: space-between;
   gap: 20px;
   padding-block: 20px;
-  border-top: 1px solid #deddd7;
+  border-top: 1px solid var(--color-line);
   color: var(--color-muted);
   font-size: 12px;
 }
@@ -455,15 +487,11 @@ html.gallery-intro-supported .gallery.is-intro-fit { padding-bottom: 0; }
   :root { --page-gutter: 42px; }
   .page { width: min(calc(100% - var(--page-gutter)), 570px); }
   :root { --portrait-size: 51.76px; }
-  .site-header { grid-template-columns: var(--portrait-size) minmax(0, 1fr); gap: 12px; padding-block: 8.75px 11.66px; }
-  .wordmark { min-height: 62px; padding-inline: 12px; font-size: calc(1.15 * clamp(34px, 9vw, 52px)); }
-  .site-header .wordmark { max-width: calc(100% - 100px); }
+  .wordmark { font-size: calc(1.15 * clamp(34px, 9vw, 52px)); }
   .social-nav { top: 12px; gap: 6px; }
   :root { --nav-size: 28.8px; --nav-gap: 6px; }
-  .bio-link { right: -12px; bottom: -8px; padding: 2px 7px; font-size: 11px; }
   .email-contact svg { width: 16.2px; }
   .linkedin-link svg, .instagram-link svg { width: 16.2px; }
-  .artist-bio-text { top: calc(100% + 12px); left: 0; width: calc(100vw - var(--page-gutter)); max-height: calc(100dvh - 140px); }
   .gallery {
     grid-template-columns: repeat(8, minmax(0, 1fr));
     grid-auto-rows: clamp(36px, 8vw, 64px);
@@ -496,48 +524,30 @@ html.gallery-intro-supported .gallery.is-intro-fit { padding-bottom: 0; }
 }
 
 @media (max-width: 1100px) {
-  .site-header { padding-bottom: 13.12px; }
-  .site-header .header-content {
-    display: grid;
-    grid-template-columns: max-content max-content max-content;
-    grid-template-rows: auto auto;
-    place-content: start center;
-    gap: 10px 8px;
-    padding-inline: 0;
+  .site-header {
+    grid-template-areas: "brand brand brand" "tabs tabs tabs";
+    row-gap: 8px;
   }
-  .site-header .wordmark {
-    position: static;
-    grid-column: 1 / -1;
-    grid-row: 1;
-    place-self: center;
-    transform: none;
-  }
-  .artist-full-name,
-  .site-header .artist-description {
-    position: static;
-    grid-row: 2;
-    width: auto;
-    transform: none;
-    text-align: center;
-  }
-  .artist-full-name { grid-column: 1; }
-  .artist-label-separator { display: block; grid-column: 2; grid-row: 2; }
-  .site-header .artist-description { grid-column: 3; grid-row: 2; }
+  .header-tabs { grid-area: tabs; }
+  .wordmark, .site-header .artist-description { margin-inline: 20px; }
+  .site-header .artist-description { font-size: 17px; }
 }
 
 @media (max-width: 760px) {
-  .site-header { padding-bottom: 11.66px; }
-  .artist-full-name,
-  .site-header .artist-description,
-  .artist-label-separator { display: none; }
-  .site-header .header-content { display: block; }
-  .site-header .wordmark {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-  }
-  .site-header .header-content { pointer-events: none; }
+  /* Brand moves to the left, clear of the fixed contact icons on the right. */
+  .site-header { grid-template-columns: auto var(--portrait-size) minmax(0, 1fr); }
+  .wordmark { justify-self: start; margin: 0 12px 0 0; }
+  .site-header .artist-description { display: none; }
+  .header-tabs { gap: 20px; }
+  .header-tab { font-size: 16px; }
+  .client-list { gap: 32px 20px; }
+  .cover-viewer[open] { grid-template-columns: minmax(0, 1fr); grid-template-rows: max-content max-content; align-content: start; overflow-y: auto; }
+  .cover-viewer-image { min-height: auto; padding: 70px 16px 8px; }
+  .cover-viewer-image img { max-height: 68dvh; }
+  .cover-viewer-text { align-self: start; max-height: none; padding: 16px 24px 48px; overflow: visible; }
+  .cover-viewer-project { font-size: 24px; }
+  .client { width: calc(50% - 10px); }
+  .client-logo { height: 60px; }
 }
 
 @media (hover: none) {
@@ -545,8 +555,8 @@ html.gallery-intro-supported .gallery.is-intro-fit { padding-bottom: 0; }
     display: grid;
     min-height: 0;
     padding: 6px;
-    background: rgb(0 0 0 / 48%);
-    color: #fff;
+    background: var(--hover-overlay);
+    color: var(--hover-text);
     font-size: 12px;
     text-align: center;
     opacity: 1;
@@ -558,8 +568,7 @@ html.gallery-intro-supported .gallery.is-intro-fit { padding-bottom: 0; }
   :root { --page-gutter: 40px; }
   :root { --portrait-size: 40.1px; }
   .page { width: calc(100% - var(--page-gutter)); }
-  .site-header { grid-template-columns: var(--portrait-size) minmax(0, 1fr); gap: 10px; }
-  .wordmark { min-height: 54px; padding-inline: 9px; font-size: calc(1.15 * clamp(29px, 8vw, 38px)); }
+  .wordmark { font-size: calc(1.15 * clamp(29px, 8vw, 38px)); }
   .social-nav { top: 10px; gap: 5px; }
   :root { --nav-size: 25.2px; --nav-gap: 5px; }
   .email-contact svg { width: 13.8px; }

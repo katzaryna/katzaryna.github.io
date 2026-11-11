@@ -80,9 +80,11 @@ def test_status_describes_changes_in_plain_words(sites) -> None:
     status = publisher.status()
 
     assert status["changes"] == [
-        "Настройки: текст «Обо мне», контакты и другое",
-        "Проект «Books»: добавлено 1 изображение",
-        "Новый проект «Summer»",
+        {"title": "Проект «Books»", "details": [
+            "Загружено: 1 изображение — на сайте пока не видно, не добавлено в проект",
+        ]},
+        {"title": "Новый проект «Summer»", "details": []},
+        {"title": "Дополнительно", "details": ["Название во вкладке браузера: «Site» → «New title»"]},
     ]
     assert status["change_count"] == 3  # the Makefile is not site content
 
@@ -119,7 +121,7 @@ def test_publish_combines_with_changes_from_another_computer(sites) -> None:
     publisher.publish()
 
     assert remote_log(other)[:2] == [
-        "Настройки: текст «Обо мне», контакты и другое",
+        "Дополнительно: Название во вкладке браузера: «Site» → «Mine»",
         "From the other computer",
     ]
 
@@ -265,3 +267,17 @@ def test_publish_stops_on_content_problems_and_explains_them(sites) -> None:
     assert publisher.status()["last_error"] == message
     assert remote_log(other) == ["Initial"]
     assert publisher.status()["ahead"] == 0  # nothing was committed
+
+
+def test_header_and_client_changes_are_named(sites) -> None:
+    publisher, _ = sites
+    write(publisher.root / "_config.yml", (
+        "title: Site\nartist:\n  wordmark_image: /assets/images/wordmark-k.webp\n"
+        "home_gallery:\n  covers: []\nclients:\n  - logo: /assets/images/client-a.webp\n"
+    ))
+    write(publisher.root / "assets" / "images" / "client-a.webp", "webp")
+
+    assert publisher.status()["changes"] == [
+        {"title": "Клиенты", "details": ["Добавлен логотип: «без подписи»"]},
+        {"title": "Оформление", "details": ["Надпись в шапке: загружена новая картинка"]},
+    ]

@@ -24,6 +24,7 @@ from PIL import Image, ImageCms, ImageOps
 import tomli
 import yaml
 
+from scripts import fonts
 from scripts.image_utils import color_manage_image
 from scripts.site_publisher import GitCommandError, PublishError, Publisher
 
@@ -45,6 +46,14 @@ MAX_ANIMATED_FRAMES = 300
 LEGACY_COVER_KEYS = ("size", "columns", "rows")
 SITE_IMAGES_DIRECTORY = Path("assets") / "images"
 TRASH_DIRECTORY = ".builder-trash"
+FONT_CATALOG_CACHE = Path(".builder-cache") / "google-fonts.json"
+TEXT_ALIGNMENTS = ("left", "center", "right")
+COLORS_DATA = Path("_data") / "colors.yml"
+HEX_COLOR = re.compile(r"#[0-9a-fA-F]{6}\Z")
+TEXT_SIZE_RANGE = (8, 200)
+# Site-wide images uploaded from the settings: kind -> longest side in pixels.
+SITE_IMAGE_KINDS = {"portrait": 2560, "wordmark": 1600, "client": 800}
+SITE_IMAGE_PATH = re.compile(r"/assets/images/[^/]+\Z")
 TRASH_NAME = re.compile(r"(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)-(?P<stamp>\d{8}-\d{6})")
 THUMBNAIL_DIRECTORY = Path(".builder-cache") / "thumbnails"
 THUMBNAIL_WIDTHS = (160, 480, 1200)
@@ -311,6 +320,37 @@ def locked(method):
     return wrapper
 
 
+def normalize_header_settings(config: dict) -> None:
+    """Check the header wordmark and the client list; drop empty optional values."""
+    artist = config.get("artist")
+    if isinstance(artist, dict):
+        wordmark = artist.get("wordmark_image")
+        if wordmark in (None, ""):
+            artist.pop("wordmark_image", None)
+        elif not isinstance(wordmark, str) or not SITE_IMAGE_PATH.match(wordmark):
+            raise ValueError("The header wordmark must be an image under /assets/images.")
+    clients = config.get("clients")
+    if clients is None:
+        return
+    if not isinstance(clients, list):
+        raise ValueError("Clients must be a list.")
+    normalized = []
+    for client in clients:
+        if not isinstance(client, dict) or not isinstance(client.get("logo"), str) or not SITE_IMAGE_PATH.match(client["logo"]):
+            raise ValueError("Each client needs a logo image under /assets/images.")
+        name = client.get("name")
+        if name is not None and not isinstance(name, str):
+            raise ValueError("A client caption must be text.")
+        entry = {"logo": client["logo"]}
+        if name and name.strip():
+            entry["name"] = name.strip()
+        normalized.append(entry)
+    if normalized:
+        config["clients"] = normalized
+    else:
+        config.pop("clients", None)
+
+
 def home_cover_layout(cover: dict) -> dict:
     return {key: cover.get(key) for key in ("x", "y", "width", "height")}
 
@@ -367,7 +407,7 @@ def sync_project_covers(covers: list[dict], slug: str, images: list[dict]) -> li
     return [round_cover_layout(cover) for cover in retained]
 
 
-def convert_upload(filename: str, content: bytes) -> bytes:
+def convert_upload(filename: str, content: bytes, max_dimension: int = UPLOAD_MAX_DIMENSION) -> bytes:
     """Validate an uploaded image and return it as color-managed WebP, keeping animation."""
     filename = validate_image_name(filename)
     if not content or len(content) > MAX_IMAGE_BYTES:
@@ -393,7 +433,7 @@ def convert_upload(filename: str, content: bytes) -> bytes:
                 durations.append(image.info.get("duration", 100))
                 frame = color_manage_image(ImageOps.exif_transpose(image.copy()))
                 frame.thumbnail(
-                    (UPLOAD_MAX_DIMENSION, UPLOAD_MAX_DIMENSION),
+                    (max_dimension, max_dimension),
                     Image.Resampling.LANCZOS,
                 )
                 frames.append(frame)
@@ -536,7 +576,104 @@ class SiteRepository:
         return projects
 
     def state(self) -> dict:
-        return {"config": self.read_config(), "projects": self.list_projects()}
+        return {
+            "config": self.read_config(),
+            "projects": self.list_projects(),
+            "text_places": fonts.load_places(self.root),
+            "fonts": [font["family"] for font in fonts.load_fonts(self.root)],
+            "color_settings": self.color_settings(),
+        }
+
+    def color_settings(self) -> list[dict]:
+        path = self.root / COLORS_DATA
+        return (yaml.safe_load(path.read_text(encoding="utf-8")) or []) if path.is_file() else []
+
+    def _normalize_colors(self, config: dict) -> None:
+        """Check builder colours: known ids, #rrggbb colours, opacity 0-100 where it applies."""
+        colors = config.get("colors") or {}
+        if not isinstance(colors, dict):
+            raise ValueError("Colours must be an object.")
+        settings = {setting["id"]: setting for setting in self.color_settings()}
+        normalized = {}
+        for color_id, value in colors.items():
+            setting = settings.get(color_id)
+            if setting is None or not isinstance(value, dict):
+                raise ValueError(f"Unknown colour setting: {color_id}.")
+            entry = {}
+            color = value.get("color")
+            if color not in (None, ""):
+                if not isinstance(color, str) or not HEX_COLOR.match(color):
+                    raise ValueError(f"Цвет должен быть в виде #rrggbb, а не {color!r}.")
+                entry["color"] = color.lower()
+            opacity = value.get("opacity")
+            if opacity not in (None, ""):
+                if "opacity" not in setting:
+                    raise ValueError(f"Opacity is not available for {color_id}.")
+                if isinstance(opacity, bool) or not isinstance(opacity, (int, float)) or not 0 <= opacity <= 100:
+                    raise ValueError("Прозрачность должна быть от 0 до 100%.")
+                entry["opacity"] = int(round(opacity))
+            if entry:
+                normalized[color_id] = entry
+        if normalized:
+            config["colors"] = normalized
+        else:
+            config.pop("colors", None)
+
+    # ------------------------------------------------------------------
+    # Fonts and text styles
+    # ------------------------------------------------------------------
+    def font_catalog(self) -> list[dict]:
+        return [
+            {"family": item["family"], "category": item["category"]}
+            for item in fonts.catalog(self.root / FONT_CATALOG_CACHE)
+        ]
+
+    @locked
+    def install_font(self, family: str) -> dict:
+        fonts.install(self.root, family, fonts.catalog(self.root / FONT_CATALOG_CACHE))
+        return {"fonts": [font["family"] for font in fonts.load_fonts(self.root)]}
+
+    def _normalize_text_styles(self, config: dict) -> None:
+        """Check builder text styles, drop empty values, and download any newly chosen font."""
+        styles = config.get("text_styles") or {}
+        if not isinstance(styles, dict):
+            raise ValueError("Text styles must be an object.")
+        places = {place["id"]: place for place in fonts.load_places(self.root)}
+        installed = {font["family"] for font in fonts.load_fonts(self.root)}
+        normalized = {}
+        for place_id, style in styles.items():
+            place = places.get(place_id)
+            if place is None or not isinstance(style, dict):
+                raise ValueError(f"Unknown text place: {place_id}.")
+            entry = {}
+            font = style.get("font")
+            if font:
+                if not isinstance(font, str):
+                    raise ValueError("A font must be a family name.")
+                entry["font"] = font
+            size = style.get("font_size")
+            if size not in (None, ""):
+                if isinstance(size, bool) or not isinstance(size, (int, float)):
+                    raise ValueError("A text size must be a number.")
+                if not TEXT_SIZE_RANGE[0] <= size <= TEXT_SIZE_RANGE[1]:
+                    raise ValueError(f"Размер текста должен быть от {TEXT_SIZE_RANGE[0]} до {TEXT_SIZE_RANGE[1]} px.")
+                entry["font_size"] = int(size) if float(size).is_integer() else round(float(size), 1)
+            align = style.get("align")
+            if align:
+                if align not in TEXT_ALIGNMENTS or not place.get("align"):
+                    raise ValueError(f"Alignment {align!r} is not available for {place_id}.")
+                entry["align"] = align
+            if entry:
+                normalized[place_id] = entry
+        if normalized:
+            config["text_styles"] = normalized
+        else:
+            config.pop("text_styles", None)
+        # Every font the site shows must be downloaded, including a default that
+        # was removed while no place used it.
+        missing = fonts.used_families(list(places.values()), normalized) - installed
+        for family in sorted(missing):
+            fonts.install(self.root, family, fonts.catalog(self.root / FONT_CATALOG_CACHE))
 
     @locked
     def save_config(self, config: dict) -> None:
@@ -547,7 +684,11 @@ class SiteRepository:
             home_gallery["covers"] = [round_cover_layout(cover) for cover in home_gallery["covers"]]
         validate_home_gallery(config)
         validate_home_gallery_references(config, self.list_projects())
+        normalize_header_settings(config)
+        self._normalize_colors(config)
+        self._normalize_text_styles(config)
         atomic_write(self.config_path, dump_config(config))
+        fonts.prune(self.root, config.get("text_styles") or {})
 
     @locked
     def save_home_gallery(self, covers: list[dict]) -> list[dict]:
@@ -668,8 +809,12 @@ class SiteRepository:
             for project in self.list_projects()
         ]
         validate_home_gallery_references(config, all_projects)
+        normalize_header_settings(config)
+        self._normalize_colors(config)
+        self._normalize_text_styles(config)
         files[self.config_path] = dump_config(config)
         self._write_files(files)
+        fonts.prune(self.root, config.get("text_styles") or {})
         return self.state()
 
     @locked
@@ -706,6 +851,22 @@ class SiteRepository:
         except (OSError, ValueError, yaml.YAMLError) as error:
             problems.append(f"Настройки сайта повреждены и не читаются ({error}).")
             config = None
+        if config is not None:
+            artist = config.get("artist") or {}
+            referenced = [("Портрет", artist.get("portrait")), ("Надпись в шапке", artist.get("wordmark_image"))]
+            referenced += [
+                (f"Логотип клиента {client.get('name') or index}", client.get("logo"))
+                for index, client in enumerate(config.get("clients") or [], 1) if isinstance(client, dict)
+            ]
+            for label, site_path in referenced:
+                if site_path and not (self.root / str(site_path).lstrip("/")).is_file():
+                    problems.append(f"{label}: нет файла {site_path} — загрузите картинку заново.")
+        if config is not None:
+            try:
+                fonts.prune(self.root, config.get("text_styles") or {})
+                problems.extend(f"Шрифты: {problem}" for problem in fonts.check(self.root))
+            except (OSError, ValueError, yaml.YAMLError) as error:
+                problems.append(f"Шрифты: не удалось проверить ({error}).")
         projects = []
         for project_file in sorted(self.projects_path.glob("*/index.md")):
             slug = project_file.parent.name
@@ -789,14 +950,19 @@ class SiteRepository:
         return optimized_filename
 
     @locked
-    def save_portrait(self, filename: str, content: bytes) -> str:
-        """Store a new artist portrait under assets/images and return its site path."""
-        converted = convert_upload(filename, content)
+    def save_site_image(self, kind: str, filename: str, content: bytes) -> str:
+        """Store a portrait, wordmark or client logo under assets/images and return its site path."""
+        if kind not in SITE_IMAGE_KINDS:
+            raise NotFoundError("Unknown kind of site image.")
+        converted = convert_upload(filename, content, SITE_IMAGE_KINDS[kind])
         directory = self.root / SITE_IMAGES_DIRECTORY
         directory.mkdir(parents=True, exist_ok=True)
-        portrait_filename = available_filename(directory, f"portrait-{normalize_upload_stem(filename)}", ".webp")
-        atomic_write_bytes(directory / portrait_filename, converted)
-        return f"/{SITE_IMAGES_DIRECTORY.as_posix()}/{portrait_filename}"
+        stored = available_filename(directory, f"{kind}-{normalize_upload_stem(filename)}", ".webp")
+        atomic_write_bytes(directory / stored, converted)
+        return f"/{SITE_IMAGES_DIRECTORY.as_posix()}/{stored}"
+
+    def save_portrait(self, filename: str, content: bytes) -> str:
+        return self.save_site_image("portrait", filename, content)
 
     def read_site_image(self, site_path: str) -> tuple[bytes, str]:
         """Read an image under assets/images by its site path, e.g. /assets/images/avatar.png."""
@@ -927,6 +1093,8 @@ class BuilderHandler(BaseHTTPRequestHandler):
                     "history": self.server.publisher.history(),
                     "trash": self.server.repository.list_trash(),
                 })
+            elif path == "/api/fonts/catalog":
+                self._send_json(200, {"families": self.server.repository.font_catalog()})
             elif path == "/api/help-report":
                 self._send_json(200, {"report": self.server.publisher.help_report()})
             elif path in STATIC_FILES:
@@ -936,6 +1104,8 @@ class BuilderHandler(BaseHTTPRequestHandler):
                 raise NotFoundError("Page not found.")
         except (BuilderError, PublishError) as error:
             self._send_error(error)
+        except fonts.FontError as error:
+            self._send_error(BuilderError(str(error)))
         except (OSError, ValueError, yaml.YAMLError, GitCommandError) as error:
             self._send_error(BuilderError(str(error)))
 
@@ -966,6 +1136,8 @@ class BuilderHandler(BaseHTTPRequestHandler):
                 self._send_json(200, self.server.publisher.sync())
             elif path == "/api/publish/undo":
                 self._send_json(200, self.server.publisher.undo(str(payload.get("sha", ""))))
+            elif path == "/api/fonts/install":
+                self._send_json(200, self.server.repository.install_font(str(payload.get("family", ""))))
             elif path == "/api/publish/token":
                 self._send_json(200, self.server.publisher.set_token(str(payload.get("token", ""))))
             elif path == "/api/publish/discard":
@@ -979,6 +1151,8 @@ class BuilderHandler(BaseHTTPRequestHandler):
                 raise NotFoundError("API endpoint not found.")
         except (BuilderError, PublishError) as error:
             self._send_error(error)
+        except fonts.FontError as error:
+            self._send_error(BuilderError(str(error)))
         except (OSError, ValueError, yaml.YAMLError, GitCommandError) as error:
             self._send_error(BuilderError(str(error)))
 
@@ -989,7 +1163,8 @@ class BuilderHandler(BaseHTTPRequestHandler):
         try:
             image_match = re.fullmatch(r"/api/projects/([^/]+)/images/([^/]+)", path)
             portrait_match = re.fullmatch(r"/api/portrait/([^/]+)", path)
-            if not image_match and not portrait_match:
+            site_image_match = re.fullmatch(r"/api/site-images/([a-z]+)/([^/]+)", path)
+            if not image_match and not portrait_match and not site_image_match:
                 raise NotFoundError("API endpoint not found.")
             length = self._content_length(MAX_IMAGE_BYTES)
             content = self.rfile.read(length)
@@ -999,11 +1174,16 @@ class BuilderHandler(BaseHTTPRequestHandler):
                 filename = self.server.repository.save_image(*image_match.groups(), content)
                 version = (self.server.repository.project_directory(image_match.group(1)) / filename).stat().st_mtime_ns
                 self._send_json(201, {"ok": True, "file": filename, "version": version})
+            elif site_image_match:
+                site_path = self.server.repository.save_site_image(*site_image_match.groups(), content)
+                self._send_json(201, {"ok": True, "path": site_path})
             else:
                 portrait = self.server.repository.save_portrait(portrait_match.group(1), content)
                 self._send_json(201, {"ok": True, "portrait": portrait})
         except (BuilderError, PublishError) as error:
             self._send_error(error)
+        except fonts.FontError as error:
+            self._send_error(BuilderError(str(error)))
         except (OSError, ValueError, yaml.YAMLError, GitCommandError) as error:
             self._send_error(BuilderError(str(error)))
 
@@ -1018,6 +1198,8 @@ class BuilderHandler(BaseHTTPRequestHandler):
             self._send_json(200, self.server.repository.delete_project(project_match.group(1)))
         except (BuilderError, PublishError) as error:
             self._send_error(error)
+        except fonts.FontError as error:
+            self._send_error(BuilderError(str(error)))
         except (OSError, ValueError, yaml.YAMLError, GitCommandError) as error:
             self._send_error(BuilderError(str(error)))
 

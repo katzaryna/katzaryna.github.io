@@ -12,6 +12,7 @@ exclude:
   - Makefile
   - README.md
   - eslint.config.mjs
+  - ruff.toml
   - package.json
   - package-lock.json
   - requirements-dev.txt
@@ -37,12 +38,21 @@ artist:
   email: katzaryna@gmail.com
   linkedin_url: https://www.linkedin.com/in/katsiaryna-zarouskaya-9083a5105
   instagram_url: https://www.instagram.com/kat.zaryna/
-copyright_year: 2026
+  wordmark_image: /assets/images/wordmark-screenshot-2026-11-11-at-02-14-31-2.webp
 home_gallery:
   compact: false
   gap: 20px
   single_page: true
   covers:
+    - project: book-covers
+      file: 03.jpg
+      crop: false
+      crop_x: 50
+      crop_y: 50
+      x: 0
+      y: 0
+      width: 2.5825
+      height: 3.7832
     - project: book-covers
       file: 02.jpg
       crop: false
@@ -52,6 +62,42 @@ home_gallery:
       y: 0
       width: 2.5826
       height: 3.7832
+    - project: book-covers
+      file: 01.jpg
+      crop: false
+      crop_x: 50
+      crop_y: 63.44
+      x: 5.1651
+      y: 0
+      width: 2.5825
+      height: 3.7832
+    - project: book-covers
+      file: 04.jpg
+      crop: false
+      crop_x: 50
+      crop_y: 50
+      x: 7.7476
+      y: 0
+      width: 4.2524
+      height: 3.7832
+    - project: relax-stress
+      file: cover.webp
+      x: 0
+      y: 3.7832
+      width: 4.59
+      height: 3.4819
+      crop: false
+      crop_x: 50
+      crop_y: 50
+    - project: relax-stress
+      file: book-prison.webp
+      x: 4.59
+      y: 3.7832
+      width: 4.5901
+      height: 3.4819
+      crop: false
+      crop_x: 50
+      crop_y: 50
     - project: westin-holiday
       file: cover.webp
       x: 9.1801
@@ -71,54 +117,9 @@ home_gallery:
       crop: false
       crop_x: 50
       crop_y: 50
-    - project: relax-stress
-      file: cover.webp
-      x: 0
-      y: 3.7832
-      width: 4.59
-      height: 3.4819
-      crop: false
-      crop_x: 50
-      crop_y: 50
-    - project: puppy-yoga
-      file: cover.webp
-      crop: false
-      crop_x: 50
-      crop_y: 50
-      x: 0
-      y: 11.477
-      width: 3.2787
-      height: 4.5578
-    - project: book-covers
-      file: 03.jpg
-      crop: false
-      crop_x: 50
-      crop_y: 50
-      x: 0
-      y: 0
-      width: 2.5825
-      height: 3.7832
-    - project: book-covers
-      file: 04.jpg
-      crop: false
-      crop_x: 50
-      crop_y: 50
-      x: 7.7476
-      y: 0
-      width: 4.2524
-      height: 3.7832
-    - project: book-covers
-      file: 01.jpg
-      crop: false
-      crop_x: 50
-      crop_y: 63.44
-      x: 5.1651
-      y: 0
-      width: 2.5825
-      height: 3.7832
     - project: kneipp-bath-oil
-      file: lavenda-large.webp
-      x: 6
+      file: lake-large.webp
+      x: 3
       y: 7.2651
       width: 3
       height: 4.2119
@@ -126,8 +127,8 @@ home_gallery:
       crop_x: 50
       crop_y: 50
     - project: kneipp-bath-oil
-      file: lake-large.webp
-      x: 3
+      file: lavenda-large.webp
+      x: 6
       y: 7.2651
       width: 3
       height: 4.2119
@@ -143,6 +144,15 @@ home_gallery:
       crop: false
       crop_x: 50
       crop_y: 50
+    - project: puppy-yoga
+      file: cover.webp
+      crop: false
+      crop_x: 50
+      crop_y: 50
+      x: 0
+      y: 11.477
+      width: 3.2787
+      height: 4.5578
     - project: museum-invitation-card
       file: 03.webp
       x: 3.2787
@@ -170,15 +180,6 @@ home_gallery:
       crop: false
       crop_x: 50
       crop_y: 50
-    - project: relax-stress
-      file: book-prison.webp
-      x: 4.59
-      y: 3.7832
-      width: 4.5901
-      height: 3.4819
-      crop: false
-      crop_x: 50
-      crop_y: 50
 analytics:
   measurement_id: G-7S5P7ELFYF
 defaults:
@@ -186,3 +187,31 @@ defaults:
       path: projects
     values:
       render_with_liquid: false
+clients:
+  - logo: /assets/images/client-687994560-1570001488460390-5282227796867007151-n.webp
+    name: Radio RadiusFM
+  - logo: /assets/images/client-850070065-18164590309491479-6042765545893991145-n.webp
+    name: HookahPlace Sportivnaya
+text_styles:
+  header_tabs:
+    font: Charis SIL
+    font_size: 16
+  about_text:
+    font: Charis SIL
+    font_size: 17
+    align: center
+  about_role:
+    font_size: 22
+  home_caption:
+    font: Charis SIL
+    font_size: 16
+  home_lightbox_caption:
+    font: Charis SIL
+  project_caption:
+    font: Charis SIL
+  footer:
+    font: Charis SIL
+  back_link:
+    font: Charis SIL
+  project_description:
+    font: Charis SIL
