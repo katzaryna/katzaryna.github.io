@@ -1,0 +1,143 @@
+# Every place on the site whose text style can be changed in the builder
+# (Текст tab). The defaults match assets/css/styles.css; a choice in
+# _config.yml text_styles.<id> overrides them through assets/theme.css.
+#
+# id        key in text_styles (never rename: saved choices refer to it)
+# group     heading in the builder
+# label     what the builder calls this place
+# selector  CSS selector of the element on the site
+# font      default Google font (empty: the browser's Arial)
+# font_size default size in px on a wide screen (not "size": Liquid reads
+#           hash.size as the number of keys)
+# align     default alignment, or empty when alignment does not apply
+# sample    config path whose text the builder previews, or literal text
+- id: header_wordmark
+  group: Шапка
+  label: Имя слева от портрета (когда нет картинки)
+  selector: .site-header .wordmark
+  font: Whisper
+  font_size: 87
+  sample: artist.name
+- id: header_description
+  group: Шапка
+  label: Профессия справа от портрета
+  selector: .site-header .artist-description
+  font: Sedan SC
+  font_size: 20
+  sample: artist.description
+- id: header_tabs
+  group: Шапка
+  label: Вкладки About и Clients
+  selector: .header-tab
+  font: Tenor Sans
+  font_size: 19
+  sample: About   Clients
+- id: about_name
+  group: Окно About
+  label: Имя
+  selector: "#about-dialog .info-dialog-title"
+  font: Sedan SC
+  font_size: 38
+  align: center
+  sample: artist.full_name
+- id: about_role
+  group: Окно About
+  label: Профессия
+  selector: "#about-dialog .info-dialog-role"
+  font: Tenor Sans
+  font_size: 16
+  align: center
+  sample: artist.description
+- id: about_text
+  group: Окно About
+  label: Текст биографии
+  selector: "#about-dialog .info-dialog-text"
+  font: Inter
+  font_size: 17
+  align: left
+  sample: artist.bio
+- id: clients_title
+  group: Окно Clients
+  label: Заголовок «Clients»
+  selector: "#clients-dialog .info-dialog-title"
+  font: Sedan SC
+  font_size: 38
+  align: center
+  sample: Clients
+- id: clients_caption
+  group: Окно Clients
+  label: Подписи под логотипами
+  selector: .client-name
+  font: Inter
+  font_size: 14
+  sample: Kneipp
+- id: home_caption
+  group: Главная
+  label: Название проекта при наведении на обложку
+  selector: .gallery-title
+  font: Inter
+  font_size: 16
+  align: center
+  sample: A day outdoors
+- id: viewer_project_title
+  group: Просмотр обложки
+  label: Название проекта
+  selector: .cover-viewer-project
+  font: Sedan SC
+  font_size: 30
+  align: left
+  sample: A day outdoors
+- id: home_lightbox_caption
+  group: Просмотр обложки
+  label: Название иллюстрации
+  selector: .cover-viewer-image-title
+  font: Tenor Sans
+  font_size: 18
+  align: left
+  sample: Book cover
+- id: viewer_description
+  group: Просмотр обложки
+  label: Описание иллюстрации
+  selector: .cover-viewer-description
+  font: Inter
+  font_size: 16
+  align: left
+  sample: Watercolour and digital, 2024. A cover for a series of stories about small everyday adventures.
+- id: project_title
+  group: Страница проекта
+  label: Название проекта
+  selector: .project-title
+  font: Tenor Sans
+  font_size: 26
+  align: center
+  sample: A day outdoors
+- id: project_description
+  group: Страница проекта
+  label: Описание проекта
+  selector: .project-description
+  font:
+  font_size: 16
+  align: left
+  sample: A short story about the project.
+- id: project_caption
+  group: Страница проекта
+  label: Подписи под картинками
+  selector: .project-works figcaption
+  font:
+  font_size: 13
+  align: left
+  sample: Cover illustration
+- id: back_link
+  group: Страница проекта
+  label: Ссылка «← Gallery»
+  selector: .back-link
+  font:
+  font_size: 14
+  sample: ← Gallery
+- id: footer
+  group: Подвал
+  label: Текст внизу страницы
+  selector: .site-footer
+  font:
+  font_size: 12
+  sample: © 2026 Katzaryna

@@ -11,7 +11,7 @@ help:
 		'  make setup            Install build, lint, and test dependencies' \
 		'  make builder          Open the local site builder at http://127.0.0.1:8765' \
 		'  make lint             Run all configured linters' \
-		'  make test             Run pytest and check project covers' \
+		'  make test             Run pytest, check project covers and fonts' \
 		'  make check            Run all linters and tests' \
 		'  make build-fast       Run a basic Jekyll build' \
 		'  make build            Generate image variants, build, and validate the site'
@@ -53,6 +53,7 @@ lint-images:
 test:
 	$(PYTHON) -m pytest tests
 	$(PYTHON) -m scripts.check_project_covers
+	$(PYTHON) -m scripts.fonts check
 
 check: lint test
 

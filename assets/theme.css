@@ -1,0 +1,41 @@
+---
+# Built by Jekyll from _data/fonts.yml (installed Google Fonts),
+# _data/colors.yml with _config.yml colors, and _config.yml text_styles
+# (choices made in the builder's Оформление tab).
+---
+/* Colours chosen in the builder. */
+:root {
+{%- for setting in site.data.colors %}{% assign chosen = site.colors[setting.id] %}{% if chosen %}
+{%- assign color = chosen.color | default: setting.color %}
+{%- if setting.opacity %}{% assign opacity = chosen.opacity | default: setting.opacity %}
+  {{ setting.variable }}: color-mix(in srgb, {{ color }} {{ opacity }}%, transparent);
+{%- else %}
+  {{ setting.variable }}: {{ color }};
+{%- endif %}{% endif %}{% endfor %}
+}
+
+/* Self-hosted Google Fonts (SIL Open Font License 1.1 or Apache 2.0). */
+{% for font in site.data.fonts %}{% for face in font.faces %}
+@font-face {
+  font-family: "{{ font.family }}";
+  font-style: {{ face.style }};
+  font-weight: {{ face.weight }};
+  font-display: swap;
+  src: url("{{ '/assets/fonts/' | append: font.slug | append: '/' | append: face.file | relative_url }}") format("woff2");
+  unicode-range: {{ face.unicode_range }};
+}
+{% endfor %}{% endfor %}
+/* Text styles chosen in the builder. Sizes shrink fluidly below 1440px, to 70% at most. */
+{% for place in site.data.text_places %}{% assign style = site.text_styles[place.id] %}{% if style %}
+{{ place.selector }} {
+{%- if style.font %}{% assign font = site.data.fonts | where: "family", style.font | first %}
+  font-family: "{{ style.font }}", {{ font.fallback | default: "sans-serif" }};
+{%- endif %}
+{%- if style.font_size %}
+  font-size: clamp({{ style.font_size | times: 0.7 | round: 1 }}px, {{ style.font_size | divided_by: 14.4 | round: 3 }}vw, {{ style.font_size }}px);
+{%- endif %}
+{%- if style.align and place.align %}
+  text-align: {{ style.align }};
+{%- endif %}
+}
+{% endif %}{% endfor %}

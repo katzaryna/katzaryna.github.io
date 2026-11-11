@@ -6,10 +6,16 @@
     home: document.querySelector("#home-view"),
     projects: document.querySelector("#projects-view"),
     settings: document.querySelector("#settings-view"),
+    advanced: document.querySelector("#advanced-view"),
+    clients: document.querySelector("#clients-view"),
     publish: document.querySelector("#publish-view"),
+    text: document.querySelector("#text-view"),
   };
   const homeView = views.home;
   const settingsForm = document.querySelector("#settings-form");
+  const advancedForm = document.querySelector("#advanced-form");
+  const appMain = document.querySelector("main");
+  const clientsContent = document.querySelector("#clients-content");
   const projectList = document.querySelector("#project-list");
   const projectEditor = document.querySelector("#project-editor");
   const imageInspector = document.querySelector("#image-inspector");
@@ -187,10 +193,17 @@
     syncCoversIntoWork();
     const { home_gallery: workHome, ...workRest } = work.config;
     const { home_gallery: savedHome, ...savedRest } = saved.config;
+    const differs = key => stableJson(work.config[key]) !== stableJson(saved.config[key]);
+    const artistDiffers = key => (work.config.artist?.[key] ?? "") !== (saved.config.artist?.[key] ?? "");
+    const appearance = differs("colors") || differs("text_styles")
+      || artistDiffers("wordmark_image") || artistDiffers("portrait") || artistDiffers("portrait_alt");
     return {
       config: stableJson(workRest) !== stableJson(savedRest),
       home: stableJson(workHome) !== stableJson(savedHome),
       projects: work.projects.filter(projectIsDirty),
+      // Which builder tabs the settings changes belong to, for the save bar.
+      clients: differs("clients"),
+      appearance,
     };
   }
 
@@ -205,7 +218,10 @@
     if (pending.home) parts.push("главная");
     if (pending.projects.length === 1) parts.push(`проект «${pending.projects[0].metadata.title}»`);
     if (pending.projects.length > 1) parts.push(plural(pending.projects.length, "проект", "проекта", "проектов"));
-    if (pending.config) parts.push("настройки");
+    if (pending.clients) parts.push("клиенты");
+    if (pending.appearance) parts.push("оформление");
+    if (pending.config && settingsTabChanged("settings")) parts.push("об авторе");
+    if (pending.config && settingsTabChanged("advanced")) parts.push("дополнительно");
     saveBar.hidden = parts.length === 0;
     saveBarSummary.textContent = parts.length ? `Не сохранено: ${parts.join(", ")}` : "";
     projectList.querySelectorAll("[data-project-slug]").forEach(item => {
@@ -234,6 +250,11 @@
       homeSelection = new Set(issue.ids);
       navigate("home");
       throw new Error(`На главной: ${issue.message} Раздвиньте выделенные обложки.`);
+    }
+    if (!advancedForm.checkValidity()) {
+      navigate("advanced");
+      advancedForm.reportValidity();
+      throw new Error("Проверьте выделенные поля во вкладке «Дополнительно».");
     }
     if (!settingsForm.checkValidity()) {
       navigate("settings");
@@ -388,6 +409,8 @@
       renderProjects();
     }
     if (currentView === "publish") renderPublishView();
+    if (currentView === "text") renderTextView();
+    if (currentView === "clients") renderClientsView();
     if (currentView === "home") {
       renderHomeGalleryEditor();
       if (homeGalleryNeedsFit && homeGalleryViewport.clientWidth) {
@@ -414,15 +437,17 @@
   const SETTINGS_SECTIONS = [
     {
       title: "Об авторе",
+      tab: "settings",
       fields: [
         { path: ["artist", "name"], label: "Имя на сайте", help: "Крупная надпись в шапке.", required: true },
         { path: ["artist", "full_name"], label: "Полное имя", half: true },
         { path: ["artist", "description"], label: "Профессия", half: true },
-        { path: ["artist", "bio"], label: "Биография", type: "textarea", tall: true, help: "Открывается по кнопке «Bio» у портрета." },
+        { path: ["artist", "bio"], label: "Биография", type: "textarea", tall: true, help: "Открывается во вкладке «About» в шапке сайта." },
       ],
     },
     {
       title: "Контакты",
+      tab: "settings",
       fields: [
         { path: ["artist", "email"], label: "Email", type: "email", required: true },
         { path: ["artist", "instagram_url"], label: "Instagram", type: "url", half: true, placeholder: "https://www.instagram.com/…" },
@@ -431,14 +456,15 @@
     },
     {
       title: "Сайт",
+      tab: "advanced",
       fields: [
         { path: ["title"], label: "Название во вкладке браузера", required: true },
         { path: ["description"], label: "Описание для поисковиков и превью ссылок", type: "textarea" },
-        { path: ["copyright_year"], label: "Год в подвале (©)", type: "number", min: 2000, max: 2100 },
       ],
     },
     {
       title: "Аналитика",
+      tab: "advanced",
       fields: [
         {
           path: ["analytics", "measurement_id"],
@@ -485,25 +511,167 @@
 
   function renderSettings() {
     if (!work) return;
-    settingsForm.innerHTML = SETTINGS_SECTIONS.map((section, sectionIndex) => `
+    const render = tab => SETTINGS_SECTIONS.filter(section => section.tab === tab).map(section => `
       <section class="card">
         <div class="card-heading"><h2>${escapeHtml(section.title)}</h2></div>
-        ${sectionIndex === 0 ? `
-          <div class="portrait-field">
-            <img src="${siteImageUrl(work.config.artist?.portrait)}" alt="">
-            <div class="field">
-              <span>Портрет</span>
-              <div><button class="button button-secondary button-small" type="button" data-action="replace-portrait">Заменить…</button></div>
-              <input type="file" accept="${ACCEPTED_IMAGES}" data-portrait-input hidden>
-            </div>
-          </div>
-          ${renderField({ path: ["artist", "portrait_alt"], label: "Описание портрета (alt)", help: "Для незрячих посетителей и поисковиков." }, work.config)}
-          <div style="height:14px"></div>` : ""}
         ${renderFieldGroup(section.fields, work.config)}
       </section>`).join("");
+    settingsForm.innerHTML = render("settings");
+    advancedForm.innerHTML = render("advanced");
   }
 
-  settingsForm.addEventListener("input", event => {
+  /** Whether a settings tab ("settings" or "advanced") has unsaved edits. */
+  function settingsTabChanged(tab) {
+    return SETTINGS_SECTIONS.filter(section => section.tab === tab).some(section => section.fields.some(field => (
+      stableJson(getPath(work.config, field.path) ?? "") !== stableJson(getPath(saved.config, field.path) ?? "")
+    )));
+  }
+
+  function renderClientsView() {
+    if (!work) return;
+    clientsContent.innerHTML = renderClientsCard();
+  }
+
+  function renderHeaderCard() {
+    const wordmark = work.config.artist?.wordmark_image;
+    const preview = wordmark
+      ? `<img src="${siteImageUrl(wordmark)}" alt="">`
+      : `<span class="wordmark-text">${escapeHtml(work.config.artist?.name ?? "")}</span>`;
+    return `
+      <section class="card">
+        <div class="card-heading"><div><h2>Шапка: надпись и портрет</h2><p>Надпись стоит слева от портрета. Лучше всего PNG с прозрачным фоном; без картинки показывается имя текстом.</p></div></div>
+        <div class="portrait-field">
+          <img src="${siteImageUrl(work.config.artist?.portrait)}" alt="">
+          <div class="field">
+            <span>Портрет</span>
+            <div><button class="button button-secondary button-small" type="button" data-action="replace-portrait">Заменить…</button></div>
+            <input type="file" accept="${ACCEPTED_IMAGES}" data-portrait-input hidden>
+            <small class="field-help">На сайте показывается чёрно-белым. Цветной файл — для значка вкладки и превью ссылок.</small>
+          </div>
+        </div>
+        ${renderField({ path: ["artist", "portrait_alt"], label: "Описание портрета (alt)", help: "Для незрячих посетителей и поисковиков." }, work.config)}
+        <div class="field"><span>Надпись</span></div>
+        <div class="wordmark-field">
+          <div class="wordmark-preview">${preview}</div>
+          <div class="field-actions">
+            <button class="button button-secondary button-small" type="button" data-action="upload-wordmark">${wordmark ? "Заменить картинку…" : "Загрузить картинку…"}</button>
+            ${wordmark ? '<button class="button button-ghost button-small" type="button" data-action="remove-wordmark">Убрать и показывать текстом</button>' : ""}
+          </div>
+          <input type="file" accept="${ACCEPTED_IMAGES}" data-upload-input="wordmark" hidden>
+        </div>
+      </section>`;
+  }
+
+  function renderClientsCard() {
+    const clients = work.config.clients ?? [];
+    const rows = clients.map((client, index) => `
+      <li class="client-row">
+        <img class="client-row-logo" src="${siteImageUrl(client.logo)}" alt="">
+        <label class="field">
+          <span>Подпись <small class="field-help">— необязательно</small></span>
+          <input value="${escapeHtml(client.name ?? "")}" data-client-name="${index}" maxlength="80" autocomplete="off" placeholder="Например, Kneipp">
+        </label>
+        <div class="client-row-actions">
+          <button class="icon-button" type="button" data-client-move="${index}:-1" ${index === 0 ? "disabled" : ""} aria-label="Выше" title="Выше">↑</button>
+          <button class="icon-button" type="button" data-client-move="${index}:1" ${index === clients.length - 1 ? "disabled" : ""} aria-label="Ниже" title="Ниже">↓</button>
+          <button class="text-button" type="button" data-client-replace="${index}" title="Загрузить другой логотип">Заменить</button>
+          <button class="text-button is-danger" type="button" data-client-remove="${index}">Удалить</button>
+        </div>
+      </li>`).join("");
+    return `
+      <section class="card">
+        <div class="card-heading"><div><h2>Логотипы</h2><p>В этом порядке они стоят на сайте. Подпись под логотипом необязательна.</p></div></div>
+        ${clients.length ? `<ol class="client-rows">${rows}</ol>` : ""}
+        <button class="button button-secondary" type="button" data-action="add-clients">+ Добавить логотипы…</button>
+        <input type="file" accept="${ACCEPTED_IMAGES}" multiple data-upload-input="clients" hidden>
+        <input type="file" accept="${ACCEPTED_IMAGES}" data-upload-input="client-replace" hidden>
+      </section>`;
+  }
+
+  let replacingClient = -1;
+
+  async function uploadSiteImage(kind, file) {
+    const result = await request(`/api/site-images/${kind}/${encodeURIComponent(file.name)}`, {
+      method: "PUT",
+      headers: { "Content-Type": file.type || "application/octet-stream" },
+      body: file,
+    });
+    return result.path;
+  }
+
+  function changeClients(update) {
+    const clients = structuredClone(work.config.clients ?? []);
+    update(clients);
+    if (clients.length) work.config.clients = clients;
+    else delete work.config.clients;
+    renderAll();
+    refreshDirty();
+  }
+
+  appMain.addEventListener("click", event => {
+    const target = event.target.closest("button");
+    if (!target || target.closest(".settings-form")) return;
+    if (target.dataset.action === "upload-wordmark") appMain.querySelector('[data-upload-input="wordmark"]').click();
+    if (target.dataset.action === "remove-wordmark") {
+      delete work.config.artist.wordmark_image;
+      renderAll();
+      refreshDirty();
+    }
+    if (target.dataset.action === "add-clients") appMain.querySelector('[data-upload-input="clients"]').click();
+    if (target.dataset.clientReplace !== undefined) {
+      replacingClient = Number(target.dataset.clientReplace);
+      appMain.querySelector('[data-upload-input="client-replace"]').click();
+    }
+    if (target.dataset.clientRemove !== undefined) {
+      changeClients(clients => clients.splice(Number(target.dataset.clientRemove), 1));
+    }
+    if (target.dataset.clientMove) {
+      const [index, step] = target.dataset.clientMove.split(":").map(Number);
+      changeClients(clients => {
+        const [moved] = clients.splice(index, 1);
+        clients.splice(index + step, 0, moved);
+      });
+    }
+  });
+
+  appMain.addEventListener("input", event => {
+    const input = event.target.closest("[data-client-name]");
+    if (!input) return;
+    const client = work.config.clients?.[Number(input.dataset.clientName)];
+    if (!client) return;
+    if (input.value.trim()) client.name = input.value;
+    else delete client.name;
+    refreshDirty();
+  });
+
+  appMain.addEventListener("change", async event => {
+    const input = event.target.closest("[data-upload-input]");
+    if (!input?.files?.length) return;
+    const files = [...input.files];
+    const purpose = input.dataset.uploadInput;
+    input.value = "";
+    try {
+      if (purpose === "wordmark") {
+        setPath(work.config, ["artist", "wordmark_image"], await uploadSiteImage("wordmark", files[0]));
+        toast("Надпись загружена. Сохраните изменения, чтобы она появилась на сайте.");
+      } else if (purpose === "client-replace" && replacingClient >= 0) {
+        const logo = await uploadSiteImage("client", files[0]);
+        const index = replacingClient;
+        changeClients(clients => { if (clients[index]) clients[index].logo = logo; });
+      } else if (purpose === "clients") {
+        const logos = [];
+        for (const file of files) logos.push(await uploadSiteImage("client", file));
+        changeClients(clients => clients.push(...logos.map(logo => ({ logo }))));
+        toast(`${plural(logos.length, "логотип добавлен", "логотипа добавлено", "логотипов добавлено")}. Подписи можно добавить рядом с каждым.`);
+      }
+      renderAll();
+      refreshDirty();
+    } catch (error) {
+      toast(`Не удалось загрузить картинку: ${error.message}`, true);
+    }
+  });
+
+  appMain.addEventListener("input", event => {
     const input = event.target.closest("[data-config-path]");
     if (!input) return;
     const path = JSON.parse(input.dataset.configPath);
@@ -513,13 +681,13 @@
     refreshDirty();
   });
 
-  settingsForm.addEventListener("click", event => {
+  appMain.addEventListener("click", event => {
     if (event.target.closest('[data-action="replace-portrait"]')) {
-      settingsForm.querySelector("[data-portrait-input]").click();
+      appMain.querySelector("[data-portrait-input]").click();
     }
   });
 
-  settingsForm.addEventListener("change", async event => {
+  appMain.addEventListener("change", async event => {
     const input = event.target.closest("[data-portrait-input]");
     const file = input?.files?.[0];
     if (!file) return;
@@ -530,7 +698,7 @@
         body: file,
       });
       setPath(work.config, ["artist", "portrait"], result.portrait);
-      renderSettings();
+      renderAll();
       refreshDirty();
       toast("Новый портрет загружен. Сохраните изменения, чтобы он появился на сайте.");
     } catch (error) {
@@ -646,7 +814,8 @@
       <div class="inspector-preview"><img src="${imageUrl(project.slug, image.file, 480)}" alt=""></div>
       <div class="inspector-file" title="${escapeHtml(image.file)}">${escapeHtml(image.file)}</div>
       <label class="field"><span>Alt-текст</span><textarea data-image-field="alt" required placeholder="Что изображено">${escapeHtml(image.alt ?? "")}</textarea><small class="field-help">Обязателен: для незрячих посетителей и поисковиков.</small></label>
-      <label class="field"><span>Подпись</span><input data-image-field="caption" value="${escapeHtml(image.caption ?? "")}" placeholder="Необязательно"><small class="field-help">Показывается при наведении и в увеличенном просмотре.</small></label>
+      <label class="field"><span>Название иллюстрации</span><input data-image-field="caption" value="${escapeHtml(image.caption ?? "")}" placeholder="Необязательно"><small class="field-help">В просмотре обложки на главной и под картинкой на странице проекта.</small></label>
+      <label class="field"><span>Описание иллюстрации</span><textarea data-image-field="description" placeholder="Необязательно">${escapeHtml(image.description ?? "")}</textarea><small class="field-help">В просмотре обложки на главной, справа от картинки.</small></label>
       <label class="switch" style="margin-top:14px"><input type="checkbox" data-image-cover ${image.cover === true ? "checked" : ""}><span><strong>Обложка на главной</strong><small>Положение и размер — во вкладке «Главная».</small></span></label>
       ${columns ? `
         <div class="field-row" style="margin-top:14px">
@@ -1164,6 +1333,17 @@
   function updateHomeGalleryHistoryButtons() {
     homeGalleryBoard.querySelector('[data-gallery-action="undo"]').disabled = homeGalleryUndoStack.length === 0;
     homeGalleryBoard.querySelector('[data-gallery-action="redo"]').disabled = homeGalleryRedoStack.length === 0;
+    const compactButton = homeGalleryBoard.querySelector('[data-gallery-action="compact"]');
+    const gaps = canCompact();
+    compactButton.disabled = !gaps;
+    compactButton.title = gaps ? "Подтянуть все обложки вверх и убрать пустоты" : "Пустот нет — уплотнять нечего";
+  }
+
+  /** Whether «Уплотнить» would move any cover up: tried on a copy. */
+  function canCompact() {
+    const trial = structuredClone(homeGalleryCovers);
+    HOME_COMMANDS.compact(trial);
+    return trial.some((cover, index) => !cover.parked && homeGalleryCovers[index].y - cover.y > EPSILON);
   }
 
   /** Apply a layout change to a copy, validate it, then commit with undo. */
@@ -1212,6 +1392,7 @@
     homeGalleryBoard.querySelectorAll("[data-home-mode]").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.homeMode === homeMode)));
     if (homeMode === "phone") renderPhoneOrder();
     else renderHomeStage();
+    updatePhoneSortButton();
     renderHomeGalleryControls();
     updateHomeGalleryHistoryButtons();
   }
@@ -1331,9 +1512,24 @@
             <img src="${imageUrl(cover.project, cover.file, 480)}" alt="" draggable="false" loading="lazy">
           </li>`).join("")}
         </ol>
-        <button class="button button-secondary button-small" type="button" data-phone-sort>Упорядочить как на холсте</button>
       </div>`;
     setPhoneZoom(phoneZoom);
+  }
+
+  /** Visible covers top to bottom, left to right, as they stand on the canvas. */
+  function canvasOrder() {
+    return homeGalleryCovers.filter(cover => !cover.parked).sort((a, b) => a.y - b.y || a.x - b.x).map(homeCoverId);
+  }
+
+  function updatePhoneSortButton() {
+    const button = homeGalleryBoard.querySelector("[data-phone-sort]");
+    if (!button) return;
+    const current = homeGalleryCovers.filter(cover => !cover.parked).map(homeCoverId);
+    const same = current.join("\n") === canvasOrder().join("\n");
+    button.disabled = same;
+    button.title = same
+      ? "Порядок на телефоне уже совпадает с холстом"
+      : "Расставить обложки на телефоне сверху вниз, слева направо — как они стоят на холсте";
   }
 
   function reorderCovers(ids) {
@@ -2148,7 +2344,8 @@
       requestAnimationFrame(fitHome);
     }
     if (event.target.closest("[data-phone-sort]")) {
-      reorderCovers(homeGalleryCovers.filter(cover => !cover.parked).sort((a, b) => a.y - b.y || a.x - b.x).map(homeCoverId));
+      reorderCovers(canvasOrder());
+      toast("Порядок на телефоне теперь как на холсте: сверху вниз, слева направо.");
     }
     if (!action) return;
     if (action === "undo") restoreHomeGalleryHistory(homeGalleryUndoStack, homeGalleryRedoStack);
@@ -2170,6 +2367,518 @@
       fitHome();
     }
   }).observe(homeGalleryViewport);
+
+  // ---------------------------------------------------------------------------
+  // Text: fonts, sizes and alignment per place on the site
+  // ---------------------------------------------------------------------------
+  const textContent = document.querySelector("#text-content");
+  const ALIGN_LABELS = { left: "Слева", center: "По центру", right: "Справа" };
+  let fontCatalog = null;
+  let fontCatalogState = "";
+  const previewFonts = new Set();
+  let installingFont = "";
+
+  let fontCatalogPromise = null;
+  function loadFontCatalog() {
+    fontCatalogPromise ??= fetchFontCatalog();
+    return fontCatalogPromise;
+  }
+
+  async function fetchFontCatalog() {
+    fontCatalogState = "loading";
+    try {
+      fontCatalog = (await request("/api/fonts/catalog")).families;
+      fontCatalogState = "";
+    } catch (error) {
+      fontCatalogState = error.message;
+      fontCatalogPromise = null; // try again next time
+    }
+    // An open picker refreshes itself; re-rendering would close it.
+    if (currentView === "text" && !picker) renderTextView();
+  }
+
+  /** Show a Google font in the builder's previews; the site itself uses the downloaded copy. */
+  function usePreviewFont(family) {
+    if (!family || previewFonts.has(family)) return;
+    previewFonts.add(family);
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family).replace(/%20/g, "+")}&display=swap`;
+    document.head.append(link);
+  }
+
+  function textPlaces() {
+    return work?.text_places ?? [];
+  }
+
+  function textStyle(placeId) {
+    return work.config.text_styles?.[placeId] ?? {};
+  }
+
+  function setTextStyle(placeId, key, value) {
+    const styles = structuredClone(work.config.text_styles ?? {});
+    const style = { ...(styles[placeId] ?? {}) };
+    if (value === undefined || value === null || value === "") delete style[key];
+    else style[key] = value;
+    if (Object.keys(style).length) styles[placeId] = style;
+    else delete styles[placeId];
+    if (Object.keys(styles).length) work.config.text_styles = styles;
+    else delete work.config.text_styles;
+    refreshDirty();
+  }
+
+  function sampleText(place) {
+    const sample = String(place.sample ?? "");
+    if (/^[a-z_]+(\.[a-z_]+)+$/.test(sample)) {
+      const value = getPath(work.config, sample.split("."));
+      if (typeof value === "string" && value.trim()) return value;
+    }
+    return sample || place.label;
+  }
+
+  function previewStyle(place) {
+    const style = textStyle(place.id);
+    const family = style.font || place.font;
+    usePreviewFont(family);
+    const size = style.font_size || place.font_size;
+    const align = place.align ? (style.align || place.align) : "left";
+    const familyCss = family ? `'${family.replace(/'/g, "")}', ` : "";
+    return `font-family: ${familyCss}Arial, sans-serif; font-size: ${Math.min(size, 90)}px; text-align: ${align};`;
+  }
+
+  function renderTextPlace(place) {
+    const style = textStyle(place.id);
+    const changed = Object.keys(style).length > 0;
+    const currentAlign = style.align || place.align;
+    const alignControl = place.align ? `
+      <div class="field">
+        <span>Выравнивание</span>
+        <div class="segmented" role="group" aria-label="Выравнивание">
+          ${Object.entries(ALIGN_LABELS).map(([value, label]) => `
+            <button type="button" data-text-align="${value}" aria-pressed="${currentAlign === value}">${label}</button>`).join("")}
+        </div>
+      </div>` : "";
+    const installing = installingFont && installingFont === style.font ? " — скачиваю…" : "";
+    return `
+      <div class="text-place${changed ? " is-changed" : ""}" data-place="${escapeHtml(place.id)}">
+        <div class="text-place-head">
+          <strong>${escapeHtml(place.label)}</strong>
+          ${changed ? '<button class="text-button" type="button" data-text-reset>Как было</button>' : ""}
+        </div>
+        <div class="text-place-preview" style="${previewStyle(place)}">${escapeHtml(sampleText(place))}</div>
+        <div class="text-place-controls">
+          <div class="field font-picker">
+            <span>Шрифт${installing}</span>
+            <input data-text-font role="combobox" aria-autocomplete="list" aria-expanded="false" value="${escapeHtml(style.font ?? "")}" placeholder="${escapeHtml(place.font || "Arial (системный)")} — по умолчанию" autocomplete="off" spellcheck="false" aria-label="Шрифт: ${escapeHtml(place.label)}">
+          </div>
+          <label class="field">
+            <span>Размер, px</span>
+            <input type="number" min="8" max="200" step="1" data-text-size value="${style.font_size ?? ""}" placeholder="${place.font_size}">
+          </label>
+          ${alignControl}
+        </div>
+      </div>`;
+  }
+
+  function renderTextView() {
+    if (!work) return;
+    loadFontCatalog();
+    const groups = [];
+    for (const place of textPlaces()) {
+      let group = groups.find(item => item.name === place.group);
+      if (!group) {
+        group = { name: place.group, places: [] };
+        groups.push(group);
+      }
+      group.places.push(place);
+    }
+    const focused = textContent.contains(document.activeElement) ? document.activeElement : null;
+    const focusPlace = focused?.closest("[data-place]")?.dataset.place;
+    const focusField = focused?.matches("[data-text-font]") ? "font" : "size";
+    const catalogProblem = fontCatalogState && fontCatalogState !== "loading"
+      ? `<p class="publish-error">Список шрифтов Google не загрузился: ${escapeHtml(fontCatalogState)}</p>`
+      : "";
+    textContent.innerHTML = catalogProblem + renderHeaderCard() + renderColorsCard() + groups.map(group => `
+      <section class="card">
+        <div class="card-heading"><h2>${escapeHtml(group.name)}</h2></div>
+        ${group.places.map(renderTextPlace).join("")}
+      </section>`).join("");
+    if (focusPlace) textContent.querySelector(`[data-place="${focusPlace}"] [data-text-${focusField}]`)?.focus();
+  }
+
+
+  // --- Colours ---
+  function colorSettings() {
+    return work?.color_settings ?? [];
+  }
+
+  function chosenColor(setting) {
+    const chosen = work.config.colors?.[setting.id] ?? {};
+    return {
+      color: chosen.color ?? setting.color,
+      opacity: setting.opacity === undefined ? undefined : (chosen.opacity ?? setting.opacity),
+      changed: Object.keys(chosen).length > 0,
+    };
+  }
+
+  /** Store a colour value; one equal to the default is not a change. */
+  function setColor(setting, key, value) {
+    const colors = structuredClone(work.config.colors ?? {});
+    const entry = { ...(colors[setting.id] ?? {}) };
+    const isDefault = key === "color" ? String(value).toLowerCase() === setting.color.toLowerCase() : value === setting.opacity;
+    if (isDefault) delete entry[key];
+    else entry[key] = value;
+    if (Object.keys(entry).length) colors[setting.id] = entry;
+    else delete colors[setting.id];
+    if (Object.keys(colors).length) work.config.colors = colors;
+    else delete work.config.colors;
+    refreshDirty();
+  }
+
+  function swatchStyle(setting) {
+    const { color, opacity } = chosenColor(setting);
+    return opacity === undefined ? `background: ${color}` : `background: color-mix(in srgb, ${color} ${opacity}%, transparent)`;
+  }
+
+  function renderColorRow(setting) {
+    const { color, opacity, changed } = chosenColor(setting);
+    return `
+      <div class="color-row${changed ? " is-changed" : ""}" data-color="${escapeHtml(setting.id)}">
+        <span class="color-swatch" aria-hidden="true"><span style="${swatchStyle(setting)}"></span></span>
+        <div class="color-label">
+          <strong>${escapeHtml(setting.label)}</strong>
+          ${setting.help ? `<small>${escapeHtml(setting.help)}</small>` : ""}
+        </div>
+        <div class="color-controls">
+          <input type="color" data-color-value value="${escapeHtml(color)}" aria-label="${escapeHtml(setting.label)}">
+          <input class="color-hex" data-color-hex value="${escapeHtml(color)}" maxlength="7" spellcheck="false" aria-label="Код цвета">
+          ${opacity === undefined ? "" : `
+            <label class="color-opacity" title="Непрозрачность">
+              <input type="range" min="0" max="100" step="1" data-color-opacity value="${opacity}" aria-label="Непрозрачность">
+              <output>${opacity}%</output>
+            </label>`}
+          ${changed ? '<button class="text-button" type="button" data-color-reset>Как было</button>' : ""}
+        </div>
+      </div>`;
+  }
+
+  function renderColorsCard() {
+    const settings = colorSettings();
+    if (!settings.length) return "";
+    return `
+      <section class="card">
+        <div class="card-heading"><div><h2>Цвета</h2><p>Для полупрозрачных — ползунок непрозрачности: 0% — не видно, 100% — сплошной цвет.</p></div></div>
+        ${settings.map(renderColorRow).join("")}
+      </section>`;
+  }
+
+  function refreshColorRow(row, setting) {
+    const { color, opacity } = chosenColor(setting);
+    row.querySelector(".color-swatch span").setAttribute("style", swatchStyle(setting));
+    if (document.activeElement !== row.querySelector("[data-color-hex]")) row.querySelector("[data-color-hex]").value = color;
+    row.querySelector("[data-color-value]").value = color;
+    const output = row.querySelector(".color-opacity output");
+    if (output) output.textContent = `${opacity}%`;
+  }
+
+  textContent.addEventListener("input", event => {
+    const row = event.target.closest("[data-color]");
+    if (!row) return;
+    const setting = colorSettings().find(item => item.id === row.dataset.color);
+    if (!setting) return;
+    if (event.target.matches("[data-color-value]")) setColor(setting, "color", event.target.value.toLowerCase());
+    if (event.target.matches("[data-color-hex]")) {
+      const value = event.target.value.trim();
+      if (!/^#[0-9a-f]{6}$/i.test(value)) return;
+      setColor(setting, "color", value.toLowerCase());
+    }
+    if (event.target.matches("[data-color-opacity]")) setColor(setting, "opacity", Number(event.target.value));
+    refreshColorRow(row, setting);
+  });
+
+  textContent.addEventListener("change", event => {
+    // Show or hide «Как было» once a colour has been picked.
+    if (event.target.closest("[data-color]")) renderTextView();
+  });
+
+  textContent.addEventListener("click", event => {
+    const row = event.target.closest("[data-color]");
+    if (!row || !event.target.closest("[data-color-reset]")) return;
+    const colors = structuredClone(work.config.colors ?? {});
+    delete colors[row.dataset.color];
+    if (Object.keys(colors).length) work.config.colors = colors;
+    else delete work.config.colors;
+    refreshDirty();
+    renderTextView();
+  });
+
+  async function chooseFont(placeId, value) {
+    const typed = value.trim();
+    if (!typed) {
+      setTextStyle(placeId, "font", "");
+      renderTextView();
+      return;
+    }
+    const match = fontCatalog?.find(item => item.family.toLowerCase() === typed.toLowerCase());
+    if (!match) {
+      toast(fontCatalog ? `Шрифта «${typed}» нет в Google Fonts — выберите из списка.` : "Список шрифтов ещё загружается, попробуйте через секунду.", true);
+      renderTextView();
+      return;
+    }
+    setTextStyle(placeId, "font", match.family);
+    if (!(work.fonts ?? []).includes(match.family)) {
+      installingFont = match.family;
+      renderTextView();
+      try {
+        work.fonts = (await postJson("/api/fonts/install", { family: match.family })).fonts;
+        toast(`Шрифт «${match.family}» скачан. Сохраните, чтобы он появился на сайте.`);
+      } catch (error) {
+        setTextStyle(placeId, "font", "");
+        toast(error.message, true);
+      } finally {
+        installingFont = "";
+      }
+    }
+    renderTextView();
+  }
+
+  // --- Font picker: each name drawn in its own font, tried on the preview before choosing ---
+  const FONT_MENU_LIMIT = 200;
+  const CATEGORY_FALLBACK = { "Serif": "serif", "Sans Serif": "sans-serif", "Display": "sans-serif", "Handwriting": "cursive", "Monospace": "monospace" };
+  const nameFonts = new Map(); // family -> promise of a FontFace with just the glyphs of its name
+  let picker = null; // { placeId, input, menu, items, active, observer }
+
+  /** Load a tiny face containing only the letters of the family's name, under its own alias. */
+  function loadNameFont(family) {
+    if (nameFonts.has(family)) return nameFonts.get(family);
+    const url = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family).replace(/%20/g, "+")}&text=${encodeURIComponent(family)}`;
+    const promise = fetch(url)
+      .then(response => (response.ok ? response.text() : ""))
+      .then(css => {
+        const source = css.match(/url\((https:[^)]+)\)/)?.[1];
+        if (!source) return null;
+        const face = new FontFace(`picker-${family}`, `url(${source})`);
+        document.fonts.add(face);
+        return face.load();
+      })
+      .catch(() => null);
+    nameFonts.set(family, promise);
+    return promise;
+  }
+
+  function previewElement(placeId) {
+    return textContent.querySelector(`[data-place="${placeId}"] .text-place-preview`);
+  }
+
+  /** Show a family on the place's preview without choosing it; null puts the saved choice back. */
+  function tryFontOnPreview(placeId, family) {
+    const place = textPlaces().find(item => item.id === placeId);
+    const preview = previewElement(placeId);
+    if (!place || !preview) return;
+    preview.setAttribute("style", previewStyle(place));
+    if (family === null) return;
+    const shown = family || place.font;
+    usePreviewFont(shown);
+    preview.style.fontFamily = shown ? `'${shown.replace(/'/g, "")}', Arial, sans-serif` : "Arial, sans-serif";
+  }
+
+  function pickerMatches(query) {
+    const text = query.trim().toLowerCase();
+    if (!fontCatalog) return [];
+    if (!text) return fontCatalog.slice(0, FONT_MENU_LIMIT);
+    const starts = [];
+    const contains = [];
+    for (const item of fontCatalog) {
+      const name = item.family.toLowerCase();
+      if (name.startsWith(text)) starts.push(item);
+      else if (name.includes(text)) contains.push(item);
+      if (starts.length >= FONT_MENU_LIMIT) break;
+    }
+    return [...starts, ...contains].slice(0, FONT_MENU_LIMIT);
+  }
+
+  function setPickerActive(index, { scroll = true, tryIt = true } = {}) {
+    if (!picker) return;
+    const options = [...picker.menu.querySelectorAll("[data-family]")];
+    if (!options.length) return;
+    picker.active = Math.max(0, Math.min(index, options.length - 1));
+    options.forEach((option, position) => option.setAttribute("aria-selected", String(position === picker.active)));
+    const option = options[picker.active];
+    picker.input.setAttribute("aria-activedescendant", option.id);
+    if (scroll) option.scrollIntoView({ block: "nearest" });
+    if (tryIt) tryFontOnPreview(picker.placeId, option.dataset.family);
+  }
+
+  function renderPickerMenu() {
+    if (!picker) return;
+    const place = textPlaces().find(item => item.id === picker.placeId);
+    const matches = pickerMatches(picker.input.value);
+    const defaultLabel = `По умолчанию — ${place?.font || "Arial (системный)"}`;
+    const showDefault = !picker.input.value.trim();
+    picker.items = [...(showDefault ? [{ family: "", category: "" }] : []), ...matches];
+    picker.observer?.disconnect();
+    picker.menu.innerHTML = picker.items.length
+      ? picker.items.map((item, index) => {
+        const fallback = CATEGORY_FALLBACK[item.category] ?? "sans-serif";
+        const family = item.family;
+        const style = family ? `font-family: 'picker-${escapeHtml(family)}', ${fallback};` : "";
+        return `<li role="option" id="font-option-${index}" data-family="${escapeHtml(family)}" style="${style}" aria-selected="false">${escapeHtml(family || defaultLabel)}</li>`;
+      }).join("")
+      : `<li class="font-menu-empty">${fontCatalog ? "Ничего не нашлось" : "Загружаю список шрифтов…"}</li>`;
+    picker.observer = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        const family = entry.target.dataset.family;
+        if (entry.isIntersecting && family) {
+          loadNameFont(family);
+          picker?.observer.unobserve(entry.target);
+        }
+      }
+    }, { root: picker.menu, rootMargin: "120px" });
+    picker.menu.querySelectorAll("[data-family]").forEach(option => picker.observer.observe(option));
+    const current = textStyle(picker.placeId).font ?? "";
+    const typed = picker.input.value.trim().toLowerCase();
+    const start = typed ? 0 : Math.max(0, picker.items.findIndex(item => item.family === current));
+    if (picker.items.length) setPickerActive(start, { tryIt: Boolean(typed) });
+  }
+
+  function openPicker(input) {
+    const placeId = input.closest("[data-place]").dataset.place;
+    if (picker?.input === input) return;
+    closePicker(false);
+    const menu = document.createElement("ul");
+    menu.className = "font-menu";
+    menu.setAttribute("role", "listbox");
+    menu.id = `font-menu-${placeId}`;
+    input.setAttribute("aria-controls", menu.id);
+    input.setAttribute("aria-expanded", "true");
+    input.after(menu);
+    picker = { placeId, input, menu, items: [], active: 0, observer: null };
+    // Keep focus in the input while the mouse works in the menu.
+    menu.addEventListener("mousedown", event => event.preventDefault());
+    menu.addEventListener("mousemove", event => {
+      const option = event.target.closest("[data-family]");
+      if (!option) return;
+      const index = [...menu.querySelectorAll("[data-family]")].indexOf(option);
+      if (index !== picker.active) setPickerActive(index, { scroll: false });
+    });
+    menu.addEventListener("click", event => {
+      const option = event.target.closest("[data-family]");
+      if (option) commitPicker(option.dataset.family);
+    });
+    menu.addEventListener("mouseleave", () => tryFontOnPreview(placeId, null));
+    loadFontCatalog().then(() => { if (picker?.menu === menu) renderPickerMenu(); });
+    renderPickerMenu();
+  }
+
+  function closePicker(restore = true) {
+    if (!picker) return;
+    const { placeId, input, menu, observer } = picker;
+    observer?.disconnect();
+    menu.remove();
+    input.setAttribute("aria-expanded", "false");
+    input.removeAttribute("aria-activedescendant");
+    picker = null;
+    if (restore) {
+      input.value = textStyle(placeId).font ?? "";
+      tryFontOnPreview(placeId, null);
+    }
+  }
+
+  function commitPicker(family) {
+    if (!picker) return;
+    const { placeId, input } = picker;
+    closePicker(false);
+    input.blur();
+    chooseFont(placeId, family);
+  }
+
+  textContent.addEventListener("focusin", event => {
+    const input = event.target.closest("[data-text-font]");
+    if (input) {
+      openPicker(input);
+      input.select();
+    }
+  });
+
+  textContent.addEventListener("focusout", event => {
+    if (picker && event.target === picker.input) closePicker(true);
+  });
+
+  textContent.addEventListener("keydown", event => {
+    if (!picker || event.target !== picker.input) return;
+    const page = 8;
+    const moves = { ArrowDown: 1, ArrowUp: -1, PageDown: page, PageUp: -page };
+    if (event.key in moves) {
+      event.preventDefault();
+      setPickerActive(picker.active + moves[event.key]);
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      const item = picker.items[picker.active];
+      if (item) commitPicker(item.family);
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      closePicker(true);
+      event.target.blur();
+    }
+  });
+
+  textContent.addEventListener("input", event => {
+    if (picker && event.target === picker.input) {
+      renderPickerMenu();
+      if (!picker.input.value.trim()) tryFontOnPreview(picker.placeId, null);
+    }
+  });
+
+  textContent.addEventListener("input", event => {
+    const input = event.target.closest("[data-text-size]");
+    if (!input) return;
+    const placeElement = input.closest("[data-place]");
+    const place = textPlaces().find(item => item.id === placeElement.dataset.place);
+    const value = input.value === "" ? "" : Number(input.value);
+    if (value !== "" && (!Number.isFinite(value) || value < 8 || value > 200)) return;
+    // The default size is not a change: keep only sizes that differ from it.
+    setTextStyle(placeElement.dataset.place, "font_size", value === place?.font_size ? "" : value);
+    if (place) placeElement.querySelector(".text-place-preview").setAttribute("style", previewStyle(place));
+  });
+
+  // An empty size field would step from the minimum (8): start from the default instead.
+  textContent.addEventListener("focusin", event => {
+    const input = event.target.closest("[data-text-size]");
+    if (!input || input.value !== "") return;
+    const place = textPlaces().find(item => item.id === input.closest("[data-place]").dataset.place);
+    if (place?.font_size) input.value = place.font_size;
+  });
+
+  textContent.addEventListener("focusout", event => {
+    const input = event.target.closest("[data-text-size]");
+    if (!input) return;
+    const placeId = input.closest("[data-place]").dataset.place;
+    if (textStyle(placeId).font_size === undefined) input.value = "";
+    // Show or hide «изменено» and «Как было» once editing ends.
+    window.setTimeout(() => {
+      if (!textContent.contains(document.activeElement)) renderTextView();
+    }, 0);
+  });
+
+  textContent.addEventListener("click", event => {
+    const placeId = event.target.closest("[data-place]")?.dataset.place;
+    if (!placeId) return;
+    const alignButton = event.target.closest("[data-text-align]");
+    if (alignButton) {
+      const place = textPlaces().find(item => item.id === placeId);
+      const value = alignButton.dataset.textAlign;
+      setTextStyle(placeId, "align", value === place?.align ? "" : value);
+      renderTextView();
+    }
+    if (event.target.closest("[data-text-reset]")) {
+      const styles = structuredClone(work.config.text_styles ?? {});
+      delete styles[placeId];
+      if (Object.keys(styles).length) work.config.text_styles = styles;
+      else delete work.config.text_styles;
+      refreshDirty();
+      renderTextView();
+    }
+  });
 
   // ---------------------------------------------------------------------------
   // Publishing: status, publish, history, undo, trash, help
@@ -2323,7 +3032,11 @@
     const pending = hasUnpublished(status);
     const dirty = work ? isDirty() : false;
     const changesList = pending && status.changes.length
-      ? `<ul class="change-list">${status.changes.map(line => `<li>${escapeHtml(line)}</li>`).join("")}</ul>`
+      ? `<ul class="change-list">${status.changes.map(group => `
+          <li>
+            <strong>${escapeHtml(group.title)}</strong>
+            ${group.details.length ? `<ul>${group.details.map(detail => `<li>${escapeHtml(detail)}</li>`).join("")}</ul>` : ""}
+          </li>`).join("")}</ul>`
       : "";
     const siteLink = status?.site_url
       ? `<a class="button button-secondary" href="${escapeHtml(status.site_url)}" target="_blank" rel="noopener">Открыть сайт ↗</a>`

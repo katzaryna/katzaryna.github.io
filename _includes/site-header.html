@@ -1,20 +1,52 @@
 <header class="site-header page{% if include.project %} project-header{% endif %}">
-  <div class="portrait-column">
-    <a class="portrait-toggle" href="{{ '/' | relative_url }}" aria-label="Go to home page">
+  <nav class="header-tabs" aria-label="About the artist">
+    <button class="header-tab" type="button" aria-haspopup="dialog" aria-controls="about-dialog" data-open-dialog="about-dialog">About</button>
+    {% if site.clients and site.clients.size > 0 %}<button class="header-tab" type="button" aria-haspopup="dialog" aria-controls="clients-dialog" data-open-dialog="clients-dialog">Clients</button>{% endif %}
+  </nav>
+  <div class="header-brand">
+    <a class="wordmark{% if site.artist.wordmark_image %} has-image{% endif %}" href="{{ '/' | relative_url }}">
+      {%- if site.artist.wordmark_image -%}
+        <img class="wordmark-image" src="{{ site.artist.wordmark_image | relative_url }}" alt="{{ site.artist.name | escape }}">
+      {%- else -%}
+        {{ site.artist.name | escape }}
+      {%- endif -%}
+    </a>
+    <a class="portrait-link" href="{{ '/' | relative_url }}" aria-label="Go to home page">
       <img class="portrait" src="{{ site.artist.portrait | relative_url }}" alt="{{ site.artist.portrait_alt | escape }}">
     </a>
-    <button class="bio-link" id="artist-bio" type="button" aria-label="About {{ site.artist.full_name | escape }}" aria-controls="artist-bio-text" aria-expanded="false">Bio</button>
-    <div class="artist-bio-text" id="artist-bio-text" role="region" aria-label="About" aria-hidden="true">
-      <p class="artist-bio-name">{{ site.artist.full_name | escape }}</p>
-      {% if site.artist.description %}<p class="artist-bio-role">{{ site.artist.description | escape }}</p>{% endif %}
-      <p class="artist-bio-body">{{ site.artist.bio | escape }}</p>
-    </div>
-  </div>
-  <div class="header-content">
-    <span class="artist-full-name">{{ site.artist.full_name | escape }}</span>
-    <a class="wordmark" href="{{ '/' | relative_url }}">{{ site.artist.name | escape | newline_to_br }}</a>
-    <span class="artist-label-separator" aria-hidden="true">|</span>
     {% if site.artist.description %}<p class="artist-description">{{ site.artist.description | escape }}</p>{% endif %}
   </div>
   {% if include.project %}<a class="back-link" href="{{ '/' | relative_url }}">← Gallery</a>{% endif %}
 </header>
+
+<dialog class="info-dialog" id="about-dialog" aria-labelledby="about-dialog-title">
+  <button class="info-dialog-close" type="button" aria-label="Close" data-close-dialog>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg>
+  </button>
+  <article class="info-dialog-body" tabindex="-1" autofocus>
+    <h2 class="info-dialog-title" id="about-dialog-title">{{ site.artist.full_name | escape }}</h2>
+    {% if site.artist.description %}<p class="info-dialog-role">{{ site.artist.description | escape }}</p>{% endif %}
+    <span class="info-dialog-rule" aria-hidden="true"></span>
+    <p class="info-dialog-text">{{ site.artist.bio | escape | strip | newline_to_br }}</p>
+  </article>
+</dialog>
+
+{% if site.clients and site.clients.size > 0 %}
+<dialog class="info-dialog" id="clients-dialog" aria-labelledby="clients-dialog-title">
+  <button class="info-dialog-close" type="button" aria-label="Close" data-close-dialog>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg>
+  </button>
+  <article class="info-dialog-body is-wide" tabindex="-1" autofocus>
+    <h2 class="info-dialog-title" id="clients-dialog-title">Clients</h2>
+    <span class="info-dialog-rule" aria-hidden="true"></span>
+    <ul class="client-list">
+      {% for client in site.clients %}
+      <li class="client">
+        <img class="client-logo" src="{{ client.logo | relative_url }}" alt="{{ client.name | default: 'Client logo' | escape }}" loading="lazy">
+        {% if client.name %}<span class="client-name">{{ client.name | escape }}</span>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </article>
+</dialog>
+{% endif %}

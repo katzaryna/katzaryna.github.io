@@ -1,52 +1,35 @@
-const artistBio = document.getElementById("artist-bio");
+// About and Clients open as full-screen dialogs; #about and #clients link straight to them.
+const dialogTriggers = document.querySelectorAll("[data-open-dialog]");
 
-if (artistBio) {
-  const artistBioText = document.getElementById("artist-bio-text");
-  let bioOpen = false;
-  let bioFrame;
-
-  function setBioOpen(open) {
-    if (bioFrame) cancelAnimationFrame(bioFrame);
-
-    const currentHeight = artistBioText.getBoundingClientRect().height;
-    artistBioText.style.height = `${currentHeight}px`;
-    artistBioText.classList.remove("is-open", "is-closing");
-    bioOpen = open;
-    artistBio.setAttribute("aria-expanded", String(open));
-    artistBioText.setAttribute("aria-hidden", String(!open));
-
-    if (open) {
-      artistBioText.classList.add("is-open");
-    } else {
-      artistBioText.classList.add("is-closing");
-    }
-
-    bioFrame = requestAnimationFrame(() => {
-      artistBioText.style.height = open ? `${artistBioText.scrollHeight}px` : "0px";
-    });
-  }
-
-  const toggleBio = () => setBioOpen(!bioOpen);
-
-  artistBio.addEventListener("click", toggleBio);
-  document.addEventListener("keydown", event => {
-    if (event.key === "Escape" && bioOpen) {
-      setBioOpen(false);
-      artistBio.focus();
-    }
-  });
-  document.addEventListener("click", event => {
-    if (bioOpen && !artistBio.contains(event.target) && !artistBioText.contains(event.target)) setBioOpen(false);
-  });
-  artistBioText.addEventListener("transitionend", event => {
-    if (event.propertyName !== "height") return;
-    if (bioOpen) {
-      artistBioText.style.height = "auto";
-    } else {
-      artistBioText.classList.remove("is-closing");
-    }
-  });
+function openInfoDialog(dialog) {
+  if (!dialog || dialog.open) return;
+  dialog.showModal();
+  dialog.scrollTop = 0;
+  const hash = `#${dialog.id.replace(/-dialog$/, "")}`;
+  if (location.hash !== hash) history.replaceState(null, "", hash);
 }
+
+dialogTriggers.forEach(trigger => {
+  const dialog = document.getElementById(trigger.dataset.openDialog);
+  trigger.addEventListener("click", () => openInfoDialog(dialog));
+});
+
+document.querySelectorAll(".info-dialog").forEach(dialog => {
+  dialog.querySelector("[data-close-dialog]")?.addEventListener("click", () => dialog.close());
+  dialog.addEventListener("close", () => {
+    if (location.hash === `#${dialog.id.replace(/-dialog$/, "")}`) {
+      history.replaceState(null, "", location.pathname + location.search);
+    }
+    document.querySelector(`[data-open-dialog="${dialog.id}"]`)?.focus();
+  });
+});
+
+function openDialogFromHash() {
+  const name = location.hash.slice(1);
+  if (name === "about" || name === "clients") openInfoDialog(document.getElementById(`${name}-dialog`));
+}
+openDialogFromHash();
+window.addEventListener("hashchange", openDialogFromHash);
 
 const emailContact = document.getElementById("email-contact");
 

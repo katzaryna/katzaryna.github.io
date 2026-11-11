@@ -9,6 +9,8 @@ images:
   alt: A day outdoors | Book Covers Illustrations | Bicycle ride
   cover: true
   span_columns: 2
+  caption: Bicycle ride
+  description: The quiet rush of a summer breeze, the open horizon, and the effortless spin of wheels leaving every worry far behind.
 - file: 02.jpg
   alt: A day outdoors | Book Covers Illustrations | Home Chill
   cover: true

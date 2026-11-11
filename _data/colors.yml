@@ -1,0 +1,50 @@
+# Colours the builder can change (Оформление tab). The defaults match the
+# variables at the top of assets/css/styles.css; a choice in _config.yml
+# colors.<id> overrides them through assets/theme.css.
+#
+# id        key in colors (never rename: saved choices refer to it)
+# label     what the builder calls this colour
+# help      a short hint in the builder
+# variable  CSS custom property it sets
+# color     default colour (#rrggbb)
+# opacity   default opacity in % for see-through colours; absent for solid ones
+- id: background
+  label: Фон сайта
+  help: Страница, шапка, окна About и Clients.
+  variable: --color-surface
+  color: "#ffffff"
+- id: text
+  label: Основной текст
+  variable: --color-text
+  color: "#252525"
+- id: muted
+  label: Второстепенный текст
+  help: Профессия в окне About, подписи, подвал.
+  variable: --color-muted
+  color: "#66665f"
+- id: line
+  label: Линии
+  help: Линия под шапкой, над подвалом и в окнах.
+  variable: --color-line
+  color: "#deddd7"
+- id: hover_overlay
+  label: Плашка при наведении на обложку
+  help: Полоса с названием проекта внизу обложки.
+  variable: --hover-overlay
+  color: "#000000"
+  opacity: 50
+- id: hover_text
+  label: Текст на плашке при наведении
+  variable: --hover-text
+  color: "#ffffff"
+- id: viewer_background
+  label: Фон просмотра обложки
+  help: Окно, которое открывается по клику на обложку на главной.
+  variable: --viewer-background
+  color: "#ffffff"
+- id: lightbox_shade
+  label: Затемнение в просмотре на странице проекта
+  help: Подложка вокруг картинки, открытой на весь экран.
+  variable: --lightbox-shade
+  color: "#000000"
+  opacity: 70

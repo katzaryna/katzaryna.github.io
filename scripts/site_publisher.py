@@ -27,12 +27,14 @@ import time
 
 import yaml
 
+from scripts import change_summary
+
 
 ROOT = Path(__file__).resolve().parent.parent
 BRANCH = "main"
 REMOTE = "origin"
 WORKFLOW = "jekyll-gh-pages.yml"
-CONTENT_PATHS = ("_config.yml", "projects", "assets/images", "redirects")
+CONTENT_PATHS = ("_config.yml", "projects", "assets/images", "assets/fonts", "_data/fonts.yml", "redirects")
 IMAGE_SUFFIXES = {".gif", ".jpeg", ".jpg", ".png", ".webp"}
 GIT_TIMEOUT = 120
 FETCH_TIMEOUT = 30
@@ -74,18 +76,6 @@ def plural(count: int, one: str, few: str, many: str) -> str:
     return f"{count} {word}"
 
 
-def project_title(text: str | None, fallback: str) -> str:
-    if not text or not text.startswith("---"):
-        return fallback
-    try:
-        _, front_matter, _ = text.split("---", 2)
-        metadata = yaml.safe_load(front_matter) or {}
-    except (ValueError, yaml.YAMLError):
-        return fallback
-    title = metadata.get("title") if isinstance(metadata, dict) else None
-    return (str(title).strip() if title else "") or fallback
-
-
 def parse_token_check(returncode: int, output: str, now: datetime | None = None) -> dict:
     """Read `gh api --include` output: is the saved token valid, and until when."""
     lowered = output.lower()
@@ -112,6 +102,18 @@ def parse_token_check(returncode: int, output: str, now: datetime | None = None)
     days = (expires - (now or datetime.now(timezone.utc))).total_seconds() / 86400
     state = "invalid" if days <= 0 else "expiring" if days < TOKEN_WARN_DAYS else "ok"
     return {"state": state, "expires": expires.isoformat(), "days_left": max(0, int(days))}
+
+
+def parse_front_matter(text: str | None) -> tuple[dict, str] | None:
+    """(metadata, body) of a project page, or None when it is missing or unreadable."""
+    if not text or not text.startswith("---"):
+        return None
+    try:
+        _, front_matter, body = text.split("---", 2)
+        metadata = yaml.safe_load(front_matter) or {}
+    except (ValueError, yaml.YAMLError):
+        return None
+    return (metadata, body.lstrip("\n")) if isinstance(metadata, dict) else None
 
 
 @dataclass
@@ -260,64 +262,51 @@ class Publisher:
         output = self.git("status", "--porcelain", "--untracked-files=all", "--", *CONTENT_PATHS)
         return bool(output.strip())
 
-    def describe_changes(self, changes: dict[str, str] | None = None) -> list[str]:
-        """Turn changed paths into short Russian sentences."""
+    def describe_changes(self, changes: dict[str, str] | None = None) -> list[dict]:
+        """What is not published yet, grouped like the builder's tabs (see scripts/change_summary.py)."""
         changes = self.changed_files() if changes is None else changes
         base = self._base()
-        lines: list[str] = []
         projects: dict[str, dict] = {}
-        site_images = 0
         other = 0
         for path, status in sorted(changes.items()):
             parts = PurePosixPath(path).parts
-            if path == "_config.yml":
-                lines.extend(self._describe_config(base))
-            elif parts[0] == "projects" and len(parts) == 3:
-                entry = projects.setdefault(parts[1], {"index": "", "A": 0, "M": 0, "D": 0})
-                if parts[2] == "index.md":
-                    entry["index"] = status
-                elif PurePosixPath(path).suffix.lower() in IMAGE_SUFFIXES:
-                    entry[status] += 1
-            elif path.startswith("assets/images/"):
-                site_images += 1
+            if path == "_config.yml" or path == "_data/fonts.yml" or path.startswith(("assets/images/", "assets/fonts/")):
+                continue  # explained by the settings they belong to
+            if parts[0] == "projects" and len(parts) == 3:
+                info = projects.setdefault(parts[1], {"added_files": 0, "removed_files": 0})
+                if parts[2] != "index.md" and PurePosixPath(path).suffix.lower() in IMAGE_SUFFIXES:
+                    if status == "A":
+                        info["added_files"] += 1
+                    elif status == "D":
+                        info["removed_files"] += 1
             else:
                 other += 1
-
-        for slug, entry in projects.items():
+        for slug, info in projects.items():
             index_path = f"projects/{slug}/index.md"
-            title = project_title(self._read_worktree(index_path) or self._show(base, index_path), slug)
-            images = [
-                f"{verb} {plural(entry[status], 'изображение', 'изображения', 'изображений')}"
-                for status, verb in (("A", "добавлено"), ("M", "заменено"), ("D", "удалено"))
-                if entry[status]
-            ]
-            if entry["index"] == "A":
-                lines.append(f"Новый проект «{title}»")
-            elif entry["index"] == "D":
-                lines.append(f"Удалён проект «{title}»")
-            else:
-                details = (["описание и картинки"] if entry["index"] == "M" else []) + images
-                lines.append(f"Проект «{title}»: {', '.join(details)}")
-        if site_images:
-            lines.append("Портрет или другие картинки сайта")
-        if other:
-            lines.append(f"Технические файлы: {other}")
-        return lines
+            info["before"] = parse_front_matter(self._show(base, index_path))
+            info["after"] = parse_front_matter(self._read_worktree(index_path))
+        titles = {}
+        for index in sorted((self.root / "projects").glob("*/index.md")):
+            parsed = parse_front_matter(self._read_worktree(index.relative_to(self.root).as_posix()))
+            if parsed:
+                titles[index.parent.name] = parsed[0].get("title") or index.parent.name
+        return change_summary.summarize(
+            self._load_yaml(self._show(base, "_config.yml")),
+            self._load_yaml(self._read_worktree("_config.yml")),
+            projects,
+            places=self._load_yaml(self._read_worktree("_data/text_places.yml"), []),
+            colors=self._load_yaml(self._read_worktree("_data/colors.yml"), []),
+            project_titles=titles,
+            other_files=other,
+        )
 
-    def _describe_config(self, base: str) -> list[str]:
+    @staticmethod
+    def _load_yaml(text: str | None, empty=None):
+        empty = {} if empty is None else empty
         try:
-            before = yaml.safe_load(self._show(base, "_config.yml") or "{}") or {}
-            after = yaml.safe_load(self._read_worktree("_config.yml") or "{}") or {}
+            return yaml.safe_load(text or "") or empty
         except yaml.YAMLError:
-            return ["Настройки сайта"]
-        lines = []
-        before_home = before.pop("home_gallery", None)
-        after_home = after.pop("home_gallery", None)
-        if before_home != after_home:
-            lines.append("Главная страница: обложки и их расположение")
-        if before != after:
-            lines.append("Настройки: текст «Обо мне», контакты и другое")
-        return lines
+            return empty
 
     # ------------------------------------------------------------------
     # GitHub
@@ -512,9 +501,17 @@ class Publisher:
             problems = self.checker(sorted(self.changed_files())) if self.checker else []
             if problems:
                 raise PublishError("Перед публикацией нужно поправить:\n" + "\n".join(f"• {item}" for item in problems))
-            summary = self.describe_changes()
-            subject = message or (summary[0] if summary else "Обновление сайта")
-            body = "\n".join(f"- {line}" for line in summary)
+            groups = self.describe_changes()
+            if message:
+                subject = message
+            elif len(groups) == 1 and len(groups[0]["details"]) <= 1:
+                subject = change_summary.flatten(groups)[0]
+            else:
+                subject = "Обновление сайта: " + ", ".join(group["title"] for group in groups) if groups else "Обновление сайта"
+            body = "\n".join(
+                line for group in groups
+                for line in [f"{group['title']}:"] + [f"- {detail}" for detail in group["details"]]
+            )
             self.git("add", "--all", "--", *self._existing_content_paths())
             self.git(*self._identity(), "commit", "--quiet", "-m", subject[:200], "-m", body or "Обновление сайта")
         if not self.fetch():
