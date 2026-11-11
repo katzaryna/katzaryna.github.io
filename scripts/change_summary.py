@@ -25,6 +25,7 @@ ADVANCED_FIELDS = (
     (("title",), "Название во вкладке браузера"),
     (("description",), "Описание для поисковиков"),
     (("analytics", "measurement_id"), "Google Analytics ID"),
+    (("search_console", "verification"), "Код Google Search Console"),
 )
 HOME_SETTINGS = (
     ("single_page", "Клик по обложке", {True: "открывает просмотр", False: "открывает страницу проекта"}),
@@ -149,6 +150,8 @@ def client_changes(before: dict, after: dict) -> list[str]:
     new_by_logo = {client["logo"]: client for client in new}
     label = lambda client: client.get("name") or "без подписи"  # noqa: E731
     details = []
+    if (before.get("clients_tab") is not False) != (after.get("clients_tab") is not False):
+        details.append("Вкладка Clients: " + ("скрыта" if after.get("clients_tab") is False else "показывается"))
     added = [label(client) for client in new if client["logo"] not in old_by_logo]
     removed = [label(client) for client in old if client["logo"] not in new_by_logo]
     if added:
@@ -179,6 +182,18 @@ def home_changes(before: dict, after: dict, titles: dict[str, str]) -> list[str]
     shown_old = {cover_id(cover): cover for cover in old.get("covers") or [] if not cover.get("parked")}
     shown_new = {cover_id(cover): cover for cover in new.get("covers") or [] if not cover.get("parked")}
     describe = lambda key: f"{titles.get(key[0], key[0])} ({key[1]})"  # noqa: E731
+    # A cover whose image was replaced keeps its place in the list and its project.
+    old_keys, new_keys = list(shown_old), list(shown_new)
+    replaced = {
+        key: old_keys[index]
+        for index, key in enumerate(new_keys)
+        if key not in shown_old and index < len(old_keys)
+        and old_keys[index] not in shown_new and old_keys[index][0] == key[0]
+    }
+    for key, previous in replaced.items():
+        details.append(f"Заменена картинка обложки: {titles.get(key[0], key[0])} ({previous[1]} → {key[1]})")
+    shown_old = {key: cover for key, cover in shown_old.items() if key not in replaced.values()}
+    shown_new = {key: cover for key, cover in shown_new.items() if key not in replaced}
     added = [describe(key) for key in shown_new if key not in shown_old]
     removed = [describe(key) for key in shown_old if key not in shown_new]
     if added:
@@ -202,6 +217,21 @@ def home_changes(before: dict, after: dict, titles: dict[str, str]) -> list[str]
 # ---------------------------------------------------------------------------
 # Projects
 # ---------------------------------------------------------------------------
+def replaced_files(old: list[dict], new: list[dict]) -> dict[str, str]:
+    """New file -> old file for images replaced in place (the builder's «Заменить
+    файл»): a new file where a file that is gone used to be, with the same alt
+    text. A fresh upload has no alt text yet, so it is not mistaken for one."""
+    old_files = [image["file"] for image in old]
+    new_files = [image["file"] for image in new]
+    return {
+        image["file"]: old_files[index]
+        for index, image in enumerate(new)
+        if image["file"] not in old_files and index < len(old)
+        and old_files[index] not in new_files
+        and (image.get("alt") or "").strip() and image.get("alt") == old[index].get("alt")
+    }
+
+
 def project_changes(before: tuple[dict, str] | None, after: tuple[dict, str] | None,
                     added_files: int, removed_files: int, slug: str) -> dict | None:
     if after is None and before is None:
@@ -221,16 +251,20 @@ def project_changes(before: tuple[dict, str] | None, after: tuple[dict, str] | N
         details.append(change("Текст о проекте", (old_text or "").strip(), (new_text or "").strip()))
     if old.get("permalink") != new.get("permalink"):
         details.append(change("Адрес страницы", old.get("permalink"), new.get("permalink")))
-    old_images = {image["file"]: image for image in old.get("images") or []}
-    new_images = {image["file"]: image for image in new.get("images") or []}
-    added = [file for file in new_images if file not in old_images]
-    removed = [file for file in old_images if file not in new_images]
+    old_list, new_list = old.get("images") or [], new.get("images") or []
+    old_images = {image["file"]: image for image in old_list}
+    new_images = {image["file"]: image for image in new_list}
+    replaced = replaced_files(old_list, new_list)
+    added = [file for file in new_images if file not in old_images and file not in replaced]
+    removed = [file for file in old_images if file not in new_images and file not in replaced.values()]
+    for new_file, old_file in replaced.items():
+        details.append(f"Заменён файл изображения: {old_file} → {new_file}")
     if added:
         details.append(f"Добавлено: {plural(len(added), 'изображение', 'изображения', 'изображений')}")
     if removed:
         details.append(f"Убрано: {plural(len(removed), 'изображение', 'изображения', 'изображений')}")
     for file, image in new_images.items():
-        previous = old_images.get(file)
+        previous = old_images.get(file) or old_images.get(replaced.get(file))
         if not previous:
             continue
         for field, label in IMAGE_FIELDS:
@@ -240,14 +274,16 @@ def project_changes(before: tuple[dict, str] | None, after: tuple[dict, str] | N
             details.append(f"{file}: {'отмечена' if image.get('cover') else 'снята'} как обложка на главной")
         if (previous.get("span_columns"), previous.get("row")) != (image.get("span_columns"), image.get("row")):
             details.append(f"{file}: изменена ширина или ряд в сетке")
-    kept_old = [file for file in old_images if file in new_images]
-    kept_new = [file for file in new_images if file in old_images]
+    renamed = {old_file: new_file for new_file, old_file in replaced.items()}
+    old_order = [renamed.get(file, file) for file in old_images]
+    kept_old = [file for file in old_order if file in new_images]
+    kept_new = [file for file in new_images if file in old_order]
     if kept_old != kept_new:
         details.append("Изменён порядок изображений")
     layout_keys = ("gallery_columns", "gallery")
     if any(old.get(key) != new.get(key) for key in layout_keys):
         details.append("Изменена сетка галереи")
-    unlisted = added_files - len(added)
+    unlisted = added_files - len(added) - len(replaced)
     if unlisted > 0:
         details.append(
             f"Загружено: {plural(unlisted, 'изображение', 'изображения', 'изображений')} — "

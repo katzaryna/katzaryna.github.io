@@ -6,10 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="{{ page.description | default: site.description | escape }}">
     <meta name="theme-color" content="#ffffff">
-    <title>{{ page.title | escape }} — {{ site.artist.name | escape }}</title>
+    <title>{{ page.title | escape }} — {{ site.artist.full_name | default: site.artist.name | escape }}</title>
     {% assign meta_first_image = page.images | first %}
     {% if meta_first_image %}{% assign meta_image_key = page.path | remove: "/index.md" | append: "/" | append: meta_first_image.file %}{% endif %}
-    {% include head-meta.html title=page.title description=page.description image_key=meta_image_key image_alt=meta_first_image.alt %}
+    {% include head-meta.html title=page.title description=page.description image_key=meta_image_key image_alt=meta_first_image.alt project=true %}
     {% include stylesheets.html %}
   </head>
   <body>

@@ -202,7 +202,7 @@
       home: stableJson(workHome) !== stableJson(savedHome),
       projects: work.projects.filter(projectIsDirty),
       // Which builder tabs the settings changes belong to, for the save bar.
-      clients: differs("clients"),
+      clients: differs("clients") || differs("clients_tab"),
       appearance,
     };
   }
@@ -463,8 +463,12 @@
       ],
     },
     {
-      title: "Аналитика",
+      title: "Google: аналитика и поиск",
       tab: "advanced",
+      // Trusted, fixed HTML: the only place settings help carries links.
+      intro: `
+        <p><strong>Google Analytics</strong> считает посетителей: сколько их, откуда они пришли, какие проекты смотрят. На сайте включается только после согласия посетителя в баннере внизу. ID — в <a href="https://analytics.google.com/" target="_blank" rel="noopener noreferrer">Google Analytics</a> → Администратор → Потоки данных.</p>
+        <p><strong>Google Search Console</strong> показывает, как сайт виден в поиске Google: по каким запросам его находят, какие страницы попали в поиск и есть ли ошибки. Код подтверждения доказывает Google, что сайт ваш. Где взять: <a href="https://search.google.com/search-console/welcome" target="_blank" rel="noopener noreferrer">Search Console</a> → «Префикс URL» → <code>https://katzaryna.github.io/</code> → «HTML-тег». После публикации нажмите там «Подтвердить», а в разделе «Файлы Sitemap» отправьте <code>sitemap.xml</code>.</p>`,
       fields: [
         {
           path: ["analytics", "measurement_id"],
@@ -472,6 +476,12 @@
           placeholder: "G-XXXXXXXXXX",
           pattern: "G-[A-Z0-9]+",
           help: "Оставьте пустым, чтобы отключить аналитику и баннер согласия.",
+        },
+        {
+          path: ["search_console", "verification"],
+          label: "Код подтверждения Google Search Console",
+          placeholder: "<meta name=\"google-site-verification\" content=\"…\"> или только код",
+          help: "Можно вставить весь тег — сохранится только код. Посетителям не виден.",
         },
       ],
     },
@@ -514,6 +524,7 @@
     const render = tab => SETTINGS_SECTIONS.filter(section => section.tab === tab).map(section => `
       <section class="card">
         <div class="card-heading"><h2>${escapeHtml(section.title)}</h2></div>
+        ${section.intro ? `<div class="settings-intro">${section.intro}</div>` : ""}
         ${renderFieldGroup(section.fields, work.config)}
       </section>`).join("");
     settingsForm.innerHTML = render("settings");
@@ -546,7 +557,7 @@
             <span>Портрет</span>
             <div><button class="button button-secondary button-small" type="button" data-action="replace-portrait">Заменить…</button></div>
             <input type="file" accept="${ACCEPTED_IMAGES}" data-portrait-input hidden>
-            <small class="field-help">На сайте показывается чёрно-белым. Цветной файл — для значка вкладки и превью ссылок.</small>
+            <small class="field-help">Также значок вкладки браузера и превью ссылок.</small>
           </div>
         </div>
         ${renderField({ path: ["artist", "portrait_alt"], label: "Описание портрета (alt)", help: "Для незрячих посетителей и поисковиков." }, work.config)}
@@ -578,7 +589,11 @@
           <button class="text-button is-danger" type="button" data-client-remove="${index}">Удалить</button>
         </div>
       </li>`).join("");
+    const tabShown = work.config.clients_tab !== false;
     return `
+      <section class="card">
+        <label class="switch"><input type="checkbox" data-clients-tab ${tabShown ? "checked" : ""}><span><strong>Вкладка Clients на сайте</strong><small>${tabShown ? "Показывается в шапке, если есть хотя бы один логотип." : "Скрыта. Логотипы сохраняются — включите, чтобы показать снова."}</small></span></label>
+      </section>
       <section class="card">
         <div class="card-heading"><div><h2>Логотипы</h2><p>В этом порядке они стоят на сайте. Подпись под логотипом необязательна.</p></div></div>
         ${clients.length ? `<ol class="client-rows">${rows}</ol>` : ""}
@@ -645,6 +660,14 @@
   });
 
   appMain.addEventListener("change", async event => {
+    if (event.target.matches("[data-clients-tab]")) {
+      // Only switching the tab off is stored; on is the default.
+      if (event.target.checked) delete work.config.clients_tab;
+      else work.config.clients_tab = false;
+      renderClientsView();
+      refreshDirty();
+      return;
+    }
     const input = event.target.closest("[data-upload-input]");
     if (!input?.files?.length) return;
     const files = [...input.files];
@@ -796,7 +819,72 @@
         </div>
         <input type="file" accept="${ACCEPTED_IMAGES}" multiple data-image-input hidden>
         <p class="upload-progress" data-upload-progress hidden></p>
+      </section>
+      <div data-unlisted-slot>${renderUnlistedFiles(project)}</div>`;
+  }
+
+  // Files in the project folder that the project does not list: they are not on the site.
+  function unlistedFiles(project) {
+    const listed = new Set((project.metadata.images ?? []).map(image => image.file));
+    return (project.files ?? []).filter(file => !listed.has(file));
+  }
+
+  function renderUnlistedFiles(project) {
+    const files = unlistedFiles(project);
+    if (!files.length) return "";
+    return `
+      <section class="card unlisted-card">
+        <div class="card-heading"><div>
+          <h2>Не на сайте <span class="badge">${files.length}</span></h2>
+          <p>Эти файлы лежат в папке проекта, но не добавлены в него, поэтому на сайт не попадают — например, старый файл после «Заменить файл…».</p>
+        </div></div>
+        <ul class="unlisted-files">
+          ${files.map(file => `
+            <li class="unlisted-file">
+              <img src="${imageUrl(project.slug, file, 160)}" alt="" loading="lazy">
+              <span class="unlisted-name" title="${escapeHtml(file)}">${escapeHtml(file)}</span>
+              <span class="unlisted-actions">
+                <button class="button button-secondary button-small" type="button" data-unlisted-add="${escapeHtml(file)}">Добавить в проект</button>
+                <button class="button button-ghost button-small" type="button" data-unlisted-delete="${escapeHtml(file)}">Удалить…</button>
+              </span>
+            </li>`).join("")}
+        </ul>
       </section>`;
+  }
+
+  function addUnlistedFile(file) {
+    const project = projectBySlug();
+    if (!project || !unlistedFiles(project).includes(file)) return;
+    project.metadata.images = project.metadata.images ?? [];
+    project.metadata.images.push({ file, alt: "" });
+    selectedImageIndex = project.metadata.images.length - 1;
+    rerenderImages();
+    refreshDirty();
+    toast("Изображение добавлено в проект. Заполните alt-текст и сохраните.");
+  }
+
+  async function deleteUnlistedFile(file) {
+    const project = projectBySlug();
+    if (!project || !unlistedFiles(project).includes(file)) return;
+    const accepted = await confirmAction({
+      title: `Удалить ${file}?`,
+      message: "Файл уберётся из папки проекта в .builder-trash на этом компьютере — оттуда его можно вернуть вручную. После публикации он исчезнет и из репозитория, но останется в его истории.",
+      accept: "Удалить файл",
+      danger: true,
+    });
+    if (!accepted) return;
+    try {
+      await request(imageUrl(project.slug, file), { method: "DELETE" });
+      for (const copy of [project, savedProject(project.slug)]) {
+        if (!copy) continue;
+        copy.files = (copy.files ?? []).filter(name => name !== file);
+        if (copy.versions) delete copy.versions[file];
+      }
+      rerenderImages();
+      toast("Файл удалён из проекта.");
+    } catch (error) {
+      toast(error.message.includes("still") ? "Файл ещё используется. Сначала сохраните или отмените изменения." : `Не удалось удалить: ${error.message}`, true);
+    }
   }
 
   function renderInspector() {
@@ -813,6 +901,10 @@
       <h2>Изображение ${selectedImageIndex + 1} из ${count}</h2>
       <div class="inspector-preview"><img src="${imageUrl(project.slug, image.file, 480)}" alt=""></div>
       <div class="inspector-file" title="${escapeHtml(image.file)}">${escapeHtml(image.file)}</div>
+      <div class="inspector-replace">
+        <button class="button button-secondary button-small" type="button" data-action="replace-image" title="Подписи, обложка и место на главной сохранятся">Заменить файл…</button>
+        <input type="file" accept="${ACCEPTED_IMAGES}" data-replace-input hidden>
+      </div>
       <label class="field"><span>Alt-текст</span><textarea data-image-field="alt" required placeholder="Что изображено">${escapeHtml(image.alt ?? "")}</textarea><small class="field-help">Обязателен: для незрячих посетителей и поисковиков.</small></label>
       <label class="field"><span>Название иллюстрации</span><input data-image-field="caption" value="${escapeHtml(image.caption ?? "")}" placeholder="Необязательно"><small class="field-help">В просмотре обложки на главной и под картинкой на странице проекта.</small></label>
       <label class="field"><span>Описание иллюстрации</span><textarea data-image-field="description" placeholder="Необязательно">${escapeHtml(image.description ?? "")}</textarea><small class="field-help">В просмотре обложки на главной, справа от картинки.</small></label>
@@ -851,6 +943,8 @@
     if (counter) counter.textContent = String(images.length);
     renderInspector();
     renderProjectList();
+    const slot = projectEditor.querySelector("[data-unlisted-slot]");
+    if (slot) slot.innerHTML = renderUnlistedFiles(project);
   }
 
   function syncProjectCovers(slug) {
@@ -889,6 +983,52 @@
     refreshDirty();
   }
 
+  /** Stores a file in the project folder (as WebP) and returns its new file name. */
+  async function uploadProjectFile(project, file) {
+    const result = await request(imageUrl(project.slug, file.name), {
+      method: "PUT",
+      headers: { "Content-Type": file.type || "application/octet-stream" },
+      body: file,
+    });
+    project.files.push(result.file);
+    project.versions = { ...project.versions, [result.file]: result.version };
+    const original = savedProject(project.slug);
+    if (original) {
+      original.files.push(result.file);
+      original.versions = { ...original.versions, [result.file]: result.version };
+    }
+    return result.file;
+  }
+
+  // Swaps the file behind an image and keeps everything else: alt text, title,
+  // description, cover mark, grid width and row, and the cover's place and size
+  // on the home page. The old file stays in the project folder.
+  async function replaceImageFile(index, file) {
+    const project = projectBySlug();
+    const image = project?.metadata.images?.[index];
+    if (!image || !file) return;
+    if (!/\.(jpe?g|png|webp|gif)$/i.test(file.name)) {
+      toast("Подходят только JPG, PNG, WebP и GIF.", true);
+      return;
+    }
+    try {
+      const previous = image.file;
+      const replacement = await uploadProjectFile(project, file);
+      image.file = replacement;
+      homeGalleryCovers.forEach(cover => {
+        if (cover.project === project.slug && cover.file === previous) cover.file = replacement;
+      });
+      const [previousId, replacementId] = [`${project.slug}/${previous}`, `${project.slug}/${replacement}`];
+      if (homeSelection.delete(previousId)) homeSelection.add(replacementId);
+      if (selectedHomeCover === previousId) selectedHomeCover = replacementId;
+      rerenderImages();
+      refreshDirty();
+      toast("Файл заменён, подписи и настройки сохранены. Сохраните изменения, чтобы он появился на сайте.");
+    } catch (error) {
+      toast(`${file.name}: ${error.message}`, true);
+    }
+  }
+
   async function uploadImages(files) {
     const project = projectBySlug();
     const accepted = [...files].filter(file => /\.(jpe?g|png|webp|gif)$/i.test(file.name));
@@ -904,20 +1044,9 @@
         progress.textContent = `Загрузка ${done + 1} из ${accepted.length}: ${file.name}…`;
       }
       try {
-        const result = await request(imageUrl(project.slug, file.name), {
-          method: "PUT",
-          headers: { "Content-Type": file.type || "application/octet-stream" },
-          body: file,
-        });
-        project.files.push(result.file);
-        project.versions = { ...project.versions, [result.file]: result.version };
-        const original = savedProject(project.slug);
-        if (original) {
-          original.files.push(result.file);
-          original.versions = { ...original.versions, [result.file]: result.version };
-        }
+        const stored = await uploadProjectFile(project, file);
         project.metadata.images = project.metadata.images ?? [];
-        project.metadata.images.push({ file: result.file, alt: "" });
+        project.metadata.images.push({ file: stored, alt: "" });
         done += 1;
       } catch (error) {
         toast(`${file.name}: ${error.message}`, true);
@@ -1007,6 +1136,10 @@
     }
     if (action === "add-images") projectEditor.querySelector("[data-image-input]").click();
     if (action === "delete-project") deleteProject();
+    const unlistedAdd = event.target.closest("[data-unlisted-add]")?.dataset.unlistedAdd;
+    if (unlistedAdd) addUnlistedFile(unlistedAdd);
+    const unlistedDelete = event.target.closest("[data-unlisted-delete]")?.dataset.unlistedDelete;
+    if (unlistedDelete) deleteUnlistedFile(unlistedDelete);
     if (tile && !action) {
       selectedImageIndex = Number(tile.dataset.imageIndex);
       projectEditor.querySelectorAll(".image-tile").forEach(item => item.classList.toggle("is-selected", item === tile));
@@ -1107,6 +1240,12 @@
     const project = projectBySlug();
     const image = project?.metadata.images?.[selectedImageIndex];
     if (!image) return;
+    if (event.target.matches("[data-replace-input]")) {
+      const [file] = event.target.files;
+      event.target.value = "";
+      replaceImageFile(selectedImageIndex, file);
+      return;
+    }
     if (event.target.matches("[data-image-cover]")) toggleCover(selectedImageIndex);
     if (event.target.matches("[data-image-span]")) {
       const span = Number(event.target.value);
@@ -1122,6 +1261,7 @@
     const project = projectBySlug();
     if (!button || !project) return;
     if (button.dataset.action === "move-image") moveImage(selectedImageIndex, selectedImageIndex + Number(button.dataset.step));
+    if (button.dataset.action === "replace-image") imageInspector.querySelector("[data-replace-input]")?.click();
     if (button.dataset.action === "remove-image") {
       project.metadata.images.splice(selectedImageIndex, 1);
       syncProjectCovers(project.slug);
@@ -2248,7 +2388,7 @@
         <div class="field"><span>Отступ между обложками</span>
           <div class="range-row"><input type="range" min="0" max="60" step="1" value="${gapPixels()}" data-home-gap><output data-home-gap-output>${gapPixels()} px</output></div>
         </div>
-        <label class="switch"><input type="checkbox" data-home-compact ${home.compact ? "checked" : ""}><span><strong>Компактный старт</strong><small>При открытии обложки вписываются в первый экран.</small></span></label>
+        <label class="switch"><input type="checkbox" data-home-compact ${home.compact ? "checked" : ""}><span><strong>Компактный старт</strong><small>Главная открывается уменьшенной целиком, чтобы все обложки поместились в первый экран, и с первой прокруткой вырастает до полного размера. На телефоне не действует.</small></span></label>
       </section>
       <section class="panel-section">
         <h2>Прилипание</h2>

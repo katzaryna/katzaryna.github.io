@@ -605,6 +605,18 @@ def test_header_settings_are_validated_and_tidied(tmp_path: Path) -> None:
             repository.save_config({**repository.read_config(), **bad})
 
 
+def test_clients_tab_switch_stores_only_off(tmp_path: Path) -> None:
+    repository = create_site(tmp_path)
+    repository.save_config({**repository.read_config(), "clients_tab": False})
+    assert repository.read_config()["clients_tab"] is False
+
+    repository.save_config({**repository.read_config(), "clients_tab": True})
+    assert "clients_tab" not in repository.read_config()
+
+    with pytest.raises(ValueError):
+        repository.save_config({**repository.read_config(), "clients_tab": "no"})
+
+
 def test_content_check_reports_missing_header_images(tmp_path: Path) -> None:
     repository = create_site(tmp_path)
     config = repository.read_config()
@@ -616,3 +628,49 @@ def test_content_check_reports_missing_header_images(tmp_path: Path) -> None:
 
     assert any("Надпись в шапке" in problem for problem in problems)
     assert any("Логотип клиента Kneipp" in problem for problem in problems)
+
+
+def test_unlisted_images_can_be_deleted_but_used_ones_cannot(tmp_path: Path) -> None:
+    repository = create_site(tmp_path)
+    repository.create_project("art", "Art")
+    used = repository.save_image("art", "used.png", image_bytes())
+    cover = repository.save_image("art", "cover.png", image_bytes())
+    spare = repository.save_image("art", "spare.png", image_bytes())
+    project_file = tmp_path / "projects" / "art" / "index.md"
+    metadata, content = parse_project(project_file.read_text(encoding="utf-8"))
+    metadata["images"] = [{"file": used, "alt": "Used"}]
+    project_file.write_text(serialize_project(metadata, content), encoding="utf-8")
+    config = repository.read_config()
+    config["home_gallery"]["covers"] = [{"project": "art", "file": cover, "x": 0, "y": 0, "width": 6, "height": 4}]
+    (tmp_path / "_config.yml").write_text(yaml.safe_dump(config), encoding="utf-8")
+
+    assert repository.delete_unlisted_image("art", spare) == {"deleted": spare}
+    assert not (tmp_path / "projects" / "art" / spare).exists()
+    trashed = list((tmp_path / ".builder-trash" / "files" / "art").glob(f"*-{spare}"))
+    assert len(trashed) == 1
+
+    for still_used in (used, cover):
+        with pytest.raises(ConflictError):
+            repository.delete_unlisted_image("art", still_used)
+        assert (tmp_path / "projects" / "art" / still_used).is_file()
+    with pytest.raises(NotFoundError):
+        repository.delete_unlisted_image("art", spare)
+    with pytest.raises(ValueError):
+        repository.delete_unlisted_image("art", "../index.md")
+
+
+def test_search_console_code_is_taken_from_a_pasted_tag(tmp_path: Path) -> None:
+    repository = create_site(tmp_path)
+    code = "Sy8zl0UuITLzST_GzsAntsXppMuPEivvF4btiIqTCeM"
+    tag = f'<meta name="google-site-verification" content="{code}" />'
+    for pasted in (tag, f"  {code} "):
+        repository.save_config({**repository.read_config(), "search_console": {"verification": pasted}})
+        assert repository.read_config()["search_console"] == {"verification": code}
+
+    repository.save_config({**repository.read_config(), "search_console": {"verification": ""}})
+    assert "search_console" not in repository.read_config()
+
+    for bad in ("<script>alert(1)</script>", 'content="short"', {"verification": 5}):
+        settings = bad if isinstance(bad, dict) else {"verification": bad}
+        with pytest.raises(ValueError):
+            repository.save_config({**repository.read_config(), "search_console": settings})

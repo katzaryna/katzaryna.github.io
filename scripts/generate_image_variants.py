@@ -7,7 +7,8 @@ from pathlib import Path
 import subprocess
 import tomli
 
-from PIL import Image, ImageCms, ImageOps
+from PIL import Image, ImageChops, ImageCms, ImageDraw, ImageOps
+import yaml
 import imageio_ffmpeg
 
 from scripts.image_utils import SRGB_PROFILE, SRGB_PROFILE_BYTES, color_manage_image
@@ -18,6 +19,8 @@ ROOT = Path(__file__).resolve().parent.parent
 PROJECTS = ROOT / "projects"
 OUTPUT = ROOT / "assets" / "optimized"
 MANIFEST = ROOT / "_data" / "generated_image_variants.json"
+# name -> (size in pixels, background or None for transparent corners)
+ICON_SIZES = {"icon_32": (32, None), "icon_192": (192, None), "apple_touch": (180, "#ffffff")}
 CACHE = OUTPUT / ".build-cache.json"
 CONFIG = tomli.loads((ROOT / "config" / "image_optimization.toml").read_text())
 TARGET_WIDTHS = tuple(CONFIG["target_widths"])
@@ -58,6 +61,49 @@ def placeholder_data_uri(image: Image.Image) -> str | None:
     output = BytesIO()
     preview.convert("RGB").save(output, "WEBP", quality=PLACEHOLDER_QUALITY, method=6)
     return "data:image/webp;base64," + base64.b64encode(output.getvalue()).decode("ascii")
+
+
+def round_icon(portrait: Image.Image, size: int, background: str | None = None) -> Image.Image:
+    """The portrait cropped to a circle with smooth edges.
+
+    Browser tabs show the icon as it is, so the corners are transparent. Home-screen
+    icons on iPhone get `background`: iOS fills transparent corners with black.
+    """
+    image = ImageOps.fit(portrait.convert("RGBA"), (size, size), Image.Resampling.LANCZOS)
+    oversample = 4
+    mask = Image.new("L", (size * oversample, size * oversample), 0)
+    ImageDraw.Draw(mask).ellipse((0, 0, size * oversample - 1, size * oversample - 1), fill=255)
+    mask = mask.resize((size, size), Image.Resampling.LANCZOS)
+    image.putalpha(ImageChops.multiply(image.getchannel("A"), mask))
+    if background:
+        tile = Image.new("RGBA", (size, size), background)
+        tile.alpha_composite(image)
+        image = tile.convert("RGB")
+    return image
+
+
+def create_site_icons() -> dict:
+    """Round favicons from the header portrait (artist.portrait), with a version for cache busting."""
+    icons_directory = OUTPUT / "icons"
+    icon_manifest = MANIFEST.with_name("generated_icons.json")
+    site_config = ROOT / "_config.yml"
+    config = yaml.safe_load(site_config.read_text(encoding="utf-8")) if site_config.is_file() else None
+    portrait_path = ((config or {}).get("artist") or {}).get("portrait") or ""
+    source = (ROOT / portrait_path.lstrip("/")).resolve()
+    if not portrait_path or not source.is_relative_to(ROOT.resolve()) or not source.is_file():
+        icon_manifest.unlink(missing_ok=True)
+        return {}
+    with Image.open(source) as opened:
+        portrait = color_manage_image(ImageOps.exif_transpose(opened))
+    icons_directory.mkdir(parents=True, exist_ok=True)
+    version = hashlib.sha256(source.read_bytes() + Path(__file__).read_bytes()).hexdigest()[:10]
+    icons = {}
+    for name, (size, background) in ICON_SIZES.items():
+        output = icons_directory / f"{name.replace('_', '-')}.png"
+        round_icon(portrait, size, background).save(output, "PNG", optimize=True)
+        icons[name] = "/" + output.relative_to(ROOT).as_posix() + f"?v={version}"
+    icon_manifest.write_text(json.dumps(icons, indent=2) + "\n")
+    return icons
 
 
 def create_animation_videos(
@@ -238,7 +284,6 @@ def build_source(source: Path, key: str, output_directory: Path, ffmpeg: str, va
             "src": source_variants[0]["src"],
             "width": width,
             "height": height,
-            "landscape": width > height,
             "sources": source_variants,
             **({"placeholder": placeholder} if placeholder else {}),
         }
@@ -297,6 +342,7 @@ def create_variants() -> None:
 
     MANIFEST.parent.mkdir(parents=True, exist_ok=True)
     MANIFEST.write_text(json.dumps(variants, ensure_ascii=False, indent=2) + "\n")
+    create_site_icons()
     CACHE.write_text(json.dumps(new_cache, indent=1) + "\n")
     print(f"Responsive variants for {len(variants)} project images: {built} built, {reused} unchanged.")
 

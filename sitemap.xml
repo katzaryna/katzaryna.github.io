@@ -1,0 +1,16 @@
+---
+# Sitemap for search engines: the home page and every project page.
+layout: null
+---
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>{{ "/" | absolute_url | xml_escape }}</loc>
+  </url>
+  {%- assign project_pages = site.pages | where: "layout", "project" | sort: "path" %}
+  {%- for project in project_pages %}
+  <url>
+    <loc>{{ project.url | absolute_url | xml_escape }}</loc>
+  </url>
+  {%- endfor %}
+</urlset>

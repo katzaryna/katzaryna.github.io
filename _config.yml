@@ -1,5 +1,6 @@
-title: Katzaryna — Illustrator
-description: Illustrations and projects by Katzaryna
+title: Katzaryna — Katsiaryna Zarouskaya, Illustrator in Warsaw
+description: 'Katsiaryna Zarouskaya (Katzaryna), illustrator in Warsaw: packaging, editorial and book
+  illustration with expressive characters, warm colour and small stories.'
 url: https://katzaryna.github.io
 markdown: kramdown
 plugins: []
@@ -37,7 +38,7 @@ artist:
   portrait_alt: Katzaryna
   email: katzaryna@gmail.com
   linkedin_url: https://www.linkedin.com/in/katsiaryna-zarouskaya-9083a5105
-  instagram_url: https://www.instagram.com/kat.zaryna/
+  instagram_url: https://www.instagram.com/katzaryna/
   wordmark_image: /assets/images/wordmark-screenshot-2026-11-11-at-02-14-31-2.webp
 home_gallery:
   compact: false
@@ -206,3 +207,6 @@ text_styles:
     font: Charis SIL
   project_description:
     font: Charis SIL
+clients_tab: false
+search_console:
+  verification: Sy8zl0UuITLzST_GzsAntsXppMuPEivvF4btiIqTCeM
