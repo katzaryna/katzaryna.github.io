@@ -14,6 +14,10 @@ if (gallery) {
   closeButton.type = "button";
   closeButton.setAttribute("aria-label", "Close");
   closeButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg>';
+  // Copy-link button: while an artwork is open its address (#its-title) is in the URL.
+  const shareControls = viewer.shareControls();
+  const links = [...gallery.querySelectorAll(".lightbox-link")];
+  viewer.assignAddresses(links);
 
   document.body.append(dialog);
 
@@ -79,7 +83,7 @@ if (gallery) {
   function show(content, thumbnail) {
     dialog.classList.toggle("is-morphed", viewer.canMorph());
     viewer.morph(thumbnail, () => {
-      dialog.replaceChildren(closeButton, content);
+      dialog.replaceChildren(closeButton, ...shareControls, content);
       if (!dialog.open) dialog.showModal();
       dialog.focus();
       return content;
@@ -102,7 +106,7 @@ if (gallery) {
     if (animate) {
       show(image, thumbnail);
     } else {
-      dialog.replaceChildren(closeButton, image);
+      dialog.replaceChildren(closeButton, ...shareControls, image);
       if (!dialog.open) dialog.showModal();
       dialog.focus();
     }
@@ -146,16 +150,32 @@ if (gallery) {
     });
   }
 
-  gallery.addEventListener("click", event => {
-    const link = event.target.closest(".lightbox-link");
-    if (!link) return;
-
-    event.preventDefault();
+  function openArtwork(link) {
+    if (activeVideo) {
+      activeVideo.pause();
+      activeVideo = null;
+    }
     activeLink = link;
+    viewer.showAddress(link);
     previews.forEach(video => video.pause());
     if (link.dataset.lightboxVideo) openVideo(link);
     else openImage(link);
+  }
+
+  gallery.addEventListener("click", event => {
+    const link = event.target.closest(".lightbox-link");
+    if (!link) return;
+    event.preventDefault();
+    openArtwork(link);
   });
+
+  // A shared link (#its-title) opens that artwork, centred on the page behind it.
+  function openFromAddress() {
+    const link = viewer.linkForAddress(links);
+    if (!link || (dialog.open && link === activeLink)) return;
+    if (!dialog.open) link.scrollIntoView({ block: "center" });
+    openArtwork(link);
+  }
 
   closeButton.addEventListener("click", closeLightbox);
   dialog.addEventListener("click", event => {
@@ -174,7 +194,11 @@ if (gallery) {
       activeVideo.replaceChildren();
       activeVideo = null;
     }
+    viewer.clearAddress(activeLink);
     activeLink?.focus();
     syncPreviewPlayback();
   });
+
+  openFromAddress();
+  window.addEventListener("hashchange", openFromAddress);
 }

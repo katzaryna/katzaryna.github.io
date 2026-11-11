@@ -40,6 +40,10 @@
   <button class="info-dialog-close" type="button" aria-label="Close" data-close-dialog>
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg>
   </button>
+  <button class="share-link" type="button" aria-label="Copy link to this page" title="Copy link" data-copy-page-link>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13.5a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1.2 1.2M14 10.5a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1.2-1.2"/></svg>
+  </button>
+  <span class="share-link-status" role="status" aria-live="polite"></span>
   <article class="info-dialog-body" tabindex="-1" autofocus>
     <h2 class="info-dialog-title" id="about-dialog-title">{{ site.artist.full_name | escape }}</h2>
     {% if site.artist.description %}<p class="info-dialog-role">{{ site.artist.description | escape }}</p>{% endif %}
@@ -53,6 +57,10 @@
   <button class="info-dialog-close" type="button" aria-label="Close" data-close-dialog>
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg>
   </button>
+  <button class="share-link" type="button" aria-label="Copy link to this page" title="Copy link" data-copy-page-link>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13.5a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1.2 1.2M14 10.5a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1.2-1.2"/></svg>
+  </button>
+  <span class="share-link-status" role="status" aria-live="polite"></span>
   <article class="info-dialog-body is-wide" tabindex="-1" autofocus>
     <h2 class="info-dialog-title" id="clients-dialog-title">Clients</h2>
     <span class="info-dialog-rule" aria-hidden="true"></span>

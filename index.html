@@ -48,9 +48,12 @@
             {% assign responsive_cover = site.data.generated_image_variants[cover_key] %}
             {% assign original_cover_url = "/" | append: cover_key | relative_url %}
             {% assign cover_alt = cover.alt | default: project.title %}
+            {% assign cover_stem = home_cover.file | split: "." | first %}
+            {% assign cover_id = cover.caption | default: cover_stem | slugify %}
             {% assign cover_sizes = "(max-width: 440px) calc(100vw - 40px), (max-width: 760px) calc(100vw - 42px), " | append: cover_width_percent | append: "vw" %}
           <figure class="home-cover{% if home_cover.crop %} is-cropped{% endif %}" style="--home-cover-left: {{ cover_left }}%; --home-cover-top: {{ cover_top }}%; --home-cover-width: {{ cover_width_percent }}%; --home-cover-height: {{ cover_height_percent }}%">
             <a
+              data-artwork-id="{{ cover_id }}"
               class="gallery-link{% if site.home_gallery.single_page %} home-lightbox-link{% endif %}{% if responsive_cover.placeholder %} has-placeholder{% endif %}"
               href="{% if site.home_gallery.single_page %}{{ original_cover_url }}{% else %}{{ project.url | relative_url }}{% endif %}"
               style="--home-cover-position: {{ home_cover.crop_x | default: 50 }}% {{ home_cover.crop_y | default: 50 }}%{% if responsive_cover.placeholder %}; background-image: url({{ responsive_cover.placeholder }}){% endif %}"

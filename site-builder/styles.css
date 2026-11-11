@@ -54,10 +54,38 @@ kbd { padding: 1px 5px; border-radius: 4px; background: rgb(255 255 255 / 20%); 
 .brand-mark { display: grid; width: 32px; height: 32px; place-items: center; border-radius: 50%; background: var(--ink); color: #fff; font: 21px/1 Georgia, serif; }
 .brand-name { font: 19px/1 Georgia, serif; }
 .tabs { display: flex; gap: 2px; padding: 3px; border-radius: 9px; background: var(--canvas); }
-.tab { padding: 7px 14px; border-radius: 7px; color: var(--muted); font-weight: 550; text-decoration: none; }
+.tab { padding: 7px 14px; border-radius: 7px; color: var(--muted); font-weight: 550; text-decoration: none; white-space: nowrap; }
 .tab:hover { color: var(--ink); }
 .tab[aria-current="page"] { background: var(--surface); box-shadow: 0 1px 2px rgb(0 0 0 / 8%); color: var(--ink); }
 .publish-pill + .topbar-preview { margin-left: -16px; }
+
+/*
+  The bar never gets wider than the window: when the tabs do not fit
+  (app.js measures it), they fold into a «Меню» button with a drop-down list.
+*/
+.topbar > * { flex: 0 0 auto; }
+.tab-menu { position: relative; display: none; }
+.topbar.tabs-collapsed .tabs { display: none; }
+.topbar.tabs-collapsed .tab-menu { display: block; }
+.tab-menu-button { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border: 1px solid var(--line); border-radius: 9px; background: var(--canvas); color: var(--ink); font-weight: 600; cursor: pointer; }
+.tab-menu-button:hover { border-color: var(--line-strong); }
+.tab-menu-current { color: var(--muted); font-weight: 550; }
+.tab-menu-current:not(:empty)::before { content: "· "; }
+.tab-menu-dot { width: 7px; height: 7px; border-radius: 50%; background: #f0b44c; }
+.tab-menu-dot[hidden] { display: none; }
+.tab-menu-list { position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; display: grid; min-width: 230px; padding: 6px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); box-shadow: 0 10px 30px rgb(0 0 0 / 12%); }
+.tab-menu-list[hidden] { display: none; }
+.tab-menu-list .tab { padding: 9px 12px; }
+.tab-menu-list .tab[aria-current="page"] { background: var(--canvas); box-shadow: none; }
+
+@media (max-width: 1520px) {
+  .brand-name { display: none; }
+  .tab { padding: 7px 10px; }
+}
+
+@media (max-width: 1180px) {
+  .topbar-preview [data-label] { display: none; }
+}
 
 /* Buttons */
 .button { display: inline-flex; min-height: 36px; align-items: center; justify-content: center; gap: 6px; padding: 0 14px; border: 1px solid transparent; border-radius: var(--radius-small); font-weight: 600; white-space: nowrap; transition: background .15s, border-color .15s, color .15s; }
@@ -451,3 +479,33 @@ a.button { color: var(--ink); text-decoration: none; }
 .change-list { gap: 12px; padding-left: 16px; list-style: none; }
 .change-list > li > strong { font-weight: 650; }
 .change-list ul { display: grid; gap: 3px; margin: 4px 0 0; padding-left: 18px; color: var(--muted); }
+
+/* Site health («Состояние сайта») */
+.tab-badge { display: inline-grid; min-width: 18px; height: 18px; margin-left: 4px; padding: 0 5px; place-items: center; border-radius: 9px; background: #f0b44c; color: #3d2a05; font-size: 11px; font-weight: 700; vertical-align: 1px; }
+.tab-badge[hidden] { display: none; }
+.health-view .card-heading { align-items: flex-start; }
+.health-list { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.health-row { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; padding: 12px 0; border-top: 1px solid var(--line); }
+.health-row:first-child { border-top: 0; }
+.health-row p { margin: 3px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.health-mark { display: grid; width: 22px; height: 22px; place-items: center; border-radius: 50%; background: var(--canvas); color: var(--muted); font-size: 12px; font-weight: 700; }
+.health-row[data-level="ok"] .health-mark { background: #e3f3e8; color: #2f7d49; }
+.health-row[data-level="warning"] .health-mark { background: #fff1d6; color: #8a5a07; }
+.health-row[data-level="danger"] .health-mark { background: var(--danger-soft); color: var(--danger); }
+.health-row[data-level="info"] .health-mark { background: #e8eefb; color: #3a5ba0; }
+.health-items { display: grid; gap: 4px; margin: 8px 0 0; padding: 0; list-style: none; font-size: 13px; }
+.health-items li { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.health-actions { margin-top: 6px; }
+.speed-table { width: 100%; margin: 4px 0 10px; border-collapse: collapse; font-size: 13px; }
+.speed-table th, .speed-table td { padding: 8px 6px; border-bottom: 1px solid var(--line); text-align: left; }
+.speed-table thead th { color: var(--muted); font-size: 12px; font-weight: 600; }
+.score-chip { display: inline-grid; min-width: 36px; height: 26px; place-items: center; border-radius: 13px; background: var(--canvas); font-weight: 700; }
+.score-chip[data-tone="ok"] { background: #e3f3e8; color: #2f7d49; }
+.score-chip[data-tone="warning"] { background: #fff1d6; color: #8a5a07; }
+.score-chip[data-tone="danger"] { background: var(--danger-soft); color: var(--danger); }
+.health-links { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.health-links a, .speed-table + .field-help a { color: var(--accent); }
+.pagespeed-key { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.pagespeed-key summary { color: var(--muted); font-size: 13px; cursor: pointer; }
+.pagespeed-key .field-help { margin: 8px 0; }
+.pagespeed-key a { color: var(--accent); }

@@ -9,6 +9,10 @@
 // attachZoom()   A click or tap zooms to 2x at that point. The mouse then
 //                explores the picture, a finger drags it; another click or tap
 //                returns to 1x.
+// addresses      Each artwork has an address, #its-title (data-artwork-id),
+//                kept in the URL while it is open, so the link can be shared
+//                (the viewers' copy-link button, handled in bio.js) and opens
+//                that artwork straight away.
 window.artworkViewer = (() => {
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   const ZOOM = 2;
@@ -166,5 +170,58 @@ window.artworkViewer = (() => {
     image.addEventListener("pointercancel", endDrag);
   }
 
-  return { canMorph, morph, sizeFrom, prepareImage, attachZoom };
+  // #about and #clients belong to the header dialogs (bio.js).
+  const RESERVED = new Set(["about", "clients"]);
+
+  // Makes the ids unique on the page: a repeated title gets -2, -3…
+  function assignAddresses(links) {
+    const used = new Set(RESERVED);
+    links.forEach(link => {
+      const base = link.dataset.artworkId || "artwork";
+      let id = base;
+      for (let number = 2; used.has(id); number += 1) id = `${base}-${number}`;
+      used.add(id);
+      link.dataset.artworkId = id;
+    });
+  }
+
+  function currentAddress() {
+    try {
+      return decodeURIComponent(location.hash.slice(1));
+    } catch {
+      return "";
+    }
+  }
+
+  function linkForAddress(links) {
+    const id = currentAddress();
+    return id && !RESERVED.has(id) ? links.find(link => link.dataset.artworkId === id) : undefined;
+  }
+
+  function showAddress(link) {
+    const hash = `#${encodeURIComponent(link.dataset.artworkId)}`;
+    if (location.hash !== hash) history.replaceState(null, "", hash);
+  }
+
+  function clearAddress(link) {
+    if (link && currentAddress() === link.dataset.artworkId) {
+      history.replaceState(null, "", location.pathname + location.search);
+    }
+  }
+
+  // The copy-link button and its status line, as in the About and Clients dialogs.
+  function shareControls() {
+    const template = document.createElement("template");
+    template.innerHTML = `
+      <button class="share-link" type="button" aria-label="Copy link to this artwork" title="Copy link" data-copy-page-link>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13.5a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1.2 1.2M14 10.5a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1.2-1.2"/></svg>
+      </button>
+      <span class="share-link-status" role="status" aria-live="polite"></span>`;
+    return [...template.content.children];
+  }
+
+  return {
+    canMorph, morph, sizeFrom, prepareImage, attachZoom,
+    assignAddresses, linkForAddress, showAddress, clearAddress, shareControls,
+  };
 })();

@@ -24,7 +24,7 @@ permalink: /404.html
     {% include social-links.html %}
     <main class="page not-found">
       <h1 class="project-title">This page could not be found</h1>
-      <p class="project-description">The link may be old or mistyped. All the work is on the <a href="{{ '/' | relative_url }}">home page</a> — here are a few pieces to start with.</p>
+      <p class="project-description">The link may be old or mistyped. All the work is on the <a href="{{ '/' | relative_url }}">home page</a>.</p>
       {% assign shown_covers = site.home_gallery.covers | where_exp: "cover", "cover.parked != true" %}
       <ul class="not-found-works">
         {% for home_cover in shown_covers limit: 4 %}
@@ -35,7 +35,7 @@ permalink: /404.html
           {% assign cover_variant = site.data.generated_image_variants[cover_key] %}
           {% if project and cover %}
           <li>
-            <a href="{{ project.url | relative_url }}">
+            <a href="{{ '/' | relative_url }}">
               {% assign cover_alt = cover.alt | default: project.title | escape %}
               {% if cover_variant.sources %}
                 {% include artwork-picture.html variant=cover_variant sizes="(max-width: 760px) 50vw, 25vw" alt=cover_alt %}

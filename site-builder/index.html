@@ -21,8 +21,15 @@
         <a class="tab" href="#settings" data-view="settings">Об авторе</a>
         <a class="tab" href="#text" data-view="text">Оформление</a>
         <a class="tab" href="#advanced" data-view="advanced">Дополнительно</a>
+        <a class="tab" href="#health" data-view="health">Состояние <span id="health-badge" class="tab-badge" title="Есть что поправить" hidden></span></a>
         <a class="tab" href="#publish" data-view="publish">Публикация</a>
       </nav>
+      <div class="tab-menu">
+        <button id="tab-menu-button" class="tab-menu-button" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="tab-menu-list">
+          <span class="tab-menu-icon" aria-hidden="true">☰</span> Меню<span class="tab-menu-current"></span><span class="tab-menu-dot" hidden></span> <span aria-hidden="true">▾</span>
+        </button>
+        <nav id="tab-menu-list" class="tab-menu-list" aria-label="Разделы" hidden></nav>
+      </div>
       <a id="publish-pill" class="publish-pill" href="#publish" data-tone="muted">
         <span class="publish-pill-dot" aria-hidden="true"></span>
         <span id="publish-pill-text">Проверяю сайт…</span>
@@ -93,6 +100,12 @@
         <h1 id="text-heading">Оформление</h1>
         <p class="view-intro">Надпись в шапке, цвета сайта, а ниже — шрифт, размер и выравнивание для каждого места с текстом. Шрифты — из Google Fonts; нужные скачиваются сами, ненужные удаляются при сохранении. Размер — для широкого экрана, на маленьких текст уменьшается сам.</p>
         <div id="text-content"></div>
+      </section>
+
+      <section id="health-view" class="view settings-view health-view" aria-labelledby="health-heading" hidden>
+        <h1 id="health-heading">Состояние сайта</h1>
+        <p class="view-intro">Всё ли в порядке и что стоит поправить: содержимое на этом компьютере, последняя публикация и сам опубликованный сайт.</p>
+        <div id="health-content"></div>
       </section>
 
       <section id="publish-view" class="view settings-view publish-view" aria-labelledby="publish-heading" hidden>
