@@ -12,6 +12,13 @@
 {% else %}
   {% assign meta_image = site.artist.portrait %}
 {% endif %}
+{%- comment -%}
+  No AI training: the EU text-and-data-mining reservation (TDMRep, also in
+  /.well-known/tdmrep.json) and the noai hints some image scrapers honour.
+  Search engines may still index the site; see robots.txt.
+{%- endcomment %}
+<meta name="tdm-reservation" content="1">
+<meta name="robots" content="noai, noimageai">
 <link rel="icon" type="image/png" href="{{ site.artist.portrait | relative_url }}">
 <link rel="apple-touch-icon" href="{{ site.artist.portrait | relative_url }}">
 <meta property="og:type" content="website">

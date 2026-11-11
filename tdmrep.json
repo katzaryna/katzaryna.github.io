@@ -1,0 +1,13 @@
+---
+# TDM Reservation Protocol (W3C community report): text and data mining,
+# including AI training, is reserved for the whole site. Published at
+# /.well-known/tdmrep.json; Jekyll skips dot-folders in the source.
+permalink: /.well-known/tdmrep.json
+layout: null
+---
+[
+  {
+    "location": "/",
+    "tdm-reservation": 1
+  }
+]

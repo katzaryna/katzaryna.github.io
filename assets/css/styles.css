@@ -29,6 +29,17 @@ a { color: inherit; }
 .page { width: min(var(--page-max-width), calc(100% - var(--page-gutter))); margin-inline: auto; }
 h2, p { margin-top: 0; }
 
+/*
+  Line breaking: headings and short captions get lines of even length; longer
+  text avoids a lone last word. Long words hyphenate on phones (lang="en").
+*/
+h1, h2, h3, figcaption, .gallery-title, .info-dialog-role, .cover-viewer-image-title, .client-name { text-wrap: balance; }
+p, li, .project-description { text-wrap: pretty; }
+
+@media (max-width: 440px) {
+  .info-dialog-text, .cover-viewer-description, .project-description { hyphens: auto; }
+}
+
 .site-header {
   --wordmark-height: calc(var(--portrait-size) * .92);
   position: relative;
@@ -67,8 +78,15 @@ h2, p { margin-top: 0; }
   align-items: center;
   column-gap: 0;
 }
-.portrait-link { grid-column: 2; display: block; }
+.portrait-link { position: relative; z-index: 1; grid-column: 2; display: block; }
 .portrait { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; filter: grayscale(1); }
+
+/*
+  The portrait is always the centre of the header and of the page: its column
+  has a fixed width and the side columns shrink first. The wordmark and the
+  profession sit next to it and overflow outwards, away from it, when space
+  runs out; the portrait is drawn above them.
+*/
 .wordmark {
   grid-column: 1;
   justify-self: end;
@@ -80,7 +98,7 @@ h2, p { margin-top: 0; }
   white-space: nowrap;
 }
 .wordmark.has-image { line-height: 0; }
-.wordmark-image { display: block; width: auto; max-width: 100%; height: var(--wordmark-height); }
+.wordmark-image { display: block; width: auto; max-width: 100%; height: var(--wordmark-height); object-fit: contain; object-position: right center; }
 .site-header .artist-description {
   grid-column: 3;
   justify-self: start;
@@ -421,6 +439,7 @@ html.gallery-intro-supported .gallery.is-intro-fit { padding-bottom: 0; }
   place-items: center;
 }
 .lightbox::backdrop { background: transparent; }
+.lightbox { overflow: hidden; }
 .lightbox img, .lightbox video {
   display: block;
   width: auto;
@@ -429,6 +448,55 @@ html.gallery-intro-supported .gallery.is-intro-fit { padding-bottom: 0; }
   max-height: calc(100dvh - 54px);
   object-fit: contain;
 }
+
+/*
+  Artwork viewers (artwork-viewer.js). With its pixel size known, the large
+  image is fitted before it loads (never beyond its own width), so it can be
+  shown at once over the thumbnail and the opening animation lands on the
+  right box.
+*/
+.lightbox .has-artwork-size {
+  width: min(var(--artwork-width), 100vw - 54px, (100dvh - 54px) * var(--artwork-ratio));
+  height: auto;
+  max-width: none;
+  max-height: none;
+  aspect-ratio: var(--artwork-ratio);
+}
+.lightbox img, .cover-viewer-image img { background-position: center; background-size: 100% 100%; background-repeat: no-repeat; }
+
+/* Click to zoom 2x; the zoom centre follows the mouse or a dragging finger. */
+.is-zoomable {
+  cursor: zoom-in;
+  transition: transform .35s cubic-bezier(.2, .75, .25, 1);
+}
+.is-zoomable.is-zoomed { cursor: zoom-out; transform: scale(2); touch-action: none; }
+
+/* The thumbnail flies into the viewer (View Transitions API). */
+::view-transition-group(artwork) {
+  animation-duration: .45s;
+  animation-timing-function: cubic-bezier(.2, .75, .25, 1);
+}
+::view-transition-old(artwork), ::view-transition-new(artwork) { height: 100%; object-fit: contain; }
+.cover-viewer.is-morphed[open], .lightbox.is-morphed[open] { animation: none; }
+
+/* Pages cross-fade into each other in supporting browsers. */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition { navigation: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .is-zoomable { transition: none; }
+}
+
+/*
+  Blur-up loading (placeholders.js): the link shows a tiny generated preview,
+  fitted like the image itself, until the image fades in over it.
+*/
+.has-placeholder { background-position: center; background-size: contain; background-repeat: no-repeat; }
+.home-gallery .gallery-link.has-placeholder { background-position: var(--home-cover-position, 50% 50%); }
+.home-gallery .home-cover.is-cropped .gallery-link.has-placeholder { background-size: cover; }
+.gallery-link > img, .lightbox-link > img { transition: opacity .4s ease; }
+.gallery-link > img.is-loading, .lightbox-link > img.is-loading { opacity: 0; }
 .cover-viewer {
   width: 100vw;
   max-width: none;
@@ -448,8 +516,25 @@ html.gallery-intro-supported .gallery.is-intro-fit { padding-bottom: 0; }
 }
 .cover-viewer::backdrop { background: var(--viewer-background); }
 .cover-viewer .cover-viewer-close { background: var(--viewer-background); }
-.cover-viewer-image { display: grid; min-width: 0; min-height: 0; place-items: center; padding: 76px 24px 40px 48px; }
+.cover-viewer-image {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  place-items: center;
+  padding: 76px 24px 40px 48px;
+  overflow: hidden;
+  container-type: size;
+}
 .cover-viewer-image img { display: block; max-width: 100%; max-height: calc(100dvh - 116px); object-fit: contain; }
+
+/* Fitted to its column (a container query), see the artwork viewers below. */
+.cover-viewer-image img.has-artwork-size {
+  width: min(var(--artwork-width), 100cqw, 100cqh * var(--artwork-ratio));
+  height: auto;
+  max-width: none;
+  max-height: none;
+  aspect-ratio: var(--artwork-ratio);
+}
 .cover-viewer-text { align-self: center; max-height: 100dvh; padding: 76px 64px 64px 32px; overflow-y: auto; user-select: text; }
 .cover-viewer-text:focus { outline: none; }
 .cover-viewer-project { margin: 0; font: 400 30px/1.2 "Sedan SC", serif; letter-spacing: .02em; }
@@ -534,16 +619,16 @@ html.gallery-intro-supported .gallery.is-intro-fit { padding-bottom: 0; }
 }
 
 @media (max-width: 760px) {
-  /* Brand moves to the left, clear of the fixed contact icons on the right. */
-  .site-header { grid-template-columns: auto var(--portrait-size) minmax(0, 1fr); }
-  .wordmark { justify-self: start; margin: 0 12px 0 0; }
+  /* The portrait stays centred; the profession gives way to the fixed contact icons. */
+  .wordmark { margin-right: 12px; }
   .site-header .artist-description { display: none; }
   .header-tabs { gap: 20px; }
   .header-tab { font-size: 16px; }
   .client-list { gap: 32px 20px; }
   .cover-viewer[open] { grid-template-columns: minmax(0, 1fr); grid-template-rows: max-content max-content; align-content: start; overflow-y: auto; }
-  .cover-viewer-image { min-height: auto; padding: 70px 16px 8px; }
+  .cover-viewer-image { min-height: auto; padding: 70px 16px 8px; container-type: inline-size; }
   .cover-viewer-image img { max-height: 68dvh; }
+  .cover-viewer-image img.has-artwork-size { width: min(var(--artwork-width), 100cqw, 68dvh * var(--artwork-ratio)); }
   .cover-viewer-text { align-self: start; max-height: none; padding: 16px 24px 48px; overflow: visible; }
   .cover-viewer-project { font-size: 24px; }
   .client { width: calc(50% - 10px); }

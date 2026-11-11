@@ -50,9 +50,9 @@
             {% assign cover_sizes = "(max-width: 760px) 100vw, " | append: cover_width_percent | append: "vw" %}
           <figure class="home-cover{% if home_cover.crop %} is-cropped{% endif %}" style="--home-cover-left: {{ cover_left }}%; --home-cover-top: {{ cover_top }}%; --home-cover-width: {{ cover_width_percent }}%; --home-cover-height: {{ cover_height_percent }}%">
             <a
-              class="gallery-link{% if site.home_gallery.single_page %} home-lightbox-link{% endif %}"
+              class="gallery-link{% if site.home_gallery.single_page %} home-lightbox-link{% endif %}{% if responsive_cover.placeholder %} has-placeholder{% endif %}"
               href="{% if site.home_gallery.single_page %}{{ original_cover_url }}{% else %}{{ project.url | relative_url }}{% endif %}"
-              style="--home-cover-position: {{ home_cover.crop_x | default: 50 }}% {{ home_cover.crop_y | default: 50 }}%"
+              style="--home-cover-position: {{ home_cover.crop_x | default: 50 }}% {{ home_cover.crop_y | default: 50 }}%{% if responsive_cover.placeholder %}; background-image: url({{ responsive_cover.placeholder }}){% endif %}"
               {% if site.home_gallery.single_page and responsive_cover.sources %}data-lightbox-srcset="{% include lightbox-srcset.html variant=responsive_cover original=original_cover_url %}"{% endif %}
               {% if site.home_gallery.single_page %}data-project-title="{{ project.title | escape }}" data-image-title="{{ cover.caption | escape }}" data-image-description="{{ cover.description | escape }}" aria-label="Enlarge {{ project.title | escape }} cover"{% else %}aria-label="View {{ project.title | escape }} project"{% endif %}
             >
@@ -73,7 +73,11 @@
 
     {% include consent.html %}
     {% if site.home_gallery.compact %}<script src="{{ '/assets/js/gallery-intro.js' | relative_url }}"></script>{% endif %}
-    {% if site.home_gallery.single_page %}<script src="{{ '/assets/js/home-lightbox.js' | relative_url }}"></script>{% endif %}
+    <script src="{{ '/assets/js/placeholders.js' | relative_url }}"></script>
+    {% if site.home_gallery.single_page %}
+      <script src="{{ '/assets/js/artwork-viewer.js' | relative_url }}"></script>
+      <script src="{{ '/assets/js/home-lightbox.js' | relative_url }}"></script>
+    {% endif %}
     <script src="{{ '/assets/js/analytics.js' | relative_url }}" data-measurement-id="{{ site.analytics.measurement_id | escape }}"></script>
     <script src="{{ '/assets/js/bio.js' | relative_url }}"></script>
   </body>

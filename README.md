@@ -25,6 +25,9 @@ gallery are rendered from Markdown files under `projects/`.
   settings.
 - `scripts/generate_image_variants.py` — generates ignored WebP/video
   derivatives and the Jekyll data manifest.
+- `scripts/embed_image_metadata.py` — writes the artist's rights metadata
+  into the published images after the build.
+- `robots.txt` and `tdmrep.json` — the AI-training opt-out for crawlers.
 - `scripts/check_project_covers.py` and `scripts/validate_site.py` — checks
   project cover metadata and the generated site's HTML/local URLs.
 - `.github/workflows/jekyll-gh-pages.yml` — lint, test, build, validate, and
@@ -56,6 +59,24 @@ the top right, as in About and Clients; Escape or a click beside the image
 also closes it. On phones the
 text follows the image. Project pages remain available at their direct URLs. When disabled, covers link to their project
 pages as usual. Both settings are in `_config.yml`.
+
+Both artwork viewers (this one and the project-page lightbox) share
+`assets/js/artwork-viewer.js`:
+
+- **Opening and closing** use the View Transitions API: the clicked thumbnail
+  flies into the large image and back. Browsers without it, and visitors who
+  ask for reduced motion, get the plain open and close. Pages also cross-fade
+  into each other (`@view-transition` in `styles.css`) in browsers that
+  support it.
+- **The large image** is sized from the artwork's pixel dimensions before it
+  loads (never wider than the file itself), and the already-loaded thumbnail
+  shows underneath until the original arrives. In the cover viewer the image
+  fits its column with container query units (`cqw`/`cqh`).
+- **Zoom:** a click or tap on the image zooms it 2x at that point and loads a
+  sharper source. The mouse then explores the picture, a finger drags it;
+  another click or tap returns to 1x. Because a click on the image zooms, the
+  project lightbox has a close button too (Escape and a click on the shade
+  also close it; a click on an animation still closes it).
 
 The home gallery uses a free-placement canvas. The white artboard with a grid
 is the page itself (12 columns wide); the dashed orange line marks what a
@@ -188,8 +209,10 @@ the wordmark is right-aligned to its left and the profession (Sedan SC) to its
 right. The wordmark is the image in `artist.wordmark_image` (uploaded in the
 builder, kept transparent) or, without one, `artist.name` set in Whisper. The
 **About** and **Clients** tabs sit at the bottom left. Below 1100px the tabs
-move under the brand; below 760px the profession is hidden and the brand moves
-left, clear of the fixed contact icons. The portrait and the wordmark link to
+move under the brand; below 760px the profession is hidden, clear of the fixed
+contact icons. The portrait is always the centre of the header and the page:
+its column never shrinks, the wordmark and profession overflow away from it
+when space runs out, and it is drawn above them. The portrait and the wordmark link to
 the home page. The header portrait is shown in black and white
 (`filter: grayscale(1)`); the file itself keeps its colours, which the favicon
 and link previews use.
@@ -227,6 +250,10 @@ values that differ from the defaults. Place ids must not be renamed: saved
 choices refer to them. The builder tab is **Оформление** (colours first, then
 text). Settings are named `font_size`, not `size`, because
 Liquid reads `hash.size` as the number of keys.
+
+Line breaking is set once in `styles.css`: headings and short captions use
+`text-wrap: balance` (lines of even length), paragraphs `text-wrap: pretty`
+(no lone last word), and long texts hyphenate on phones.
 
 Fonts are self-hosted, never loaded from Google by visitors. `scripts/fonts.py`
 downloads a family's regular face (latin and latin-ext WOFF2) into
@@ -270,10 +297,43 @@ viewport, pauses them when they leave it, and does not autoplay when reduced
 motion is requested. If video playback is unavailable, the original GIF is
 used. Animated WebP files and other formats are served as-is.
 
+While artwork loads, a blurred preview stands in for it. The generator makes a
+16-pixel WebP of every opaque image (`placeholder` in the manifest, about 200
+bytes, converted to sRGB), the templates set it inline as the background of
+the artwork's link, and `assets/js/placeholders.js` fades the image in over it
+and then drops it. Transparent images get no preview, as it would show
+through them.
+
 After adding, replacing, or removing artwork, run the image generator (or
 `make build`) to refresh derivatives and the manifest. The generator removes
 stale derivatives. Do not remove or rename an artwork file still referenced
 by a project's `images` list.
+
+## No AI training
+
+The site asks AI companies not to train on the artwork, in the forms they
+read, while search engines and AI assistants that link to it stay welcome:
+
+- `robots.txt` sends `Content-Signal: search=yes, ai-input=yes, ai-train=no`
+  to everyone and blocks crawlers and tokens used only to collect training
+  data (GPTBot, ClaudeBot, CCBot, Google-Extended, Applebot-Extended,
+  meta-externalagent and others). Search crawlers are not affected.
+- `tdmrep.json` is published at `/.well-known/tdmrep.json` (TDM Reservation
+  Protocol), and every page has `<meta name="tdm-reservation" content="1">`
+  plus the `noai, noimageai` robots hints (`_includes/head-meta.html`). In the
+  EU this is the machine-readable reservation of Article 4(3) of Directive
+  2019/790.
+- After the build, `scripts/embed_image_metadata.py` writes IPTC/XMP metadata
+  into every published project image and derivative in `_site`: creator and
+  credit (`artist.full_name`), copyright notice, web statement and licensor
+  URL (`url`), usage terms, and IPTC Data Mining set to *prohibited except for
+  search engine indexing*. Pixels are copied byte for byte and earlier XMP is
+  replaced; files in the repository are not changed. GIFs and videos are left
+  as they are.
+
+These are signals, not locks: well-behaved crawlers follow them, others may
+not. There is no C2PA (Content Credentials) signature; it would need a signing
+certificate.
 
 ## Artist settings and behavior
 
@@ -424,8 +484,9 @@ make build-fast # Jekyll build only; does not refresh image derivatives
 make build      # tests, image generation, Jekyll build, generated-site validation
 ```
 
-`make build` validates every generated HTML page for missing image alt text
-and broken local URLs. `make check` runs the configured linters for Python,
+`make build` embeds the rights metadata in the built images and validates
+every generated HTML page for missing image alt text and broken local URLs.
+`make check` runs the configured linters for Python,
 JavaScript, CSS, Liquid/HTML, YAML, Markdown, TOML formatting, and image file
 integrity. Tests live under `tests/`.
 
