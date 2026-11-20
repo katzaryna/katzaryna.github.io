@@ -1881,20 +1881,25 @@
       toast("Сюда нельзя: обложки перекрылись бы или вышли за край страницы.", true);
     }
     if (drag.type === "resize" && committed && drag.valid && drag.proposal) {
-      Object.assign(coverById(drag.id), roundLayout(drag.proposal));
+      for (const [id, layout] of drag.proposal) Object.assign(coverById(id), roundLayout(layout));
     }
     if (drag.before) recordHomeGalleryChange(drag.before);
     renderHomeGalleryEditor();
   }
 
+  /** Resizing a cover scales the whole selection with it, anchored at the selection's top-left corner. */
   function startResize(event, id) {
     const cover = coverById(id);
+    const group = homeSelection.has(id) ? selectedCovers() : [cover];
+    const box = bounds(group);
     homeDrag = {
       type: "resize",
       id,
       pointerId: event.pointerId,
       start: stagePoint(event),
       layout: { x: cover.x, y: cover.y, width: cover.width, height: cover.height },
+      starts: new Map(group.map(item => [homeCoverId(item), { x: item.x, y: item.y, width: item.width, height: item.height }])),
+      origin: { x: box.left, y: box.top },
       before: homeSnapshot(),
       valid: true,
       proposal: null,
@@ -1914,7 +1919,7 @@
       width = Math.max(GRID_STEP, Math.round((start.x + width) / GRID_STEP) * GRID_STEP - start.x);
       height = Math.max(GRID_STEP, Math.round((start.y + height) / GRID_STEP) * GRID_STEP - start.y);
     } else if (snapEnabled(event)) {
-      const targets = snapTargets(new Set([drag.id]));
+      const targets = snapTargets(new Set(drag.starts.keys()));
       const snapX = nearest([start.x + width], targets.xs);
       const snapY = nearest([start.y + height], targets.ys);
       if (snapX) { width += snapX.delta; guides.xs.push(snapX.target); }
@@ -1925,12 +1930,29 @@
       height = Math.max(0.5, (width - gap) / ratio + gap);
     }
     showGuides(guides);
-    const proposal = { ...start, width, height };
-    const next = homeGalleryCovers.map(item => (item === cover ? { ...item, ...proposal } : item));
+    const scaleX = width / start.width;
+    const scaleY = height / start.height;
+    const proposal = new Map();
+    for (const [id, item] of drag.starts) {
+      proposal.set(id, {
+        x: drag.origin.x + (item.x - drag.origin.x) * scaleX,
+        y: drag.origin.y + (item.y - drag.origin.y) * scaleY,
+        width: Math.max(0.5, item.width * scaleX),
+        height: Math.max(0.5, item.height * scaleY),
+      });
+    }
+    const next = homeGalleryCovers.map(item => {
+      const layout = proposal.get(homeCoverId(item));
+      return layout ? { ...item, ...layout } : item;
+    });
     drag.valid = !layoutProblem(next);
     drag.proposal = proposal;
-    positionCoverCard(cover, proposal);
-    cardFor(cover)?.classList.toggle("is-invalid", !drag.valid);
+    for (const item of homeGalleryCovers) {
+      const layout = proposal.get(homeCoverId(item));
+      if (!layout) continue;
+      positionCoverCard(item, layout);
+      cardFor(item)?.classList.toggle("is-invalid", !drag.valid);
+    }
     autoScroll(event);
   }
 
@@ -2019,7 +2041,7 @@
     }
     const id = card.dataset.coverId;
     if (event.target.closest("[data-resize-handle]")) {
-      homeSelection = new Set([id]);
+      if (!homeSelection.has(id)) homeSelection = new Set([id]);
       selectedHomeCover = id;
       startResize(event, id);
     } else {
@@ -2081,6 +2103,20 @@
     if (homeMode === "phone") setPhoneZoom(phoneZoom * Math.exp(-event.deltaY * 0.01));
     else setHomeZoom(homeUnit * Math.exp(-event.deltaY * 0.01), { x: event.clientX, y: event.clientY });
   }, { passive: false });
+
+  // --- Canvas backdrop (builder only: lets the covers be judged on white, grey or black) ---
+  const BACKDROP_KEY = "katzaryna-builder-backdrop";
+  function setBackdrop(name) {
+    const backdrop = ["white", "grey", "black"].includes(name) ? name : "white";
+    homeGalleryBoard.dataset.backdrop = backdrop;
+    homeGalleryBoard.querySelectorAll("[data-backdrop]").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.backdrop === backdrop)));
+    try { localStorage.setItem(BACKDROP_KEY, backdrop); } catch { /* private mode: keep it for this session only */ }
+  }
+  homeGalleryBoard.querySelector(".backdrop-switch").addEventListener("click", event => {
+    const button = event.target.closest("[data-backdrop]");
+    if (button) setBackdrop(button.dataset.backdrop);
+  });
+  try { setBackdrop(localStorage.getItem(BACKDROP_KEY)); } catch { setBackdrop("white"); }
 
   // --- Keyboard ---
   /** How far the selection can move in a direction, up to `step`: it stops at neighbours and page edges. */
@@ -2357,7 +2393,7 @@
       const iconButton = (name, title, disabled = false) => `<button class="icon-button" type="button" data-home-command="${name}" title="${title}" aria-label="${title}" ${disabled ? "disabled" : ""}><svg viewBox="0 0 20 20" aria-hidden="true">${ALIGN_ICONS[name]}</svg></button>`;
       selectionSection = `
         <h2>Выделено ${plural(covers.length, "обложка", "обложки", "обложек")}</h2>
-        <p class="field-help">Перетаскивайте их вместе или двигайте стрелками.</p>
+        <p class="field-help">Перетаскивайте их вместе или двигайте стрелками. Угол любой из них меняет размер всех сразу (<kbd>Shift</kbd> — с пропорциями).</p>
         <div class="field"><span>Выровнять</span>
           <div class="align-bar">
             ${iconButton("left", "По левому краю")}${iconButton("centerX", "По центру по горизонтали")}${iconButton("right", "По правому краю")}

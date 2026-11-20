@@ -94,14 +94,17 @@ The grey pasteboard around it holds parked covers: they are saved with
 Click a cover to select it, Shift+click or drag a frame to select several, and
 drag to move the selection. Hold a cover over another for a moment to swap
 their positions and sizes. Drag the corner handle to resize (Shift keeps the
-image proportions). Covers snap to neighbouring edges; hold Alt to place them
+image proportions); with several covers selected, the handle of any of them
+scales the whole selection together. Covers snap to neighbouring edges; hold Alt to place them
 freely, or turn on snapping to a quarter-column grid. Covers on the page cannot
 overlap: an invalid drop is shown in red and undone. With several covers
 selected, the side panel aligns edges, spaces them evenly, gives them the same
 height, or fits them into one full-width row with equal image heights;
 "Плитка по пропорциям" removes empty bands around an image. Covers below a
 changed row move down when they would overlap. **Уплотнить** pulls every cover
-up to close vertical gaps.
+up to close vertical gaps. The round swatches in the toolbar switch the
+canvas background between white, grey and black, to judge the covers against
+each one; this only affects the builder, never the site.
 
 Undo/redo keeps 50 steps. Space+drag pans, ⌘/Ctrl+wheel or a trackpad pinch
 zooms, arrows move the selection by one screen pixel (Shift: ten), Delete
