@@ -285,6 +285,17 @@ main { padding: 20px; }
     linear-gradient(to bottom, rgb(63 111 150 / 6%) 1px, transparent 1px);
   background-size: var(--u) var(--u), var(--u) var(--u), calc(var(--u) / 4) calc(var(--u) / 4), calc(var(--u) / 4) calc(var(--u) / 4);
 }
+.backdrop-switch button { display: grid; padding: 5px 7px; place-items: center; }
+.swatch { display: block; width: 14px; height: 14px; border: 1px solid rgb(0 0 0 / 25%); border-radius: 50%; }
+.swatch.is-white { background: #fff; }
+.swatch.is-grey { background: #8a8a8a; }
+.swatch.is-black { background: #111; }
+.home-board[data-backdrop="grey"] .home-artboard, .home-board[data-backdrop="grey"] .phone-frame { background-color: #8a8a8a; }
+.home-board[data-backdrop="black"] .home-artboard, .home-board[data-backdrop="black"] .phone-frame { background-color: #111; }
+.home-board[data-backdrop="grey"] .phone-hint { color: #1f1f1f; }
+.home-board[data-backdrop="black"] .phone-hint, .home-board[data-backdrop="black"] .home-canvas-empty { color: #b5b5b5; }
+.home-board[data-backdrop="black"] .home-canvas-empty strong { color: #f2f2f2; }
+.home-board[data-backdrop="black"] .home-artboard { box-shadow: 0 0 0 1px rgb(255 255 255 / 12%), 0 6px 24px rgb(0 0 0 / 30%); }
 .home-artboard::before { position: absolute; top: 0; bottom: 0; left: 50%; border-left: 1px dashed rgb(63 111 150 / 22%); content: ""; }
 .home-fold { position: absolute; z-index: 4; top: calc(var(--fold) * var(--u)); right: 0; left: 0; border-top: 2px dashed #d4793c; pointer-events: none; }
 .home-fold span { position: absolute; top: -10px; left: calc(100% + 6px); padding: 1px 6px; border-radius: 4px; background: #d4793c; color: #fff; font-size: 11px; white-space: nowrap; }

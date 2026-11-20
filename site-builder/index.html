@@ -54,6 +54,12 @@
             <button type="button" class="text-button" data-gallery-action="compact" title="Подтянуть все обложки вверх и убрать пустоты">Уплотнить</button>
             <button type="button" class="text-button phone-sort-button" data-phone-sort title="Расставить обложки на телефоне сверху вниз, слева направо — как они стоят на холсте">Упорядочить как на холсте</button>
             <span class="toolbar-spacer"></span>
+            <div class="segmented backdrop-switch" role="group" aria-label="Фон холста" title="Фон холста — только в конструкторе, на сайт не влияет">
+              <button type="button" data-backdrop="white" aria-pressed="true" aria-label="Белый фон"><span class="swatch is-white"></span></button>
+              <button type="button" data-backdrop="grey" aria-pressed="false" aria-label="Серый фон"><span class="swatch is-grey"></span></button>
+              <button type="button" data-backdrop="black" aria-pressed="false" aria-label="Чёрный фон"><span class="swatch is-black"></span></button>
+            </div>
+            <span class="toolbar-divider" aria-hidden="true"></span>
             <button type="button" class="icon-button" data-gallery-action="zoom-out" aria-label="Уменьшить" title="Уменьшить (⌘ + колесо)">−</button>
             <button type="button" class="text-button zoom-level" data-gallery-action="zoom-real" title="100% — как на экране 1440 px"><span id="home-gallery-zoom-level">100%</span></button>
             <button type="button" class="icon-button" data-gallery-action="zoom-in" aria-label="Увеличить" title="Увеличить (⌘ + колесо)">+</button>
