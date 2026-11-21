@@ -46,57 +46,56 @@ home_gallery:
   single_page: true
   covers:
     - project: book-covers
-      file: 03.jpg
+      file: img-0543.webp
       crop: false
       crop_x: 50
       crop_y: 50
-      x: 0
-      y: 0
-      width: 2.5825
-      height: 3.7832
+      x: 6.234
+      y: 8.942
+      width: 3.0043
+      height: 4.4204
     - project: book-covers
-      file: 02.jpg
+      file: img-0505-2.webp
       crop: false
       crop_x: 50
       crop_y: 50
-      x: 2.5825
-      y: 0
-      width: 2.5826
-      height: 3.7832
+      x: 0.0911
+      y: 8.942
+      width: 3.0
+      height: 4.4139
     - project: book-covers
-      file: 01.jpg
+      file: img-0544.webp
       crop: false
       crop_x: 50
       crop_y: 63.44
-      x: 5.1651
-      y: 0
-      width: 2.5825
-      height: 3.7832
+      x: 3.1605
+      y: 8.942
+      width: 3.0041
+      height: 4.4139
     - project: westin-holiday
-      file: cover.webp
-      x: 9.1801
-      y: 3.7832
-      width: 2.8199
-      height: 3.4819
+      file: img-0569-2.webp
+      x: 0
+      y: 0
+      width: 3.7956
+      height: 4.7062
       crop: false
       crop_x: 50
       crop_y: 50
-      parked: false
     - project: kneipp-bath-oil
       file: flower.webp
       x: 0
-      y: 7.2651
+      y: 4.7301
       width: 3
       height: 4.2119
       crop: false
       crop_x: 50
       crop_y: 50
     - project: relax-stress
-      file: cover.webp
-      x: 0
-      y: 3.7832
-      width: 4.59
-      height: 3.4819
+      file: img-0511-3.webp
+      x: 4.4449
+      y: 15.7757
+      width: 7.1146
+      height: 5.4672
       crop: false
       crop_x: 50
       crop_y: 50
@@ -105,23 +104,23 @@ home_gallery:
       crop: false
       crop_x: 50
       crop_y: 50
-      x: 0
-      y: 11.477
+      x: 6.878
+      y: 21.4501
       width: 5.122
       height: 7.1601
     - project: book-covers
-      file: 04.jpg
+      file: img-0549.webp
       crop: false
       crop_x: 50
       crop_y: 50
-      x: 7.7476
-      y: 0
-      width: 4.2524
-      height: 3.7832
+      x: 9.2999
+      y: 12.2105
+      width: 2.7001
+      height: 3.3288
     - project: kneipp-bath-oil
       file: lavenda-large.webp
       x: 6
-      y: 7.2651
+      y: 4.7301
       width: 3
       height: 4.2119
       crop: false
@@ -130,7 +129,7 @@ home_gallery:
     - project: kneipp-bath-oil
       file: lake-large.webp
       x: 3
-      y: 7.2651
+      y: 4.7301
       width: 3
       height: 4.2119
       crop: false
@@ -139,25 +138,25 @@ home_gallery:
     - project: kneipp-bath-oil
       file: wood-large.webp
       x: 9
-      y: 7.2651
+      y: 4.7301
       width: 3
       height: 4.2119
       crop: false
       crop_x: 50
       crop_y: 50
     - project: relax-stress
-      file: book-prison.webp
-      x: 4.59
-      y: 3.7832
-      width: 4.5901
-      height: 3.4819
-      crop: false
-      crop_x: 50
-      crop_y: 50
+      file: img-0555.webp
+      x: 0.4421
+      y: 15.5393
+      width: 3.6518
+      height: 3.0264
+      crop: true
+      crop_x: 75.35
+      crop_y: 100
     - project: museum-invitation-card
       file: img-3035-copy-large.webp
-      x: 5.122
-      y: 11.477
+      x: 3.439
+      y: 21.4501
       width: 3.439
       height: 7.1601
       crop: false
@@ -165,10 +164,82 @@ home_gallery:
       crop_y: 50
     - project: museum-invitation-card
       file: 11.webp
-      x: 8.561
-      y: 11.477
+      x: 0
+      y: 21.4501
       width: 3.439
       height: 7.1601
+      crop: false
+      crop_x: 50
+      crop_y: 50
+    - project: book-covers
+      file: img-0551.webp
+      x: 9.2999
+      y: 9.1056
+      width: 2.5309
+      height: 3.0785
+      crop: false
+      crop_x: 50
+      crop_y: 50
+    - project: book-covers
+      file: img-0550.webp
+      x: 0.0911
+      y: 13.3624
+      width: 2.1769
+      height: 2.1769
+      crop: false
+      crop_x: 50
+      crop_y: 50
+    - project: book-covers
+      file: img-0548.webp
+      x: 2.268
+      y: 13.3624
+      width: 2.1769
+      height: 2.1769
+      crop: false
+      crop_x: 50
+      crop_y: 50
+    - project: book-covers
+      file: img-0547.webp
+      x: 4.4449
+      y: 13.3624
+      width: 2.6781
+      height: 2.1769
+      crop: false
+      crop_x: 50
+      crop_y: 50
+    - project: book-covers
+      file: img-0546.webp
+      x: 7.123
+      y: 13.3624
+      width: 2.1769
+      height: 2.1769
+      crop: false
+      crop_x: 50
+      crop_y: 50
+    - project: relax-stress
+      file: img-0553.webp
+      x: 0.4421
+      y: 18.5657
+      width: 3.7885
+      height: 2.8844
+      crop: true
+      crop_x: 70.85
+      crop_y: 50
+    - project: westin-holiday
+      file: img-0568.webp
+      x: 4.2306
+      y: 0
+      width: 3.4622
+      height: 4.7301
+      crop: true
+      crop_x: 50
+      crop_y: 50
+    - project: westin-holiday
+      file: img-0562.webp
+      x: 7.9399
+      y: 0.5202
+      width: 3.7961
+      height: 3.7961
       crop: false
       crop_x: 50
       crop_y: 50
